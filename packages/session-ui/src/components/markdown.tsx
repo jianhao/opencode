@@ -1,4 +1,6 @@
 import { useI18n } from "@opencode-ai/ui/context/i18n"
+import { useDialog } from "@opencode-ai/ui/context/dialog"
+import { ImagePreview } from "@opencode-ai/ui/image-preview"
 import morphdom from "morphdom"
 import { checksum } from "@opencode-ai/core/util/encode"
 import {
@@ -361,6 +363,28 @@ function pendingProjection(text: string): Projection {
   return { text, blocks: text ? [{ raw: text, src: text, mode: "live" }] : [] }
 }
 
+/**
+ * Open Markdown images in the in-app preview dialog.
+ *
+ * User-message attachments already get a click handler (message-part.tsx), but
+ * images rendered from Markdown are plain <img> elements with none, so two
+ * visually identical images behave differently.
+ */
+function setupImagePreview(root: HTMLDivElement, open: (src: string, alt: string) => void) {
+  const handleClick = (event: MouseEvent) => {
+    if (event.defaultPrevented) return
+    const target = event.target
+    if (!(target instanceof HTMLImageElement)) return
+    if (!target.src) return
+    event.preventDefault()
+    event.stopPropagation()
+    open(target.src, target.alt)
+  }
+
+  root.addEventListener("click", handleClick)
+  return () => root.removeEventListener("click", handleClick)
+}
+
 export function Markdown(
   props: ComponentProps<"div"> & {
     text: string
@@ -372,6 +396,7 @@ export function Markdown(
 ) {
   const [local, others] = splitProps(props, ["text", "cacheKey", "streaming", "class", "classList"])
   const i18n = useI18n()
+  const dialog = useDialog()
   const [root, setRoot] = createSignal<HTMLDivElement>()
   const owner = createUniqueId()
   const activeCodeKeys = new Set<string>()
@@ -491,6 +516,7 @@ export function Markdown(
   )
 
   let copyCleanup: (() => void) | undefined
+  let imageCleanup: (() => void) | undefined
 
   createEffect(() => {
     const container = root()
@@ -530,10 +556,15 @@ export function Markdown(
         copy: i18n.t("ui.message.copy"),
         copied: i18n.t("ui.message.copied"),
       }))
+    if (!imageCleanup)
+      imageCleanup = setupImagePreview(container, (src, alt) => {
+        dialog?.show(() => <ImagePreview src={src} alt={alt} />)
+      })
   })
 
   onCleanup(() => {
     if (copyCleanup) copyCleanup()
+    if (imageCleanup) imageCleanup()
     disposeMarkdownProjection(owner)
     activeCodeKeys.forEach(disposeCode)
     completedCode.clear()
