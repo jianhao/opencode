@@ -12,6 +12,7 @@ import { decode64 } from "@/utils/base64"
 import { EventSessionError } from "@opencode-ai/sdk/v2"
 import { Persist, persisted } from "@/utils/persist"
 import { playSoundById } from "@/utils/sound"
+import { showToast } from "@/utils/toast"
 import { useGlobal } from "./global"
 import { ServerConnection, useServer } from "./server"
 import { type DraftTab, useTabs } from "./tabs"
@@ -396,8 +397,79 @@ function createServerNotificationState(input: {
     })
   }
 
+  // "pkg@version" / "@scope/pkg@version" -> "pkg" / "@scope/pkg"
+  const pluginName = (spec: string) => {
+    const at = spec.lastIndexOf("@")
+    return at > 0 ? spec.slice(0, at) : spec
+  }
+
+  const handlePluginUpdated = (event: { properties: { spec: string; to: string } }) => {
+    showToast({
+      variant: "success",
+      title: language.t("toast.plugin.updated.title"),
+      description: language.t("toast.plugin.updated.description", {
+        plugin: pluginName(event.properties.spec),
+        version: event.properties.to,
+      }),
+    })
+  }
+
+  const handlePluginUpdateAvailable = (directory: string, event: { properties: { spec: string; latest: string } }) => {
+    const spec = event.properties.spec
+    showToast({
+      title: language.t("toast.plugin.updateAvailable.title"),
+      description: language.t("toast.plugin.updateAvailable.description", {
+        plugin: pluginName(spec),
+        version: event.properties.latest,
+      }),
+      actions: [
+        {
+          label: language.t("toast.plugin.updateAvailable.action"),
+          onClick: () => {
+            void serverSDK()
+              .createClient({ directory, throwOnError: true })
+              .plugin.update({ spec })
+              .then((result) => {
+                if (result.error) {
+                  showToast({
+                    variant: "error",
+                    title: language.t("common.requestFailed"),
+                    description: language.t("toast.plugin.updateFailed.description"),
+                  })
+                  return
+                }
+                showToast({
+                  variant: "success",
+                  title: language.t("toast.plugin.updated.title"),
+                  description: language.t("toast.plugin.updated.description", {
+                    plugin: pluginName(spec),
+                    version: result.data?.version ?? event.properties.latest,
+                  }),
+                })
+              })
+              .catch((error: unknown) => {
+                showToast({
+                  variant: "error",
+                  title: language.t("common.requestFailed"),
+                  description: error instanceof Error ? error.message : String(error),
+                })
+              })
+          },
+        },
+      ],
+    })
+  }
+
   const unsub = serverSDK().event.listen((e) => {
     const event = e.details
+    if (event.type === "plugin.updated") {
+      handlePluginUpdated(event)
+      return
+    }
+    if (event.type === "plugin.update_available") {
+      handlePluginUpdateAvailable(e.name, event)
+      return
+    }
     if (event.type !== "session.idle" && event.type !== "session.error") return
 
     const directory = e.name

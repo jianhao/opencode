@@ -44,6 +44,23 @@ export class Info extends Schema.Class<Info>("Config.Info")({
     .annotate({
       description: "Automatically update or notify when a new version is available",
     }),
+  plugin_autoupdate: Schema.Union([Schema.Boolean, Schema.Literal("notify")])
+    .pipe(Schema.optional)
+    .annotate({
+      description:
+        "Update unpinned plugins to the latest version. true auto-updates, 'notify' only reports available updates, false keeps the cached version",
+    }),
+  plugin_settings: Schema.Record(
+    Schema.String,
+    Schema.Struct({
+      enabled: Schema.optional(Schema.Boolean),
+      autoupdate: Schema.optional(Schema.Union([Schema.Boolean, Schema.Literal("notify")])),
+    }),
+  )
+    .pipe(Schema.optional)
+    .annotate({
+      description: "Per-plugin enablement and update policy, keyed by the plugin specifier",
+    }),
   share: Schema.Literals(["manual", "auto", "disabled"]).pipe(Schema.optional).annotate({
     description: "Control whether sessions may be shared manually, automatically, or not at all",
   }),

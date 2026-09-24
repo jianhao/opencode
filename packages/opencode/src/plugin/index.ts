@@ -28,12 +28,21 @@ import { EffectBridge } from "@/effect/bridge"
 import { InstanceState } from "@/effect/instance-state"
 import { errorMessage } from "@/util/error"
 import { PluginLoader } from "./loader"
-import { parsePluginSpecifier, readPluginId, readV1Plugin, resolvePluginId } from "./shared"
+import {
+  forceUpdatePluginTarget,
+  parsePluginSpecifier,
+  readPluginId,
+  readV1Plugin,
+  resolvePluginId,
+} from "./shared"
+import { pluginSpecifier } from "@/config/plugin"
 import { registerAdapter } from "@/control-plane/adapters"
 import type { WorkspaceAdapter } from "@/control-plane/types"
 import { RuntimeFlags } from "@/effect/runtime-flags"
 import { EventV2Bridge } from "@/event-v2-bridge"
 import { InstallationChannel } from "@opencode-ai/core/installation/version"
+import { Npm } from "@opencode-ai/core/npm"
+import { Plugin as PluginEvents } from "@opencode-ai/schema/plugin"
 
 type State = {
   hooks: Hooks[]
@@ -88,6 +97,8 @@ export interface Interface {
   ) => Effect.Effect<Output>
   readonly list: () => Effect.Effect<Hooks[]>
   readonly init: () => Effect.Effect<void>
+  // Force an unpinned npm plugin to re-resolve to the latest version and reload it.
+  readonly update: (spec: string) => Effect.Effect<{ readonly version?: string }, string>
 }
 
 export class Service extends Context.Service<Service, Interface>()("@opencode/Plugin") {}
@@ -166,6 +177,9 @@ const layer = Layer.effect(
 
     // 按目录记住上一次加载失败和下一次允许重试的时间点
     const retry = new Map<string, { attempts: number; next: number }>()
+    // 按目录记住构建当前插件状态时的配置签名。配置变化后下次访问即失效重载，
+    // 这样插件设置的改动可以轻量生效，而不必销毁整个实例。
+    const signatures = new Map<string, string>()
 
     const state = yield* InstanceState.make<State>(
       Effect.fn("Plugin.state")(function* (ctx) {
@@ -187,6 +201,9 @@ const layer = Layer.effect(
           ...(serverUrl ? {} : { fetch: async (...args) => Server.Default().app.fetch(...args) }),
         })
         const cfg = yield* config.get()
+        // 插件设置/更新策略写的是全局配置，且全局配置缓存在 config.updateGlobal 时会被失效。
+        // 实例级 config.get() 只有 dispose 实例才会刷新，这里改用全局缓存以便改动能轻量生效。
+        const globalCfg = yield* config.getGlobal()
         const input: PluginInput = {
           client,
           project: ctx.project,
@@ -215,15 +232,30 @@ const layer = Layer.effect(
           if (init._tag === "Some") hooks.push(init.value)
         }
 
-        const plugins = flags.pure ? [] : (cfg.plugin_origins ?? [])
+        const allPlugins = flags.pure ? [] : (cfg.plugin_origins ?? [])
         if (flags.pure && cfg.plugin_origins?.length) {
         }
+        // 每个插件可以在 plugin_settings 里单独启用/停用、覆盖更新策略；缺省回落到全局 plugin_autoupdate。
+        const pluginSettings = globalCfg.plugin_settings ?? {}
+        const plugins = allPlugins.filter((origin) => pluginSettings[pluginSpecifier(origin.spec)]?.enabled !== false)
         if (plugins.length) yield* config.waitForDependencies()
+
+        const autoUpdate = globalCfg.plugin_autoupdate
+        const mode: Npm.AddMode = autoUpdate === "notify" ? "notify" : autoUpdate === false ? "off" : "auto"
+        const modeFor = (spec: string): Npm.AddMode => {
+          const value = pluginSettings[spec]?.autoupdate
+          if (value === true) return "auto"
+          if (value === false) return "off"
+          if (value === "notify") return "notify"
+          return mode
+        }
 
         const loaded = yield* Effect.promise(() =>
           PluginLoader.loadExternal({
             items: plugins,
             kind: "server",
+            mode,
+            modeFor,
             report: {
               start(candidate) {},
               missing(candidate, _retry, message) {
@@ -255,6 +287,33 @@ const layer = Layer.effect(
               }),
             ),
           )
+        }
+
+        // 版本变化/有新版本的提示：只针对成功加载的插件。
+        // - auto：重新解析后版本变了 → plugin.updated（已更新到 vY）
+        // - notify：查到了更新的版本但不安装 → plugin.update_available（有新版 vY，可点更新）
+        for (const load of loaded) {
+          if (!load) continue
+          // notify 模式只查询不安装，latest 才会被设置；auto 模式安装后版本可能变化。
+          if (load.latest && load.version && load.version !== load.latest) {
+            bridge.fork(
+              events.publish(PluginEvents.Event.UpdateAvailable, {
+                spec: load.spec,
+                current: load.version,
+                latest: load.latest,
+              }),
+            )
+            continue
+          }
+          if (load.version && load.previousVersion && load.version !== load.previousVersion) {
+            bridge.fork(
+              events.publish(PluginEvents.Event.Updated, {
+                spec: load.spec,
+                from: load.previousVersion,
+                to: load.version,
+              }),
+            )
+          }
         }
 
         // 之前这里只 publish 一个事件：opencode.log 里什么都没有，用户也无从排查。
@@ -327,6 +386,22 @@ const layer = Layer.effect(
         yield* Effect.logInfo("retrying plugin load", { directory, attempts: pending.attempts })
         yield* InstanceState.invalidate(state)
       }
+
+      // 影响插件加载的配置（插件列表 / 每插件设置 / 全局更新策略）变了就失效缓存，
+      // 下次访问即用新设置重载。轻量：不销毁实例、不影响其它进行中的请求。
+      const current = yield* config.get()
+      const globalCfg = yield* config.getGlobal()
+      const signature = JSON.stringify({
+        plugins: (current.plugin_origins ?? []).map((origin) => pluginSpecifier(origin.spec)),
+        settings: globalCfg.plugin_settings ?? {},
+        autoupdate: globalCfg.plugin_autoupdate ?? null,
+      })
+      const known = signatures.get(directory)
+      if (known !== undefined && known !== signature) {
+        yield* Effect.logInfo("plugin settings changed, reloading", { directory })
+        yield* InstanceState.invalidate(state)
+      }
+      signatures.set(directory, signature)
       return yield* InstanceState.get(state)
     })
 
@@ -354,7 +429,18 @@ const layer = Layer.effect(
       yield* loadState
     })
 
-    return Service.of({ trigger, list, init })
+    // 显式更新：强制重新解析到最新版，然后让按目录缓存失效，下次访问重新加载插件。
+    const update = Effect.fn("Plugin.update")(function* (spec: string) {
+      const result = yield* Effect.tryPromise({
+        try: () => forceUpdatePluginTarget(spec),
+        catch: (error) => errorMessage(error),
+      })
+      yield* Effect.logInfo("plugin updated", { spec, version: result.version })
+      yield* InstanceState.invalidate(state)
+      return { version: result.version }
+    })
+
+    return Service.of({ trigger, list, init, update })
   }),
 )
 

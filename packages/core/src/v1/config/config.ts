@@ -54,6 +54,21 @@ export const Info = Schema.Struct({
       "Enable or disable snapshot tracking. When false, filesystem snapshots are not recorded and undoing or reverting will not undo/redo file changes. Defaults to true.",
   }),
   plugin: Schema.optional(Schema.mutable(Schema.Array(ConfigPluginV1.Spec))),
+  plugin_autoupdate: Schema.optional(Schema.Union([Schema.Boolean, Schema.Literal("notify")])).annotate({
+    description:
+      "Update unpinned plugins to the latest version. true auto-updates, 'notify' only reports available updates, false keeps the cached version",
+  }),
+  plugin_settings: Schema.optional(
+    Schema.Record(
+      Schema.String,
+      Schema.Struct({
+        enabled: Schema.optional(Schema.Boolean),
+        autoupdate: Schema.optional(Schema.Union([Schema.Boolean, Schema.Literal("notify")])),
+      }),
+    ),
+  ).annotate({
+    description: "Per-plugin enablement and update policy, keyed by the plugin specifier",
+  }),
   share: Schema.optional(Schema.Literals(["manual", "auto", "disabled"])).annotate({
     description:
       "Control sharing behavior:'manual' allows manual sharing via commands, 'auto' enables automatic sharing, 'disabled' disables all sharing",

@@ -11,6 +11,7 @@ import {
 import { ConfigPlugin } from "@/config/plugin"
 import { ConfigPluginV1 } from "@opencode-ai/core/v1/config/plugin"
 import { InstallationVersion } from "@opencode-ai/core/installation/version"
+import { Npm } from "@opencode-ai/core/npm"
 
 export namespace PluginLoader {
   // A normalized plugin declaration derived from config before any filesystem or npm work happens.
@@ -26,6 +27,12 @@ export namespace PluginLoader {
     target: string
     entry: string
     pkg?: PluginPackage
+    // Version bookkeeping from npm resolution: `version` is what's installed now,
+    // `previousVersion` what was cached before, `latest` a newer version found in
+    // "notify" mode (not installed).
+    version?: string
+    previousVersion?: string
+    latest?: string
   }
 
   // A plugin target we could inspect, but which does not expose the requested kind of entrypoint.
@@ -86,6 +93,7 @@ export namespace PluginLoader {
   export async function resolve(
     plan: Plan,
     kind: PluginKind,
+    mode: Npm.AddMode = "auto",
   ): Promise<
     | { ok: true; value: Resolved }
     | { ok: false; stage: "missing"; value: Missing }
@@ -93,8 +101,11 @@ export namespace PluginLoader {
   > {
     // First make sure the plugin exists locally, installing npm plugins on demand.
     let target = ""
+    let versions: Pick<Resolved, "version" | "previousVersion" | "latest"> = {}
     try {
-      target = await resolvePluginTarget(plan.spec)
+      const found = await resolvePluginTarget(plan.spec, mode)
+      target = found.target
+      versions = { version: found.version, previousVersion: found.previousVersion, latest: found.latest }
     } catch (error) {
       return { ok: false, stage: "install", error }
     }
@@ -129,7 +140,7 @@ export namespace PluginLoader {
         return { ok: false, stage: "compatibility", error }
       }
     }
-    return { ok: true, value: { ...plan, source: base.source, target: base.target, entry: base.entry, pkg: base.pkg } }
+    return { ok: true, value: { ...plan, source: base.source, target: base.target, entry: base.entry, pkg: base.pkg, ...versions } }
   }
 
   // Import the resolved module only after all earlier validation has succeeded.
@@ -149,6 +160,7 @@ export namespace PluginLoader {
   async function attempt<R>(
     candidate: Candidate,
     kind: PluginKind,
+    mode: Npm.AddMode,
     retry: boolean,
     finish: ((load: Loaded, origin: ConfigPlugin.Origin, retry: boolean) => Promise<R | undefined>) | undefined,
     missing: ((value: Missing, origin: ConfigPlugin.Origin, retry: boolean) => Promise<R | undefined>) | undefined,
@@ -162,7 +174,7 @@ export namespace PluginLoader {
 
     report?.start?.(candidate, retry)
 
-    const resolved = await resolve(plan, kind)
+    const resolved = await resolve(plan, kind, mode)
     if (!resolved.ok) {
       if (resolved.stage === "missing") {
         // Missing entrypoints are handled separately so callers can still inspect package metadata,
@@ -194,6 +206,10 @@ export namespace PluginLoader {
   type Input<R> = {
     items: ConfigPlugin.Origin[]
     kind: PluginKind
+    // How unpinned npm plugins are treated: auto-update, notify-only, or keep cached.
+    mode?: Npm.AddMode
+    // Per-plugin override of `mode`, keyed by the plugin spec.
+    modeFor?: (spec: string) => Npm.AddMode
     wait?: () => Promise<void>
     finish?: (load: Loaded, origin: ConfigPlugin.Origin, retry: boolean) => Promise<R | undefined>
     missing?: (value: Missing, origin: ConfigPlugin.Origin, retry: boolean) => Promise<R | undefined>
@@ -207,9 +223,11 @@ export namespace PluginLoader {
   // treated as permanent for this process because Bun caches failed module resolution.
   export async function loadExternal<R = Loaded>(input: Input<R>): Promise<R[]> {
     const candidates = input.items.map((origin) => ({ origin, plan: plan(origin.spec) }))
+    const mode = input.mode ?? "auto"
+    const modeOf = (spec: string) => input.modeFor?.(spec) ?? mode
     const list: Array<Promise<AttemptResult<R>>> = []
     for (const candidate of candidates) {
-      list.push(attempt(candidate, input.kind, false, input.finish, input.missing, input.report))
+      list.push(attempt(candidate, input.kind, modeOf(candidate.plan.spec), false, input.finish, input.missing, input.report))
     }
     const out = await Promise.all(list)
     if (input.wait) {
@@ -225,7 +243,7 @@ export namespace PluginLoader {
         if (!candidate || pluginSource(candidate.plan.spec) !== "file") continue
         deps ??= input.wait()
         await deps
-        out[i] = await attempt(candidate, input.kind, true, input.finish, input.missing, input.report)
+        out[i] = await attempt(candidate, input.kind, modeOf(candidate.plan.spec), true, input.finish, input.missing, input.report)
       }
     }
 

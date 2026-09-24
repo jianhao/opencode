@@ -4,6 +4,7 @@ import path from "path"
 import { createRequire } from "module"
 import { pathToFileURL } from "url"
 import npa from "npm-package-arg"
+import semver from "semver"
 import { Effect, Schema, Context, Layer, Option, FileSystem } from "effect"
 import { NodeFileSystem } from "@effect/platform-node"
 import { FSUtil } from "./fs-util"
@@ -26,8 +27,29 @@ export interface EntryPoint {
   readonly entrypoint?: string
 }
 
+// how to treat a spec whose resolved version can change over time (dist-tag / bare name):
+// - "auto": re-resolve and install the latest version every time (default)
+// - "notify": only look up the latest version, never write; report it via `latest`
+// - "off": keep whatever is cached and never touch the registry
+export type AddMode = "auto" | "notify" | "off"
+
+export interface AddOptions {
+  readonly mode?: AddMode
+  // Ignore the cached copy and always re-resolve, even for pinned/stable specs.
+  readonly force?: boolean
+}
+
+export interface AddResult extends EntryPoint {
+  readonly version?: string
+  readonly previousVersion?: string
+  readonly latest?: string
+}
+
 export interface Interface {
-  readonly add: (pkg: string) => Effect.Effect<EntryPoint, InstallFailedError | EffectFlock.LockError>
+  readonly add: (
+    pkg: string,
+    options?: AddOptions,
+  ) => Effect.Effect<AddResult, InstallFailedError | EffectFlock.LockError>
   readonly install: (
     dir: string,
     input?: {
@@ -144,16 +166,64 @@ const layer = Layer.effect(
         }),
       )
 
-    const add = Effect.fn("Npm.add")(function* (pkg: string) {
+    // 读取某个已安装包目录的版本（用于判断一次重新解析是否真的升级了版本）。
+    const installedVersion = (dir: string) =>
+      afs.readJson(path.join(dir, "package.json")).pipe(
+        Effect.map((json) => json as { version?: unknown }),
+        Effect.map((json) => (typeof json?.version === "string" ? json.version : undefined)),
+        Effect.orElseSucceed(() => undefined),
+      )
+
+    // 只查询 registry 上的最新版本（dist-tags.latest），不下载、不写盘。
+    const latestVersion = (name: string, dir: string) =>
+      Effect.gen(function* () {
+        const registry = yield* NpmConfig.registry(dir)
+        const url = `${registry}/${name.replace("/", "%2f")}`
+        const json = yield* Effect.tryPromise({
+          try: async () => {
+            const res = await fetch(url, { headers: { accept: "application/vnd.npm.install-v1+json" } })
+            if (!res.ok) throw new Error(`registry ${url} responded ${res.status}`)
+            return (await res.json()) as { "dist-tags"?: { latest?: string } }
+          },
+          catch: (cause) => cause,
+        })
+        const latest = json?.["dist-tags"]?.latest
+        return typeof latest === "string" ? latest : undefined
+      })
+
+    const add = Effect.fn("Npm.add")(function* (pkg: string, options?: AddOptions) {
+      const mode = options?.mode ?? "auto"
       const dir = directory(pkg)
       const parsed = parseSpec(pkg)
       const name = parsed?.name ?? pkg
       const cached = path.join(dir, "node_modules", name)
       const installed = yield* afs.existsSafe(cached)
+      const previousVersion = installed ? yield* installedVersion(cached) : undefined
+      const reusable = (): AddResult => ({
+        ...resolveEntryPoint(name, cached),
+        version: previousVersion,
+        previousVersion,
+      })
 
       // 固定版本、range、本地路径、git/url 这类规格解析结果是稳定的，装过就能直接复用。
-      if (installed && !resolveEveryTime(parsed)) {
-        return resolveEntryPoint(name, cached)
+      // "off" 模式下，即使是不稳定的 dist-tag 也直接用缓存，完全不碰 registry。
+      const unstable = resolveEveryTime(parsed)
+      if (installed && !options?.force && (!unstable || mode === "off")) return reusable()
+
+      // "notify" 只查最新版、不写盘；有更新就把 latest 报给调用方，由用户决定是否更新。
+      if (installed && !options?.force && mode === "notify") {
+        const latest = yield* latestVersion(name, dir).pipe(
+          Effect.tapError((error) => Effect.logWarning("failed to check plugin version", { pkg, error: String(error) })),
+          Effect.orElseSucceed(() => undefined),
+        )
+        const newer =
+          latest !== undefined &&
+          previousVersion !== undefined &&
+          semver.valid(latest) !== null &&
+          semver.valid(previousVersion) !== null &&
+          semver.gt(latest, previousVersion)
+        if (newer && latest) return { ...reusable(), latest }
+        return reusable()
       }
 
       const tree = yield* reify({ dir, add: [pkg] }).pipe(
@@ -169,15 +239,19 @@ const layer = Layer.effect(
             : Effect.fail(error),
         ),
       )
-      if (!tree) return resolveEntryPoint(name, cached)
+      if (!tree) return reusable()
 
       const first = tree.edgesOut.values().next().value?.to
       if (!first) {
         const result = resolveEntryPoint(name, cached)
-        if (result.entrypoint) return result
+        if (result.entrypoint) return { ...result, version: previousVersion, previousVersion }
         return yield* new InstallFailedError({ add: [pkg], dir })
       }
-      return resolveEntryPoint(first.name, first.path)
+      return {
+        ...resolveEntryPoint(first.name, first.path),
+        version: yield* installedVersion(first.path),
+        previousVersion,
+      }
     }, Effect.scoped)
 
     const install: Interface["install"] = Effect.fn("Npm.install")(function* (dir, input) {

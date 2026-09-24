@@ -75,9 +75,15 @@ export const globalHandlers = HttpApiBuilder.group(RootHttpApi, "global", (handl
       return yield* config.getGlobal()
     })
 
+    // 插件设置（plugin_settings / plugin_autoupdate）只在插件加载时读取，且改这些偏好本身
+    // 不需要把正在运行的项目实例全部拆掉。触发全量 dispose 会让客户端进行中的请求被取消，
+    // 表现为「无法重新加载 <project> / CancelledError」。这类改动跳过 dispose。
+    const pluginOnlyKeys = new Set(["plugin_settings", "plugin_autoupdate"])
     const configUpdate = Effect.fn("GlobalHttpApi.configUpdate")(function* (ctx) {
       const result = yield* config.updateGlobal(ctx.payload)
-      if (result.changed) bridge.fork(disposeAllInstancesAndEmitGlobalDisposed({ swallowErrors: true }))
+      const keys = Object.keys(ctx.payload)
+      const pluginOnly = keys.length > 0 && keys.every((key) => pluginOnlyKeys.has(key))
+      if (result.changed && !pluginOnly) bridge.fork(disposeAllInstancesAndEmitGlobalDisposed({ swallowErrors: true }))
       return result.info
     })
 

@@ -51,7 +51,7 @@ const defaultPlugDeps: PlugDeps = {
     info: (msg) => log.info(msg),
     success: (msg) => log.success(msg),
   },
-  resolve: (spec) => resolvePluginTarget(spec),
+  resolve: (spec) => resolvePluginTarget(spec).then((item) => item.target),
   readText: (file) => Filesystem.readText(file),
   write: async (file, text) => {
     await Filesystem.write(file, text)

@@ -204,12 +204,34 @@ export async function checkPluginCompatibility(target: string, opencodeVersion: 
   }
 }
 
-export async function resolvePluginTarget(spec: string) {
-  if (isPathPluginSpec(spec)) return resolvePathPluginTarget(spec)
+// Force a fresh resolve/install of an npm plugin, ignoring the cached copy.
+// Used by the explicit "update now" action in "notify" mode.
+export async function forceUpdatePluginTarget(spec: string): Promise<{ directory: string; version?: string }> {
+  if (isPathPluginSpec(spec)) return { directory: await resolvePathPluginTarget(spec) }
   const hit = parse(spec)
   const pkg = hit?.name && hit.raw === hit.name ? `${hit.name}@latest` : spec
-  const result = await Npm.add(pkg)
-  return result.directory
+  const result = await Npm.add(pkg, { mode: "auto", force: true })
+  return { directory: result.directory, version: result.version }
+}
+
+export type PluginTarget = {
+  target: string
+  version?: string
+  previousVersion?: string
+  latest?: string
+}
+
+export async function resolvePluginTarget(spec: string, mode: Npm.AddMode = "auto"): Promise<PluginTarget> {
+  if (isPathPluginSpec(spec)) return { target: await resolvePathPluginTarget(spec) }
+  const hit = parse(spec)
+  const pkg = hit?.name && hit.raw === hit.name ? `${hit.name}@latest` : spec
+  const result = await Npm.add(pkg, { mode })
+  return {
+    target: result.directory,
+    version: result.version,
+    previousVersion: result.previousVersion,
+    latest: result.latest,
+  }
 }
 
 export async function readPluginPackage(target: string): Promise<PluginPackage> {

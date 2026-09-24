@@ -130,6 +130,8 @@ import type {
   PermissionRuleset,
   PermissionV2Reply,
   PermissionV2Source,
+  PluginUpdateErrors,
+  PluginUpdateResponses,
   ProjectCommands,
   ProjectCurrentErrors,
   ProjectCurrentResponses,
@@ -3187,6 +3189,45 @@ export class Permission extends HeyApiClient {
     )
     return (options?.client ?? this.client).post<PermissionRespondResponses, PermissionRespondErrors, ThrowOnError>({
       url: "/session/{sessionID}/permissions/{permissionID}",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+}
+
+export class Plugin extends HeyApiClient {
+  /**
+   * Update plugin
+   *
+   * Re-resolve an unpinned npm plugin to the latest published version and reload it for the current directory.
+   */
+  public update<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+      workspace?: string
+      spec?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+            { in: "body", key: "spec" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<PluginUpdateResponses, PluginUpdateErrors, ThrowOnError>({
+      url: "/plugin/update",
       ...options,
       ...params,
       headers: {
@@ -7185,6 +7226,11 @@ export class OpencodeClient extends HeyApiClient {
   private _permission?: Permission
   get permission(): Permission {
     return (this._permission ??= new Permission({ client: this.client }))
+  }
+
+  private _plugin?: Plugin
+  get plugin(): Plugin {
+    return (this._plugin ??= new Plugin({ client: this.client }))
   }
 
   private _provider?: Provider

@@ -8,11 +8,12 @@ let embeddedUIPromise: Promise<Record<string, string> | null> | undefined
 
 export const UI_UPSTREAM = new URL("https://app.opencode.ai")
 
-// `img-src` 额外放行 `http://127.0.0.1:*`：插件生成的图片由插件自己起的本地服务提供，
-// 端口随机、与 opencode 不同源，不放行的话在 Web UI（serve/web）里会被 CSP 拦成破图。
-// 注意这不会引入新能力：`connect-src` 本来就是 `*`。
+// `img-src` 额外放行本地回环的任意端口（`127.0.0.1` / `localhost` / `[::1]`）：插件生成的图片
+// 由插件自己起的本地服务提供，端口随机、与 opencode 不同源，不放行的话在 Web UI（serve/web）
+// 里会被 CSP 拦成破图。注意这不会引入新能力：`connect-src` 本来就是 `*`。
+// `https:` 本身已放行；但如果通过 https 隧道访问 serve，http 图片属于 mixed content，浏览器仍会拦。
 export const csp = (hash = "") =>
-  `default-src 'self'; script-src 'self' 'wasm-unsafe-eval'${hash ? ` 'sha256-${hash}'` : ""}; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: blob: http://127.0.0.1:*; font-src 'self' data:; media-src 'self' data:; connect-src * data: blob:`
+  `default-src 'self'; script-src 'self' 'wasm-unsafe-eval'${hash ? ` 'sha256-${hash}'` : ""}; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: blob: http://127.0.0.1:* http://localhost:* http://[::1]:*; font-src 'self' data:; media-src 'self' data:; connect-src * data: blob:`
 export const DEFAULT_CSP = csp()
 
 export function themePreloadHash(body: string) {

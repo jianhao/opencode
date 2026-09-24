@@ -58,6 +58,8 @@ export type Event =
   | EventPermissionV2Asked
   | EventPermissionV2Replied
   | EventPluginAdded
+  | EventPluginUpdated
+  | EventPluginUpdateAvailable
   | EventProjectDirectoriesUpdated
   | EventFileWatcherUpdated
   | EventPtyCreated
@@ -1286,6 +1288,24 @@ export type GlobalEvent = {
       }
     | {
         id: string
+        type: "plugin.updated"
+        properties: {
+          spec: string
+          from: string
+          to: string
+        }
+      }
+    | {
+        id: string
+        type: "plugin.update_available"
+        properties: {
+          spec: string
+          current: string
+          latest: string
+        }
+      }
+    | {
+        id: string
         type: "project.directories.updated"
         properties: {
           projectID: string
@@ -1924,6 +1944,16 @@ export type Config = {
         },
       ]
   >
+  /**
+   * Update unpinned plugins to the latest version. true auto-updates, 'notify' only reports available updates, false keeps the cached version
+   */
+  plugin_autoupdate?: boolean | "notify"
+  plugin_settings?: {
+    [key: string]: {
+      enabled?: boolean
+      autoupdate?: boolean | "notify"
+    }
+  }
   share?: "manual" | "auto" | "disabled"
   autoshare?: boolean
   /**
@@ -2489,6 +2519,10 @@ export type PermissionNotFoundError = {
   message: string
 }
 
+export type PluginUpdateResult = {
+  version?: string
+}
+
 export type ProviderAuthMethod = {
   type: "oauth" | "api"
   label: string
@@ -2909,6 +2943,8 @@ export type V2Event =
   | PermissionV2Asked
   | PermissionV2Replied
   | PluginAdded
+  | PluginUpdated
+  | PluginUpdateAvailable
   | ProjectDirectoriesUpdated
   | FileWatcherUpdated
   | PtyCreated
@@ -5497,6 +5533,44 @@ export type PluginAdded = {
   }
 }
 
+export type PluginUpdated = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  type: "plugin.updated"
+  durable?: {
+    aggregateID: string
+    seq: number
+    version: number
+  }
+  location?: LocationRef
+  data: {
+    spec: string
+    from: string
+    to: string
+  }
+}
+
+export type PluginUpdateAvailable = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  type: "plugin.update_available"
+  durable?: {
+    aggregateID: string
+    seq: number
+    version: number
+  }
+  location?: LocationRef
+  data: {
+    spec: string
+    current: string
+    latest: string
+  }
+}
+
 export type ProjectDirectoriesUpdated = {
   id: string
   metadata?: {
@@ -6756,6 +6830,26 @@ export type EventPluginAdded = {
   type: "plugin.added"
   properties: {
     id: string
+  }
+}
+
+export type EventPluginUpdated = {
+  id: string
+  type: "plugin.updated"
+  properties: {
+    spec: string
+    from: string
+    to: string
+  }
+}
+
+export type EventPluginUpdateAvailable = {
+  id: string
+  type: "plugin.update_available"
+  properties: {
+    spec: string
+    current: string
+    latest: string
   }
 }
 
@@ -9300,6 +9394,36 @@ export type PermissionReplyResponses = {
 }
 
 export type PermissionReplyResponse = PermissionReplyResponses[keyof PermissionReplyResponses]
+
+export type PluginUpdateData = {
+  body?: {
+    spec: string
+  }
+  path?: never
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/plugin/update"
+}
+
+export type PluginUpdateErrors = {
+  /**
+   * BadRequest | InvalidRequestError
+   */
+  400: EffectHttpApiErrorBadRequest | InvalidRequestError
+}
+
+export type PluginUpdateError = PluginUpdateErrors[keyof PluginUpdateErrors]
+
+export type PluginUpdateResponses = {
+  /**
+   * Plugin updated
+   */
+  200: PluginUpdateResult
+}
+
+export type PluginUpdateResponse = PluginUpdateResponses[keyof PluginUpdateResponses]
 
 export type ProviderListData = {
   body?: never

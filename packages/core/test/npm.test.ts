@@ -263,6 +263,90 @@ describe("Npm.add dist-tag resolution", () => {
   }, 120_000)
 })
 
+describe("Npm.add plugin auto-update modes", () => {
+  test("auto mode reports the version change after upgrading", async () => {
+    await using tmp = await tmpdir()
+    await using registry = await fixtureRegistry(tmp.path)
+    await registry.publish("fixture-plugin", "1.0.0")
+    const cache = path.join(tmp.path, "cache")
+    const spec = "fixture-plugin@latest"
+    const installDir = path.join(cache, "packages", Npm.sanitize(spec))
+    await fs.mkdir(installDir, { recursive: true })
+    await Bun.write(path.join(installDir, ".npmrc"), `registry=${registry.url}\n`)
+    const add = () =>
+      Effect.gen(function* () {
+        const npm = yield* Npm.Service
+        return yield* npm.add(spec)
+      }).pipe(Effect.scoped, Effect.provide(npmLayer(cache)), Effect.runPromise)
+
+    const first = await add()
+    expect(first.version).toBe("1.0.0")
+    expect(first.previousVersion).toBeUndefined()
+
+    await registry.publish("fixture-plugin", "2.0.0")
+    const next = await add()
+    expect(next.version).toBe("2.0.0")
+    expect(next.previousVersion).toBe("1.0.0")
+  }, 120_000)
+
+  test("notify mode reports a newer version without installing it", async () => {
+    await using tmp = await tmpdir()
+    await using registry = await fixtureRegistry(tmp.path)
+    await registry.publish("fixture-plugin", "1.0.0")
+    const cache = path.join(tmp.path, "cache")
+    const spec = "fixture-plugin@latest"
+    const installDir = path.join(cache, "packages", Npm.sanitize(spec))
+    await fs.mkdir(installDir, { recursive: true })
+    await Bun.write(path.join(installDir, ".npmrc"), `registry=${registry.url}\n`)
+    const add = (mode?: Npm.AddMode) =>
+      Effect.gen(function* () {
+        const npm = yield* Npm.Service
+        return yield* npm.add(spec, mode ? { mode } : undefined)
+      }).pipe(Effect.scoped, Effect.provide(npmLayer(cache)), Effect.runPromise)
+    const installed = async () =>
+      ((await Bun.file(path.join(installDir, "node_modules", "fixture-plugin", "package.json")).json()) as {
+        version: string
+      }).version
+
+    await add()
+    expect(await installed()).toBe("1.0.0")
+
+    await registry.publish("fixture-plugin", "2.0.0")
+    const before = registry.requests.length
+    const check = await add("notify")
+
+    expect(check.version).toBe("1.0.0")
+    expect(check.latest).toBe("2.0.0")
+    expect(await installed()).toBe("1.0.0")
+    expect(registry.requests.length).toBeGreaterThan(before)
+  }, 120_000)
+
+  test("off mode keeps the cached version and never queries the registry", async () => {
+    await using tmp = await tmpdir()
+    await using registry = await fixtureRegistry(tmp.path)
+    await registry.publish("fixture-plugin", "1.0.0")
+    const cache = path.join(tmp.path, "cache")
+    const spec = "fixture-plugin@latest"
+    const installDir = path.join(cache, "packages", Npm.sanitize(spec))
+    await fs.mkdir(installDir, { recursive: true })
+    await Bun.write(path.join(installDir, ".npmrc"), `registry=${registry.url}\n`)
+    const add = (mode?: Npm.AddMode) =>
+      Effect.gen(function* () {
+        const npm = yield* Npm.Service
+        return yield* npm.add(spec, mode ? { mode } : undefined)
+      }).pipe(Effect.scoped, Effect.provide(npmLayer(cache)), Effect.runPromise)
+
+    await add()
+    await registry.publish("fixture-plugin", "2.0.0")
+    const before = registry.requests.length
+    const kept = await add("off")
+
+    expect(kept.version).toBe("1.0.0")
+    expect(kept.latest).toBeUndefined()
+    expect(registry.requests.length).toBe(before)
+  }, 120_000)
+})
+
 describe("Npm.install", () => {
   test("respects omit from project .npmrc", async () => {
     await using tmp = await tmpdir()

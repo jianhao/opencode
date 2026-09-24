@@ -76,7 +76,7 @@ type PatchOne = Ok<{ item: PatchItem }> | PatchErr
 export type PatchResult = Ok<{ dir: string; items: PatchItem[] }> | (PatchErr & { dir: string })
 
 const defaultInstallDeps: InstallDeps = {
-  resolve: (spec) => resolvePluginTarget(spec),
+  resolve: (spec) => resolvePluginTarget(spec).then((item) => item.target),
 }
 
 const defaultPatchDeps: PatchDeps = {
