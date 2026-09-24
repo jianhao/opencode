@@ -156,17 +156,23 @@ const AppearanceSection: Component<{ controller: AppearanceSettingsController }>
             </>
           }
         >
-          <SelectV2
-            appearance="inline"
-            data-action="settings-theme"
-            options={props.controller.theme.options()}
-            current={props.controller.theme.current()}
-            placement="bottom-end"
-            gutter={6}
-            value={(option) => option.id}
-            label={(option) => option.name}
-            onSelect={props.controller.theme.select}
-          />
+          {/* keyed：主题切换后强制重建 Select。即使受控引用出现异常，切换一次后
+              下拉依然能再次展开（避免 Kobalte Select 失联）。 */}
+          <Show when={props.controller.theme.current()} keyed>
+            {(current) => (
+              <SelectV2
+                appearance="inline"
+                data-action="settings-theme"
+                options={props.controller.theme.options()}
+                current={current}
+                placement="bottom-end"
+                gutter={6}
+                value={(option) => option.id}
+                label={(option) => option.name}
+                onSelect={props.controller.theme.select}
+              />
+            )}
+          </Show>
         </SettingsRowV2>
 
         <FontSetting kind="ui" fonts={props.controller.fonts} />

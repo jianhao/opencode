@@ -1,0 +1,45 @@
+{
+  "$schema": "https://opencode.ai/desktop-theme.json",
+  "name": "紫色韵味",
+  "id": "purple-vibe",
+  "light": {
+    "palette": {
+      "neutral": "#eff1f5",
+      "ink": "#4c4f69",
+      "primary": "#7287fd",
+      "accent": "#8839ef",
+      "success": "#40a02b",
+      "warning": "#df8e1d",
+      "error": "#d20f39",
+      "info": "#04a5e5",
+      "diffAdd": "#40a02b",
+      "diffDelete": "#d20f39"
+    },
+    "overrides": {
+      "syntax-comment": "#6c7086",
+      "syntax-keyword": "#8839ef",
+      "syntax-primitive": "#1e66f5",
+      "syntax-constant": "#ca6702"
+    }
+  },
+  "dark": {
+    "palette": {
+      "neutral": "#24273a",
+      "ink": "#cad3f5",
+      "primary": "#c6a0f6",
+      "accent": "#8839ef",
+      "success": "#a6da95",
+      "warning": "#eed49f",
+      "error": "#ed8796",
+      "info": "#91d7e3",
+      "diffAdd": "#a6da95",
+      "diffDelete": "#ed8796"
+    },
+    "overrides": {
+      "syntax-comment": "#6e738d",
+      "syntax-keyword": "#c6a0f6",
+      "syntax-primitive": "#8aadf4",
+      "syntax-constant": "#f5a97f"
+    }
+  }
+}

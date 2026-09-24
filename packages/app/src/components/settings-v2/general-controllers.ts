@@ -75,7 +75,27 @@ export function createShellSettingsController() {
 export function createAppearanceSettingsController() {
   const settings = useSettings()
   const theme = useTheme()
-  const themes = createMemo(() => theme.ids().map((id) => ({ id, name: theme.name(id) })))
+  // 稳定 options 的对象与数组引用：主题加载会触发 store 更新，若每次都新建对象/数组，
+  // Kobalte Select 的受控 value/options 引用不断变化，会导致切换一次后无法再展开。
+  // 只有 id/name 实际变化时才产生新的数组。
+  const themeCache = new Map<string, { id: string; name: string }>()
+  let themesKey = ""
+  let themesList: { id: string; name: string }[] = []
+  const themes = createMemo(() => {
+    const list = theme.ids().map((id) => {
+      const name = theme.name(id)
+      const hit = themeCache.get(id)
+      if (hit && hit.name === name) return hit
+      const next = { id, name }
+      themeCache.set(id, next)
+      return next
+    })
+    const key = list.map((option) => `${option.id}:${option.name}`).join("|")
+    if (key === themesKey) return themesList
+    themesKey = key
+    themesList = list
+    return list
+  })
 
   onMount(() => void theme.loadThemes())
 
