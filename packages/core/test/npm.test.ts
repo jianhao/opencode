@@ -127,6 +127,142 @@ describe("Npm.add", () => {
   }, 30_000)
 })
 
+// 只实现 `GET /<name>`（packument）和 tarball 下载的本地 registry，
+// 让 dist-tag 重新解析这条路径可以完全离线、确定性地测。
+async function fixtureRegistry(root: string) {
+  const packages = new Map<string, { latest: string; versions: Map<string, { tarball: Buffer; integrity: string }> }>()
+  const requests: string[] = []
+
+  const server = Bun.serve({
+    hostname: "127.0.0.1",
+    port: 0,
+    fetch: (request) => {
+      const url = new URL(request.url)
+      requests.push(url.pathname)
+
+      const download = /^\/([^/]+)\/-\/([^/]+)\.tgz$/.exec(url.pathname)
+      if (download) {
+        const name = download[1]!
+        const version = download[2]!.slice(name.length + 1)
+        const file = packages.get(name)?.versions.get(version)
+        if (!file) return new Response("not found", { status: 404 })
+        return new Response(file.tarball)
+      }
+
+      const name = decodeURIComponent(url.pathname.slice(1))
+      const entry = packages.get(name)
+      if (!entry) return new Response("not found", { status: 404 })
+      return Response.json({
+        name,
+        "dist-tags": { latest: entry.latest },
+        versions: Object.fromEntries(
+          [...entry.versions].map(([version, file]) => [
+            version,
+            {
+              name,
+              version,
+              dist: { tarball: `${url.origin}/${name}/-/${name}-${version}.tgz`, integrity: file.integrity },
+            },
+          ]),
+        ),
+      })
+    },
+  })
+
+  return {
+    url: `http://127.0.0.1:${server.port}`,
+    requests,
+    async publish(name: string, version: string) {
+      const dir = await fs.mkdtemp(path.join(root, "pack-"))
+      const pkg = path.join(dir, "package")
+      await fs.mkdir(pkg, { recursive: true })
+      await Bun.write(path.join(pkg, "package.json"), JSON.stringify({ name, version, main: "index.js" }))
+      await Bun.write(path.join(pkg, "index.js"), `export const version = ${JSON.stringify(version)}\n`)
+      const tarball = path.join(dir, "out.tgz")
+      const proc = Bun.spawn(["tar", "-czf", tarball, "-C", dir, "package"], {
+        env: { ...process.env, COPYFILE_DISABLE: "1" },
+      })
+      if ((await proc.exited) !== 0) throw new Error(`tar failed: ${await new Response(proc.stderr).text()}`)
+      const bytes = Buffer.from(await Bun.file(tarball).arrayBuffer())
+      const entry = packages.get(name) ?? { latest: version, versions: new Map() }
+      entry.latest = version
+      entry.versions.set(version, {
+        tarball: bytes,
+        integrity: `sha512-${new Bun.CryptoHasher("sha512").update(bytes).digest("base64")}`,
+      })
+      packages.set(name, entry)
+    },
+    async [Symbol.asyncDispose]() {
+      await server.stop(true)
+    },
+  }
+}
+
+describe("Npm.add dist-tag resolution", () => {
+  test("re-resolves a dist-tag spec so a newly published version is picked up", async () => {
+    await using tmp = await tmpdir()
+    await using registry = await fixtureRegistry(tmp.path)
+    await registry.publish("fixture-plugin", "1.0.0")
+
+    const cache = path.join(tmp.path, "cache")
+    const spec = "fixture-plugin@latest"
+    const installDir = path.join(cache, "packages", Npm.sanitize(spec))
+    await fs.mkdir(installDir, { recursive: true })
+    await Bun.write(path.join(installDir, ".npmrc"), `registry=${registry.url}\n`)
+
+    const install = () =>
+      Effect.gen(function* () {
+        const npm = yield* Npm.Service
+        return yield* npm.add(spec)
+      }).pipe(Effect.scoped, Effect.provide(npmLayer(cache)), Effect.runPromise)
+
+    const installed = async () =>
+      ((await Bun.file(path.join(installDir, "node_modules", "fixture-plugin", "package.json")).json()) as {
+        version: string
+      }).version
+
+    await install()
+    expect(await installed()).toBe("1.0.0")
+
+    await registry.publish("fixture-plugin", "2.0.0")
+    await install()
+    expect(await installed()).toBe("2.0.0")
+  }, 120_000)
+
+  test("keeps a cached pinned version without contacting the registry again", async () => {
+    await using tmp = await tmpdir()
+    await using registry = await fixtureRegistry(tmp.path)
+    await registry.publish("fixture-plugin", "1.0.0")
+    await registry.publish("fixture-plugin", "2.0.0")
+
+    const cache = path.join(tmp.path, "cache")
+    const spec = "fixture-plugin@1.0.0"
+    const installDir = path.join(cache, "packages", Npm.sanitize(spec))
+    await fs.mkdir(installDir, { recursive: true })
+    await Bun.write(path.join(installDir, ".npmrc"), `registry=${registry.url}\n`)
+
+    const install = () =>
+      Effect.gen(function* () {
+        const npm = yield* Npm.Service
+        return yield* npm.add(spec)
+      }).pipe(Effect.scoped, Effect.provide(npmLayer(cache)), Effect.runPromise)
+
+    await install()
+    const resolved = registry.requests.length
+    expect(resolved).toBeGreaterThan(0)
+
+    const entry = await install()
+    expect(entry.entrypoint).toBeDefined()
+    expect(registry.requests.length).toBe(resolved)
+    const version = (
+      (await Bun.file(path.join(installDir, "node_modules", "fixture-plugin", "package.json")).json()) as {
+        version: string
+      }
+    ).version
+    expect(version).toBe("1.0.0")
+  }, 120_000)
+})
+
 describe("Npm.install", () => {
   test("respects omit from project .npmrc", async () => {
     await using tmp = await tmpdir()

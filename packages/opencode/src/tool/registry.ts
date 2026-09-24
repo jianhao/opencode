@@ -118,67 +118,67 @@ const layer = Layer.effect(
     const codeMode = flags.experimentalCodeMode ? yield* Effect.promise(() => import("./code-mode")) : undefined
     const codeModeTool = codeMode ? yield* codeMode.CodeModeTool : undefined
 
+    function fromPlugin(ctx: { directory: string; worktree: string }, id: string, def: ToolDefinition): Tool.Def {
+      // Plugin tools still expose Zod args publicly; keep that compatibility
+      // boxed at the registry boundary and give the LLM the original JSON Schema.
+      // Normalize missing args to `{}` once — pre-1.14.49 the code was
+      // `z.object(def.args)` and Zod silently tolerated undefined (#27451, #27630).
+      const args = def.args ?? {}
+      const entries = Object.entries(args)
+      const allZod = entries.every((entry) => isZodType(entry[1]))
+      const zodParams = allZod ? z.object(args) : undefined
+      const jsonSchema = zodParams ? zodJsonSchema(zodParams) : legacyJsonSchema(entries)
+      const parameters = zodParams
+        ? Schema.declare<unknown>((u): u is unknown => zodParams.safeParse(u).success)
+        : Schema.Unknown
+      return {
+        id,
+        parameters,
+        jsonSchema,
+        description: def.description,
+        execute: (args, toolCtx) =>
+          Effect.gen(function* () {
+            // Bridge the host's Effect-based `ask` into a Promise-returning
+            // function for the plugin to make sure context persists
+            const bridge = yield* EffectBridge.make()
+            const pluginCtx: PluginToolContext = {
+              ...toolCtx,
+              ask: (req) => bridge.promise(toolCtx.ask(req)),
+              directory: ctx.directory,
+              worktree: ctx.worktree,
+            }
+            const result = yield* Effect.promise(() => def.execute(args as any, pluginCtx))
+            const output = typeof result === "string" ? result : result.output
+            const metadata = typeof result === "string" ? {} : (result.metadata ?? {})
+            const attachments = typeof result === "string" ? undefined : result.attachments
+            const info = yield* agent.get(toolCtx.agent)
+            const out = yield* truncate.output(output, {}, info)
+            return {
+              title: typeof result === "string" ? "" : (result.title ?? ""),
+              output: out.truncated ? out.content : output,
+              attachments,
+              metadata: {
+                ...metadata,
+                truncated: out.truncated,
+                ...(out.truncated && { outputPath: out.outputPath }),
+              },
+            }
+          }).pipe(
+            Effect.withSpan("Tool.execute", {
+              attributes: {
+                "tool.name": id,
+                "session.id": toolCtx.sessionID,
+                "message.id": toolCtx.messageID,
+                ...(toolCtx.callID ? { "tool.call_id": toolCtx.callID } : {}),
+              },
+            }),
+          ),
+      }
+    }
+
     const state = yield* InstanceState.make<State>(
       Effect.fn("ToolRegistry.state")(function* (ctx) {
         const custom: Tool.Def[] = []
-
-        function fromPlugin(id: string, def: ToolDefinition): Tool.Def {
-          // Plugin tools still expose Zod args publicly; keep that compatibility
-          // boxed at the registry boundary and give the LLM the original JSON Schema.
-          // Normalize missing args to `{}` once — pre-1.14.49 the code was
-          // `z.object(def.args)` and Zod silently tolerated undefined (#27451, #27630).
-          const args = def.args ?? {}
-          const entries = Object.entries(args)
-          const allZod = entries.every((entry) => isZodType(entry[1]))
-          const zodParams = allZod ? z.object(args) : undefined
-          const jsonSchema = zodParams ? zodJsonSchema(zodParams) : legacyJsonSchema(entries)
-          const parameters = zodParams
-            ? Schema.declare<unknown>((u): u is unknown => zodParams.safeParse(u).success)
-            : Schema.Unknown
-          return {
-            id,
-            parameters,
-            jsonSchema,
-            description: def.description,
-            execute: (args, toolCtx) =>
-              Effect.gen(function* () {
-                // Bridge the host's Effect-based `ask` into a Promise-returning
-                // function for the plugin to make sure context persists
-                const bridge = yield* EffectBridge.make()
-                const pluginCtx: PluginToolContext = {
-                  ...toolCtx,
-                  ask: (req) => bridge.promise(toolCtx.ask(req)),
-                  directory: ctx.directory,
-                  worktree: ctx.worktree,
-                }
-                const result = yield* Effect.promise(() => def.execute(args as any, pluginCtx))
-                const output = typeof result === "string" ? result : result.output
-                const metadata = typeof result === "string" ? {} : (result.metadata ?? {})
-                const attachments = typeof result === "string" ? undefined : result.attachments
-                const info = yield* agent.get(toolCtx.agent)
-                const out = yield* truncate.output(output, {}, info)
-                return {
-                  title: typeof result === "string" ? "" : (result.title ?? ""),
-                  output: out.truncated ? out.content : output,
-                  attachments,
-                  metadata: {
-                    ...metadata,
-                    truncated: out.truncated,
-                    ...(out.truncated && { outputPath: out.outputPath }),
-                  },
-                }
-              }).pipe(
-                Effect.withSpan("Tool.execute", {
-                  attributes: {
-                    "tool.name": id,
-                    "session.id": toolCtx.sessionID,
-                    "message.id": toolCtx.messageID,
-                    ...(toolCtx.callID ? { "tool.call_id": toolCtx.callID } : {}),
-                  },
-                }),
-              ),
-          }
-        }
 
         const dirs = yield* config.directories()
         const matches = dirs.flatMap((dir) =>
@@ -192,14 +192,7 @@ const layer = Layer.effect(
           const mod = yield* Effect.promise(() => import(pathToFileURL(match).href))
           for (const [id, def] of Object.entries(mod)) {
             if (!isPluginTool(def)) continue
-            custom.push(fromPlugin(id === "default" ? namespace : `${namespace}_${id}`, def))
-          }
-        }
-
-        const plugins = yield* plugin.list()
-        for (const p of plugins) {
-          for (const [id, def] of Object.entries(p.tool ?? {})) {
-            custom.push(fromPlugin(id, def))
+            custom.push(fromPlugin(ctx, id === "default" ? namespace : `${namespace}_${id}`, def))
           }
         }
 
@@ -255,7 +248,14 @@ const layer = Layer.effect(
 
     const all: Interface["all"] = Effect.fn("ToolRegistry.all")(function* () {
       const s = yield* InstanceState.get(state)
-      return [...s.builtin, ...s.custom] as Tool.Def[]
+      const ctx = yield* InstanceState.context
+      // 插件可能在启动之后才加载成功（见 Plugin 的失败重试），所以插件工具必须每次读取
+      // 时重新收集，不能烘进按目录缓存的 InstanceState 里，否则恢复之后也拿不到工具。
+      const plugins = yield* plugin.list()
+      const fromPlugins = plugins.flatMap((p) =>
+        Object.entries(p.tool ?? {}).map(([id, def]) => fromPlugin(ctx, id, def)),
+      )
+      return [...s.builtin, ...s.custom, ...fromPlugins] as Tool.Def[]
     })
 
     const ids: Interface["ids"] = Effect.fn("ToolRegistry.ids")(function* () {

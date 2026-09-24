@@ -49,6 +49,30 @@ export function sanitize(pkg: string) {
   return Array.from(pkg, (char) => (illegal.has(char) || char.charCodeAt(0) < 32 ? "_" : char)).join("")
 }
 
+type ParsedSpec = {
+  name: string | null | undefined
+  type: string
+  fetchSpec: string
+}
+
+function parseSpec(spec: string): ParsedSpec | undefined {
+  try {
+    const parsed = npa(spec)
+    return { name: parsed.name, type: parsed.type, fetchSpec: String(parsed.fetchSpec) }
+  } catch {
+    return undefined
+  }
+}
+
+// dist-tag 规格（`foo@latest` / `foo@next`）和裸包名（等价于 `foo@latest`）指向的是
+// 一个会随时间变化的版本，必须每次都重新解析。只按缓存目录是否存在来短路，
+// 会导致用户发布了新版本但客户端永远拿不到（upstream#25293）。
+function resolveEveryTime(parsed: ParsedSpec | undefined) {
+  if (!parsed) return false
+  if (parsed.type === "tag") return true
+  return parsed.type === "range" && parsed.fetchSpec === "*"
+}
+
 const resolveEntryPoint = (name: string, dir: string): EntryPoint => {
   let entrypoint: string | undefined
   try {
@@ -122,22 +146,34 @@ const layer = Layer.effect(
 
     const add = Effect.fn("Npm.add")(function* (pkg: string) {
       const dir = directory(pkg)
-      const name = (() => {
-        try {
-          return npa(pkg).name ?? pkg
-        } catch {
-          return pkg
-        }
-      })()
+      const parsed = parseSpec(pkg)
+      const name = parsed?.name ?? pkg
+      const cached = path.join(dir, "node_modules", name)
+      const installed = yield* afs.existsSafe(cached)
 
-      if (yield* afs.existsSafe(path.join(dir, "node_modules", name))) {
-        return resolveEntryPoint(name, path.join(dir, "node_modules", name))
+      // 固定版本、range、本地路径、git/url 这类规格解析结果是稳定的，装过就能直接复用。
+      if (installed && !resolveEveryTime(parsed)) {
+        return resolveEntryPoint(name, cached)
       }
 
-      const tree = yield* reify({ dir, add: [pkg] })
+      const tree = yield* reify({ dir, add: [pkg] }).pipe(
+        // 重新解析 dist-tag 需要联网。离线时不要把一个本来可用的缓存插件变成不可用，
+        // 因此这里退回已安装的副本，并明确记录原因（而不是静默降级）。
+        Effect.catchTag("NpmInstallFailedError", (error) =>
+          installed
+            ? Effect.logWarning("npm registry unreachable, using cached plugin install", {
+                pkg,
+                dir,
+                error: error.message,
+              }).pipe(Effect.as(undefined))
+            : Effect.fail(error),
+        ),
+      )
+      if (!tree) return resolveEntryPoint(name, cached)
+
       const first = tree.edgesOut.values().next().value?.to
       if (!first) {
-        const result = resolveEntryPoint(name, path.join(dir, "node_modules", name))
+        const result = resolveEntryPoint(name, cached)
         if (result.entrypoint) return result
         return yield* new InstallFailedError({ add: [pkg], dir })
       }

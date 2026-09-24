@@ -49,6 +49,12 @@ export const Flag = {
   OPENCODE_WORKSPACE_ID: process.env["OPENCODE_WORKSPACE_ID"],
   OPENCODE_EXPERIMENTAL_WORKSPACES: enabledByExperimental("OPENCODE_EXPERIMENTAL_WORKSPACES"),
 
+  // 插件加载失败后的重试基准间隔（毫秒），未设置时用插件模块内的默认值。
+  // 测试用较小值来验证「冷却后自动重试」这条路径。
+  get OPENCODE_PLUGIN_RETRY_BASE_MS() {
+    return process.env["OPENCODE_PLUGIN_RETRY_BASE_MS"]
+  },
+
   // Evaluated at access time (not module load) because tests, the CLI, and
   // external tooling set these env vars at runtime.
   get OPENCODE_DISABLE_PROJECT_CONFIG() {

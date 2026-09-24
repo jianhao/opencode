@@ -351,7 +351,9 @@ describe("HttpApi UI fallback", () => {
       const csp = response.headers.get("content-security-policy") ?? ""
       expect(csp).toContain("script-src 'self' 'wasm-unsafe-eval'")
       expect(csp).toContain(`'sha256-${createHash("sha256").update(script).digest("base64")}'`)
-      expect(csp).toContain("img-src 'self' data: https: blob:")
+      // 插件生成的图片由插件自己起的本地服务提供（随机端口、与 opencode 不同源），
+      // 所以 img-src 必须放行 127.0.0.1 的任意端口。
+      expect(csp).toContain("img-src 'self' data: https: blob: http://127.0.0.1:*")
       expect(csp).toContain("connect-src * data: blob:")
     }),
   )

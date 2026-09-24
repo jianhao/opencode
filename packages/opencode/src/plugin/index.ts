@@ -1,4 +1,5 @@
 import { LayerNode } from "@opencode-ai/core/effect/layer-node"
+import { Flag } from "@opencode-ai/core/flag/flag"
 import type {
   Hooks,
   PluginInput,
@@ -22,7 +23,7 @@ import { DigitalOceanAuthPlugin } from "./digitalocean"
 import { XaiAuthPlugin } from "./xai"
 import { CerebrasPlugin } from "./cerebras"
 import { SnowflakeCortexAuthPlugin } from "./snowflake-cortex"
-import { Effect, Layer, Context } from "effect"
+import { Clock, Effect, Layer, Context } from "effect"
 import { EffectBridge } from "@/effect/bridge"
 import { InstanceState } from "@/effect/instance-state"
 import { errorMessage } from "@/util/error"
@@ -36,6 +37,38 @@ import { InstallationChannel } from "@opencode-ai/core/installation/version"
 
 type State = {
   hooks: Hooks[]
+}
+
+type LoadFailure = {
+  spec: string
+  stage: "install" | "entry" | "compatibility" | "load" | "missing"
+  message: string
+}
+
+// 插件加载失败后允许重新尝试的退避：15s、30s、60s…最多 5 分钟。
+// 加载结果会被 InstanceState 按目录缓存，失败如果只缓存不重试，
+// 这个实例就会永久失去插件工具，只能重启 app（见 upstream#41574）。
+const RETRY_MAX_MS = 300_000
+const RETRY_DEFAULT_BASE_MS = 15_000
+
+function retryBaseMs() {
+  const value = Number(Flag.OPENCODE_PLUGIN_RETRY_BASE_MS)
+  return Number.isFinite(value) && value > 0 ? value : RETRY_DEFAULT_BASE_MS
+}
+
+function retryDelay(attempts: number) {
+  return Math.min(retryBaseMs() * 2 ** (attempts - 1), RETRY_MAX_MS)
+}
+
+function failureMessage(failure: LoadFailure) {
+  if (failure.stage === "install") {
+    const parsed = parsePluginSpecifier(failure.spec)
+    return `Failed to install plugin ${parsed.pkg}@${parsed.version}: ${failure.message}`
+  }
+  if (failure.stage === "compatibility" || failure.stage === "missing") {
+    return `Plugin ${failure.spec} skipped: ${failure.message}`
+  }
+  return `Failed to load plugin ${failure.spec}: ${failure.message}`
 }
 
 // Hook names that follow the (input, output) => Promise<void> trigger pattern
@@ -131,10 +164,14 @@ const layer = Layer.effect(
     const config = yield* Config.Service
     const flags = yield* RuntimeFlags.Service
 
+    // 按目录记住上一次加载失败和下一次允许重试的时间点
+    const retry = new Map<string, { attempts: number; next: number }>()
+
     const state = yield* InstanceState.make<State>(
       Effect.fn("Plugin.state")(function* (ctx) {
         const hooks: Hooks[] = []
         const bridge = yield* EffectBridge.make()
+        const failures: LoadFailure[] = []
 
         function publishPluginError(message: string) {
           bridge.fork(events.publish(Session.Event.Error, { error: new NamedError.Unknown({ message }).toObject() }))
@@ -189,29 +226,13 @@ const layer = Layer.effect(
             kind: "server",
             report: {
               start(candidate) {},
-              missing(candidate, _retry, message) {},
-              error(candidate, _retry, stage, error, resolved) {
-                const spec = candidate.plan.spec
+              missing(candidate, _retry, message) {
+                failures.push({ spec: candidate.plan.spec, stage: "missing", message })
+              },
+              error(candidate, _retry, stage, error) {
                 const cause = error instanceof Error ? (error.cause ?? error) : error
                 const message = stage === "load" ? errorMessage(error) : errorMessage(cause)
-
-                if (stage === "install") {
-                  const parsed = parsePluginSpecifier(spec)
-                  publishPluginError(`Failed to install plugin ${parsed.pkg}@${parsed.version}: ${message}`)
-                  return
-                }
-
-                if (stage === "compatibility") {
-                  publishPluginError(`Plugin ${spec} skipped: ${message}`)
-                  return
-                }
-
-                if (stage === "entry") {
-                  publishPluginError(`Failed to load plugin ${spec}: ${message}`)
-                  return
-                }
-
-                publishPluginError(`Failed to load plugin ${spec}: ${message}`)
+                failures.push({ spec: candidate.plan.spec, stage, message })
               },
             },
           }),
@@ -228,17 +249,33 @@ const layer = Layer.effect(
               return message
             },
           }).pipe(
-            Effect.tapError((error) => Effect.logError("failed to load plugin", { path: load.spec, error })),
-            Effect.catch(() => {
-              // TODO: make proper events for this
-              // events.publish(Session.Event.Error, {
-              //   error: new NamedError.Unknown({
-              //     message: `Failed to load plugin ${load.spec}: ${message}`,
-              //   }).toObject(),
-              // })
-              return Effect.void
-            }),
+            Effect.catch((message) =>
+              Effect.sync(() => {
+                failures.push({ spec: load.spec, stage: "load", message })
+              }),
+            ),
           )
+        }
+
+        // 之前这里只 publish 一个事件：opencode.log 里什么都没有，用户也无从排查。
+        // 现在既写日志（可诊断），也推到会话错误里（用户可见）。
+        for (const failure of failures) {
+          yield* Effect.logError("failed to load plugin", failure)
+          publishPluginError(failureMessage(failure))
+        }
+
+        // 把失败记录下来，冷却结束后由下一次访问触发重新加载
+        if (failures.length > 0) {
+          const attempts = (retry.get(ctx.directory)?.attempts ?? 0) + 1
+          yield* Effect.logInfo("plugin load failed, will retry later", {
+            directory: ctx.directory,
+            attempts,
+            retryInMs: retryDelay(attempts),
+            specs: failures.map((failure) => failure.spec),
+          })
+          retry.set(ctx.directory, { attempts, next: (yield* Clock.currentTimeMillis) + retryDelay(attempts) })
+        } else {
+          retry.delete(ctx.directory)
         }
 
         // Notify plugins of current config
@@ -281,13 +318,25 @@ const layer = Layer.effect(
       }),
     )
 
+    // 失败结果会被 InstanceState 按目录缓存。冷却到点后先让它失效，再重新加载，
+    // 这样新会话有机会自动恢复，而不是必须重启 app。
+    const loadState = Effect.gen(function* () {
+      const directory = yield* InstanceState.directory
+      const pending = retry.get(directory)
+      if (pending && (yield* Clock.currentTimeMillis) >= pending.next) {
+        yield* Effect.logInfo("retrying plugin load", { directory, attempts: pending.attempts })
+        yield* InstanceState.invalidate(state)
+      }
+      return yield* InstanceState.get(state)
+    })
+
     const trigger = Effect.fn("Plugin.trigger")(function* <
       Name extends TriggerName,
       Input = Parameters<Required<Hooks>[Name]>[0],
       Output = Parameters<Required<Hooks>[Name]>[1],
     >(name: Name, input: Input, output: Output) {
       if (!name) return output
-      const s = yield* InstanceState.get(state)
+      const s = yield* loadState
       for (const hook of s.hooks) {
         const fn = hook[name] as any
         if (!fn) continue
@@ -297,12 +346,12 @@ const layer = Layer.effect(
     })
 
     const list = Effect.fn("Plugin.list")(function* () {
-      const s = yield* InstanceState.get(state)
+      const s = yield* loadState
       return s.hooks
     })
 
     const init = Effect.fn("Plugin.init")(function* () {
-      yield* InstanceState.get(state)
+      yield* loadState
     })
 
     return Service.of({ trigger, list, init })
