@@ -1,7 +1,1 @@
-<svg xmlns="http://www.w3.org/2000/svg" version="1.1" xmlns:xlink="http://www.w3.org/1999/xlink" width="512" height="512"><svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
-<rect width="512" height="512" fill="#131010"></rect>
-<path d="M320 224V352H192V224H320Z" fill="#5A5858"></path>
-<path fill-rule="evenodd" clip-rule="evenodd" d="M384 416H128V96H384V416ZM320 160H192V352H320V160Z" fill="white"></path>
-</svg><style>@media (prefers-color-scheme: light) { :root { filter: none; } }
-@media (prefers-color-scheme: dark) { :root { filter: none; } }
-</style></svg>
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="bg" x1="0.18" y1="0.15" x2="0.82" y2="0.88"><stop offset="0" stop-color="#7C88FC"/><stop offset="0.5" stop-color="#9A8EFB"/><stop offset="1" stop-color="#8CC0FC"/></linearGradient><radialGradient id="sheen" cx="0.72" cy="0.26" r="0.62"><stop offset="0" stop-color="#AC8CF9" stop-opacity="0.5"/><stop offset="1" stop-color="#AC8CF9" stop-opacity="0"/></radialGradient></defs><rect width="1024" height="1024" rx="228" fill="url(#bg)"/><rect width="1024" height="1024" rx="228" fill="url(#sheen)"/><path d="M631 293H323Q293 293 293 323V701Q293 731 323 731H701Q731 731 731 701V353" stroke="#FCFCFA" stroke-width="74" stroke-linecap="round" stroke-linejoin="round"/><rect x="420" y="420" width="184" height="184" rx="34" fill="#FCFCFA"/></svg>
