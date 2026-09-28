@@ -647,6 +647,7 @@
   [data-slot="collapsible-arrow"] {
     color: var(--icon-weaker);
     cursor: pointer;
+    opacity: 1;
   }
 }
 
@@ -663,6 +664,47 @@
     min-width: 0;
     padding: 0;
   }
+}
+
+[data-component="activity-tool-group-trigger"] {
+  width: 100%;
+  min-height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0px;
+  cursor: default;
+
+  [data-slot="activity-tool-group-title"] {
+    flex-shrink: 1;
+    min-width: 0;
+  }
+
+  [data-slot="collapsible-arrow"] {
+    color: var(--icon-weaker);
+    cursor: pointer;
+    opacity: 1;
+  }
+}
+
+[data-component="activity-tool-group-list"] {
+  padding-top: 0;
+  padding-right: 0;
+  padding-bottom: 0;
+  padding-left: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+[data-slot="activity-tool-group-duration"],
+[data-slot="context-tool-group-duration"] {
+  margin-inline-start: auto;
+  flex-shrink: 0;
+  padding-inline-start: 8px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--v2-text-text-faint);
 }
 
 [data-component="diagnostics"] {

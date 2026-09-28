@@ -81,6 +81,21 @@ IMPORTANT:
 
 const STRUCTURED_OUTPUT_SYSTEM_PROMPT = `IMPORTANT: The user has requested structured output. You MUST use the StructuredOutput tool to provide your final response. Do NOT respond with plain text - you MUST call the StructuredOutput tool with your answer formatted according to the schema.`
 
+// Fork: force replies to follow the user's language. The built-in prompts are
+// English, so models tend to answer in English even when the user writes Chinese.
+const LANGUAGE_SYSTEM_PROMPT =
+  "Always respond to the user in the same language as the user's most recent message, unless the user explicitly asks for another language. This applies to all of your user-facing output, including explanations, summaries and plans."
+
+// Fork: keep answers scannable (Antigravity/Codex-like): conclusion first,
+// structured, diffs over full code, no restating the request.
+const STYLE_SYSTEM_PROMPT = `Writing style for user-facing replies:
+- Lead with the conclusion or the result. Do not narrate your process.
+- Do NOT write filler between tool calls (no "Let me check…", "Now I will…", "Great, …"). Call tools silently; write nothing until the final answer.
+- Put the final answer in short, scannable sections: a bold lead or heading, then bullets/steps, and a table when comparing options.
+- Start each section with a fitting emoji (e.g. ✅ done, ⚠️ caution, 📌 note, 🔍 finding, 🛠️ change, 📄 file).
+- For code changes, show a focused diff or only the changed lines; never paste whole files.
+- Never restate the user's request and never explain obvious basics.`
+
 function mcpResourceBase64Size(value: string) {
   const trimmed = value.replace(/\s/g, "")
   const padding = trimmed.endsWith("==") ? 2 : trimmed.endsWith("=") ? 1 : 0
@@ -1262,6 +1277,8 @@ const layer = Layer.effect(
               MessageV2.toModelMessagesEffect(msgs, model),
             ])
             const system = [
+              LANGUAGE_SYSTEM_PROMPT,
+              STYLE_SYSTEM_PROMPT,
               ...env,
               ...instructions,
               ...(mcpInstructions ? [mcpInstructions] : []),

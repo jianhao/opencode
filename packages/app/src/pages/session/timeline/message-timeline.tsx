@@ -24,6 +24,7 @@ import {
   Message,
   MessageDivider,
   Part as MessagePart,
+  ToolActivityGroup,
   partDefaultOpen,
   type UserActions,
 } from "@opencode-ai/session-ui/message-part"
@@ -982,8 +983,12 @@ export function MessageTimeline(props: {
           .filter((part): part is ToolPart => part?.type === "tool")
       })
       const contextOpenKey = () => `context:${row().group.key}`
+      const last = createMemo(() => lastAssistantGroupKey().get(row().userMessageID) === row().group.key)
+      const busy = createMemo(() => workingTurn(row().userMessageID) && last())
       const open = createMemo(() => {
-        return toolOpen[contextOpenKey()] === true
+        const stored = toolOpen[contextOpenKey()]
+        if (stored !== undefined) return stored
+        return busy()
       })
 
       return (
@@ -991,10 +996,45 @@ export function MessageTimeline(props: {
           parts={parts()}
           open={open()}
           onOpenChange={(value) => setToolOpen(contextOpenKey(), value)}
-          busy={
-            workingTurn(row().userMessageID) && lastAssistantGroupKey().get(row().userMessageID) === row().group.key
-          }
+          busy={busy()}
           onSizeChange={onSizeChange}
+          durationMs={last() ? turnDurationMs(row().userMessageID) : undefined}
+        />
+      )
+    }
+
+    if (row().group.type === "activity") {
+      const items = createMemo(() => {
+        const group = row().group
+        if (group.type !== "activity") return [] as { part: PartType; message: AssistantMessage }[]
+        return group.refs
+          .map((ref) => {
+            const part = getMsgPart(ref.messageID, ref.partID)
+            const message = messageByID().get(ref.messageID)
+            if (!part || !message) return
+            return { part, message }
+          })
+          .filter((item): item is { part: PartType; message: AssistantMessage } => !!item)
+      })
+      const activityOpenKey = () => `activity:${row().group.key}`
+      const last = createMemo(() => lastAssistantGroupKey().get(row().userMessageID) === row().group.key)
+      const busy = createMemo(() => workingTurn(row().userMessageID) && last())
+      const open = createMemo(() => {
+        const stored = toolOpen[activityOpenKey()]
+        if (stored !== undefined) return stored
+        return busy()
+      })
+
+      return (
+        <ToolActivityGroup
+          items={items()}
+          open={open()}
+          onOpenChange={(value) => setToolOpen(activityOpenKey(), value)}
+          busy={busy()}
+          onSizeChange={onSizeChange}
+          durationMs={last() ? turnDurationMs(row().userMessageID) : undefined}
+          turnDurationMs={turnDurationMs(row().userMessageID)}
+          useV2Actions={settings.general.newLayoutDesigns()}
         />
       )
     }

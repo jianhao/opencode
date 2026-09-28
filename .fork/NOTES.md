@@ -62,6 +62,14 @@ bun run --cwd packages/app dev        # 终端 2 → http://localhost:5173
 2. `notarize: true` / `hardenedRuntime: true` 需要 Apple 签名证书。自用可以走
    `CSC_IDENTITY_AUTO_DISCOVERY=false` 出未签名包（脚本里已带）。
 
+## 国际化（i18n）策略
+
+- 本 fork **只维护 `en` 和 `zh`** 两套文案。
+- 新增/修改文案只动 `en` + `zh`（`packages/ui/src/i18n/`、`packages/app/src/i18n/`、必要时 `packages/desktop/src/renderer/i18n/`）。
+- **不要**去改其它语言文件（am/ar/de/ja/ko/zht/...）。运行时 locales 是「英文 base + 各语言覆盖」合并，缺 key 自动回退英文，功能不受影响。
+- 不要为了让 `packages/app/src/i18n/parity.test.ts` 变绿去补其它语言；非维护语言的 parity 不强制。
+- 背景：有一次改动把新 key 批量注入到 60+ 语言文件，产生大量无意义 diff，已整体回退。
+
 ## 待办的三个改动
 
 ### (c) Markdown 图片点击不弹预览 —— patch 已提交，未运行时验证

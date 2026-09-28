@@ -94,6 +94,8 @@ export const dict: Record<string, string> = {
   "ui.sessionTurn.status.thinkingWithTopic": "Thinking - {{topic}}",
   "ui.sessionTurn.status.gatheringThoughts": "Gathering thoughts",
   "ui.sessionTurn.status.consideringNextSteps": "Considering next steps",
+  "ui.sessionTurn.status.working": "Working",
+  "ui.sessionTurn.status.worked": "Worked",
 
   "ui.messagePart.diagnostic.error": "Error",
   "ui.messagePart.title.edit": "Edit",
@@ -108,6 +110,12 @@ export const dict: Record<string, string> = {
   "ui.messagePart.context.search.other": "{{count}} searches",
   "ui.messagePart.context.list.one": "{{count}} list",
   "ui.messagePart.context.list.other": "{{count}} lists",
+  "ui.messagePart.activity.commands.one": "{{count}} command",
+  "ui.messagePart.activity.commands.other": "{{count}} commands",
+  "ui.messagePart.activity.edits.one": "{{count}} edit",
+  "ui.messagePart.activity.edits.other": "{{count}} edits",
+  "ui.messagePart.activity.tools.one": "{{count}} tool call",
+  "ui.messagePart.activity.tools.other": "{{count}} tool calls",
 
   "ui.list.loading": "Loading",
   "ui.list.empty": "No results",

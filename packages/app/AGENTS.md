@@ -21,6 +21,8 @@
 
 ## Localization
 
+> Fork policy: only `en` and `zh` are maintained. Add new keys to those two dictionaries only; never edit other locale files (they fall back to English at runtime).
+
 - NEVER hardcode user-visible English strings in production code. ALWAYS use an i18n key for visible copy, placeholders, accessible labels, tooltips, menus, dialogs, toasts, empty states, and displayed errors.
 - When migrating existing copy to i18n, preserve the English text byte-for-byte unless the task explicitly requests a copy change.
 - NEVER change existing English text or English keys to facilitate translation. English is intentional, designer-written source copy; adapt locale-specific translations and i18n mechanics around it.

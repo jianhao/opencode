@@ -4,6 +4,15 @@
 - The default branch in this repo is `dev`.
 - Local `main` ref may not exist; use `dev` or `origin/dev` for diffs.
 
+## Localization (fork policy)
+
+This fork only maintains **English (`en`)** and **Simplified Chinese (`zh`)**.
+
+- When adding or changing copy, only edit `en` and `zh` dictionaries (e.g. `packages/ui/src/i18n/en.ts` + `zh.ts`, `packages/app/src/i18n/en.ts` + `zh.ts`).
+- NEVER add, translate, or update keys in any other locale file (am, ar, br, de, ja, ko, zht, ...). Leave them untouched.
+- Missing keys fall back to English at runtime (locales are merged on top of the English base), so non-maintained locales stay usable without edits.
+- Do not touch other locales just to satisfy the i18n parity test. Parity for non-maintained locales is intentionally not enforced.
+
 ## Branch Names
 
 Use a short branch name of at most three words, separated by hyphens. Do not use slashes or type prefixes such as `feat/` or `fix/`.

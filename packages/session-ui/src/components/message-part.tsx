@@ -606,6 +606,10 @@ function taskSession(
 
 const CONTEXT_GROUP_TOOLS = new Set(["read", "glob", "grep", "list"])
 const HIDDEN_TOOLS = new Set(["todowrite"])
+// Tools that stay as their own row even when surrounded by grouped tool calls.
+const ACTIVITY_STANDALONE_TOOLS = new Set(["question", "task", "todowrite"])
+const COMMAND_TOOLS = new Set(["bash", "shell"])
+const EDIT_TOOLS = new Set(["edit", "write", "patch", "apply_patch"])
 
 function list<T>(value: T[] | undefined | null, fallback: T[]) {
   if (Array.isArray(value)) return value
@@ -635,6 +639,11 @@ export type PartGroup =
       type: "context"
       refs: PartRef[]
     }
+  | {
+      key: string
+      type: "activity"
+      refs: PartRef[]
+    }
 
 function sameRef(a: PartRef, b: PartRef) {
   return a.messageID === b.messageID && a.partID === b.partID
@@ -648,7 +657,7 @@ function sameGroup(a: PartGroup, b: PartGroup) {
     if (b.type !== "part") return false
     return sameRef(a.ref, b.ref)
   }
-  if (b.type !== "context") return false
+  if (b.type === "part") return false
   if (a.refs.length !== b.refs.length) return false
   return a.refs.every((ref, i) => sameRef(ref, b.refs[i]!))
 }
@@ -662,34 +671,24 @@ export function sameGroups(a: readonly PartGroup[] | undefined, b: readonly Part
 
 export function groupParts(parts: { messageID: string; part: PartType }[]) {
   const result: PartGroup[] = []
-  let start = -1
+  let runStart = -1
 
-  const flush = (end: number) => {
-    if (start < 0) return
-    const first = parts[start]
-    const last = parts[end]
-    if (!first || !last) {
-      start = -1
-      return
-    }
-    result.push({
-      key: `context:${first.part.id}`,
-      type: "context",
-      refs: parts.slice(start, end + 1).map((item) => ({
-        messageID: item.messageID,
-        partID: item.part.id,
-      })),
-    })
-    start = -1
-  }
-
+  // The last text part is the turn's final answer; it stays visible on its own.
+  // Everything before it (tool calls + the model's in-between narration) is
+  // treated as process and folded into one collapsible group, Codex-style.
+  let answerIndex = -1
   parts.forEach((item, index) => {
-    if (isContextGroupTool(item.part)) {
-      if (start < 0) start = index
-      return
-    }
+    if (item.part.type === "text") answerIndex = index
+  })
+  const foldNarration = answerIndex >= 0
 
-    flush(index - 1)
+  const refs = (start: number, end: number) =>
+    parts.slice(start, end + 1).map((item) => ({
+      messageID: item.messageID,
+      partID: item.part.id,
+    }))
+
+  const pushPart = (item: { messageID: string; part: PartType }) => {
     result.push({
       key: `part:${item.messageID}:${item.part.id}`,
       type: "part",
@@ -698,9 +697,60 @@ export function groupParts(parts: { messageID: string; part: PartType }[]) {
         partID: item.part.id,
       },
     })
+  }
+
+  const foldable = (item: { messageID: string; part: PartType }, index: number) => {
+    if (index === answerIndex) return false
+    const part = item.part
+    if (part.type === "tool") return isContextGroupTool(part) || isActivityGroupTool(part)
+    if (foldNarration && (part.type === "text" || part.type === "reasoning")) return true
+    return false
+  }
+
+  const flushRun = (end: number) => {
+    if (runStart < 0) return
+    const start = runStart
+    runStart = -1
+    if (start > end) return
+    const run = parts.slice(start, end + 1)
+    const first = run[0]
+    if (!first) return
+    const hasTool = run.some((item) => item.part.type === "tool")
+    // A run of only narration (no tool call) has nothing to summarize; keep it visible.
+    if (!hasTool) {
+      run.forEach(pushPart)
+      return
+    }
+    if (run.every((item) => isContextGroupTool(item.part))) {
+      result.push({
+        key: `context:${first.part.id}`,
+        type: "context",
+        refs: refs(start, end),
+      })
+      return
+    }
+    // Without a final answer, keep a lone tool call visible so its command shows.
+    if (!foldNarration && run.length < 2) {
+      pushPart(first)
+      return
+    }
+    result.push({
+      key: `activity:${first.part.id}`,
+      type: "activity",
+      refs: refs(start, end),
+    })
+  }
+
+  parts.forEach((item, index) => {
+    if (foldable(item, index)) {
+      if (runStart < 0) runStart = index
+      return
+    }
+    flushRun(index - 1)
+    pushPart(item)
   })
 
-  flush(parts.length - 1)
+  flushRun(parts.length - 1)
   return result
 }
 
@@ -784,7 +834,41 @@ export function AssistantParts(props: {
 
                 return (
                   <Show when={parts().length > 0}>
-                    <ContextToolGroup parts={parts()} busy={busy()} />
+                    <ContextToolGroup
+                      parts={parts()}
+                      busy={busy()}
+                      durationMs={last() === entryAccessor().key ? props.turnDurationMs : undefined}
+                    />
+                  </Show>
+                )
+              })()}
+            </Match>
+            <Match when={entryType() === "activity"}>
+              {(() => {
+                const items = createMemo(() => {
+                  const entry = entryAccessor()
+                  if (entry.type !== "activity") return [] as { part: PartType; message: AssistantMessage }[]
+                  return entry.refs
+                    .map((ref) => {
+                      const resolved = part().get(ref.messageID)?.get(ref.partID)
+                      const message = msgs().get(ref.messageID)
+                      if (!resolved || !message) return
+                      return { part: resolved, message }
+                    })
+                    .filter((item): item is { part: PartType; message: AssistantMessage } => !!item)
+                })
+                const busy = createMemo(() => props.working && last() === entryAccessor().key)
+
+                return (
+                  <Show when={items().length > 0}>
+                    <ToolActivityGroup
+                      items={items()}
+                      busy={busy()}
+                      durationMs={last() === entryAccessor().key ? props.turnDurationMs : undefined}
+                      showAssistantCopyPartID={props.showAssistantCopyPartID}
+                      turnDurationMs={props.turnDurationMs}
+                      useV2Actions={props.useV2Actions}
+                    />
                   </Show>
                 )
               })()}
@@ -827,6 +911,31 @@ export function AssistantParts(props: {
 
 function isContextGroupTool(part: PartType): part is ToolPart {
   return part.type === "tool" && CONTEXT_GROUP_TOOLS.has(part.tool)
+}
+
+function isActivityGroupTool(part: PartType): part is ToolPart {
+  if (part.type !== "tool") return false
+  if (HIDDEN_TOOLS.has(part.tool)) return false
+  if (CONTEXT_GROUP_TOOLS.has(part.tool)) return false
+  if (ACTIVITY_STANDALONE_TOOLS.has(part.tool)) return false
+  return true
+}
+
+function activityToolSummary(parts: PartType[]) {
+  const tools = parts.filter((part): part is ToolPart => part.type === "tool")
+  const read = tools.filter((part) => part.tool === "read").length
+  const search = tools.filter((part) => part.tool === "glob" || part.tool === "grep").length
+  const list = tools.filter((part) => part.tool === "list").length
+  const commands = tools.filter((part) => COMMAND_TOOLS.has(part.tool)).length
+  const edits = tools.filter((part) => EDIT_TOOLS.has(part.tool)).length
+  return {
+    read,
+    search,
+    list,
+    commands,
+    edits,
+    tools: tools.length - read - search - list - commands - edits,
+  }
 }
 
 function contextToolDetail(part: ToolPart): string | undefined {
@@ -1013,6 +1122,28 @@ export function AssistantMessageDisplay(props: {
                 )
               })()}
             </Match>
+            <Match when={entryType() === "activity"}>
+              {(() => {
+                const items = createMemo(() => {
+                  const entry = entryAccessor()
+                  if (entry.type !== "activity") return [] as { part: PartType; message: AssistantMessage }[]
+                  return entry.refs
+                    .map((ref) => part().get(ref.partID))
+                    .filter((part): part is PartType => !!part)
+                    .map((part) => ({ part, message: props.message }))
+                })
+
+                return (
+                  <Show when={items().length > 0}>
+                    <ToolActivityGroup
+                      items={items()}
+                      showAssistantCopyPartID={props.showAssistantCopyPartID}
+                      useV2Actions={props.useV2Actions}
+                    />
+                  </Show>
+                )
+              })()}
+            </Match>
             <Match when={entryType() === "part"}>
               {(() => {
                 const item = createMemo(() => {
@@ -1040,21 +1171,35 @@ export function AssistantMessageDisplay(props: {
   )
 }
 
+function formatDuration(i18n: ReturnType<typeof useI18n>, ms: number) {
+  const total = Math.round(ms / 1000)
+  if (total < 60) return i18n.t("ui.message.duration.seconds", { count: total })
+  const minutes = Math.floor(total / 60)
+  const seconds = total % 60
+  return i18n.t("ui.message.duration.minutesSeconds", { minutes, seconds })
+}
+
 export function ContextToolGroup(props: {
   parts: ToolPart[]
   busy?: boolean
   open?: boolean
   onOpenChange?: (open: boolean) => void
   onSizeChange?: () => void
+  durationMs?: number
 }) {
   const i18n = useI18n()
-  const [localOpen, setLocalOpen] = createSignal(false)
-  const open = () => props.open ?? localOpen()
+  const [localOpen, setLocalOpen] = createSignal<boolean | undefined>(undefined)
+  // While the turn is running the last group auto-expands so progress is visible;
+  // it collapses again when the turn finishes. A manual toggle always wins.
+  const open = () => props.open ?? localOpen() ?? !!props.busy
   const pending = createMemo(
     () =>
       !!props.busy || props.parts.some((part) => part.state.status === "pending" || part.state.status === "running"),
   )
   const summary = createMemo(() => contextToolSummary(props.parts))
+  const duration = createMemo(() =>
+    typeof props.durationMs === "number" && props.durationMs >= 0 ? formatDuration(i18n, props.durationMs) : "",
+  )
   const handleOpenChange = (value: boolean) => {
     if (props.open === undefined) setLocalOpen(value)
     props.onOpenChange?.(value)
@@ -1106,6 +1251,9 @@ export function ContextToolGroup(props: {
               />
             </span>
           </span>
+          <Show when={duration()}>
+            <span data-slot="context-tool-group-duration">{duration()}</span>
+          </Show>
           <Collapsible.Arrow />
         </div>
       </Collapsible.Trigger>
@@ -1143,6 +1291,122 @@ export function ContextToolGroup(props: {
                 </div>
               )
             }}
+          </Index>
+        </div>
+      </Collapsible.Content>
+    </Collapsible>
+  )
+}
+
+export function ToolActivityGroup(props: {
+  items: { part: PartType; message: AssistantMessage }[]
+  busy?: boolean
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
+  onSizeChange?: () => void
+  durationMs?: number
+  showAssistantCopyPartID?: string | null
+  turnDurationMs?: number
+  useV2Actions?: boolean
+}) {
+  const i18n = useI18n()
+  const [localOpen, setLocalOpen] = createSignal<boolean | undefined>(undefined)
+  // While the turn is running the last group auto-expands so progress is visible;
+  // it collapses again when the turn finishes. A manual toggle always wins.
+  const open = () => props.open ?? localOpen() ?? !!props.busy
+  const pending = createMemo(
+    () =>
+      !!props.busy ||
+      props.items.some(
+        ({ part }) =>
+          part.type === "tool" && (part.state.status === "pending" || part.state.status === "running"),
+      ),
+  )
+  const summary = createMemo(() => activityToolSummary(props.items.map((item) => item.part)))
+  const duration = createMemo(() =>
+    typeof props.durationMs === "number" && props.durationMs >= 0 ? formatDuration(i18n, props.durationMs) : "",
+  )
+  const handleOpenChange = (value: boolean) => {
+    if (props.open === undefined) setLocalOpen(value)
+    props.onOpenChange?.(value)
+    props.onSizeChange?.()
+  }
+
+  return (
+    <Collapsible
+      open={open()}
+      onOpenChange={handleOpenChange}
+      variant="ghost"
+      class="tool-collapsible"
+      data-timeline-part-ids={props.items.map((item) => item.part.id).join(",")}
+    >
+      <Collapsible.Trigger>
+        <div data-component="activity-tool-group-trigger">
+          <span
+            data-slot="activity-tool-group-title"
+            class="min-w-0 flex items-center gap-2 text-14-medium text-text-strong"
+          >
+            <span data-slot="activity-tool-group-label" class="shrink-0">
+              <ToolStatusTitle
+                active={pending()}
+                activeText={i18n.t("ui.sessionTurn.status.working")}
+                doneText={i18n.t("ui.sessionTurn.status.worked")}
+                split={false}
+              />
+            </span>
+            <span
+              data-slot="activity-tool-group-summary"
+              class="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap font-normal text-text-base"
+            >
+              <AnimatedCountList
+                items={[
+                  {
+                    key: "ui.messagePart.activity.commands",
+                    count: summary().commands,
+                  },
+                  {
+                    key: "ui.messagePart.activity.edits",
+                    count: summary().edits,
+                  },
+                  {
+                    key: "ui.messagePart.activity.tools",
+                    count: summary().tools,
+                  },
+                  {
+                    key: "ui.messagePart.context.read",
+                    count: summary().read,
+                  },
+                  {
+                    key: "ui.messagePart.context.search",
+                    count: summary().search,
+                  },
+                  {
+                    key: "ui.messagePart.context.list",
+                    count: summary().list,
+                  },
+                ]}
+                fallback=""
+              />
+            </span>
+          </span>
+          <Show when={duration()}>
+            <span data-slot="activity-tool-group-duration">{duration()}</span>
+          </Show>
+          <Collapsible.Arrow />
+        </div>
+      </Collapsible.Trigger>
+      <Collapsible.Content>
+        <div data-component="activity-tool-group-list">
+          <Index each={props.items}>
+            {(itemAccessor) => (
+              <Part
+                part={itemAccessor().part}
+                message={itemAccessor().message}
+                showAssistantCopyPartID={props.showAssistantCopyPartID}
+                turnDurationMs={props.turnDurationMs}
+                useV2Actions={props.useV2Actions}
+              />
+            )}
           </Index>
         </div>
       </Collapsible.Content>
