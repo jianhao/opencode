@@ -8,6 +8,7 @@ export interface DialogProps extends ParentProps {
   variant?: "default" | "settings"
   class?: ComponentProps<"div">["class"]
   containerClass?: ComponentProps<"div">["class"]
+  containerRef?: (element: HTMLDivElement) => void
   classList?: ComponentProps<"div">["classList"]
   fit?: boolean
 }
@@ -82,7 +83,7 @@ export function DialogHeader(props: DialogHeaderProps) {
 }
 
 export function Dialog(props: DialogProps) {
-  const [local] = splitProps(props, ["size", "variant", "class", "containerClass", "classList", "fit", "children"])
+  const [local] = splitProps(props, ["size", "variant", "class", "containerClass", "containerRef", "classList", "fit", "children"])
 
   return (
     <div
@@ -91,7 +92,7 @@ export function Dialog(props: DialogProps) {
       data-fit={local.fit ? true : undefined}
       data-size={local.size || "normal"}
     >
-      <div data-slot="dialog-container" class={local.containerClass}>
+      <div data-slot="dialog-container" class={local.containerClass} ref={local.containerRef}>
         <Kobalte.Content
           data-slot="dialog-content"
           classList={{

@@ -1,4 +1,4 @@
-import { Component, createMemo, createSignal, startTransition } from "solid-js"
+import { Component, createMemo, createSignal, onMount, startTransition } from "solid-js"
 import { Dialog } from "@opencode-ai/ui/v2/dialog-v2"
 import { TabsV2 } from "@opencode-ai/ui/v2/tabs-v2"
 import { Icon } from "@opencode-ai/ui/icon"
@@ -15,6 +15,7 @@ import { useDialog } from "@opencode-ai/ui/context/dialog"
 import { useLayout } from "@/context/layout"
 import { useTabs } from "@/context/tabs"
 import { useServerSync } from "@/context/server-sync"
+import { attachSettingsWindow } from "./window"
 
 export const DialogSettings: Component<{
   sessionID?: string
@@ -27,6 +28,10 @@ export const DialogSettings: Component<{
   const tabs = useTabs()
   const serverSync = useServerSync()
   const [tab, setTab] = createSignal(props.defaultValue ?? "general")
+  let container: HTMLDivElement | undefined
+  onMount(() => {
+    if (container) attachSettingsWindow(container)
+  })
   const directory = createMemo(() => {
     const route = layout.route()
     if (route.type === "dir-new-sesssion") return route.dir
@@ -43,7 +48,15 @@ export const DialogSettings: Component<{
   }
 
   return (
-    <Dialog size="x-large" variant="settings" class="settings-v2-dialog" containerClass="settings-v2-dialog">
+    <Dialog
+      size="x-large"
+      variant="settings"
+      class="settings-v2-dialog"
+      containerClass="settings-v2-dialog"
+      containerRef={(element) => (container = element)}
+    >
+      <div data-slot="settings-drag-handle" aria-hidden="true" />
+      <div data-slot="settings-resize-handle" aria-hidden="true" />
       <TabsV2
         orientation="vertical"
         variant="settings"

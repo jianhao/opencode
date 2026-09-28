@@ -14,12 +14,82 @@
   overflow: hidden;
 }
 
-/* 设置弹窗比默认 x-large (980x600) 放宽/放高 50%，只作用于设置弹窗本身。
+/* 设置弹窗尺寸（默认 x-large 是 980x600）。之前放大约 50% 偏大，现按 85% 收一版：
+   1470 -> 1250，900 -> 765。只作用于设置弹窗本身。
    v2 Dialog 的 class 会落在 dialog-content 上，容器尺寸要选 dialog-container
    （由 DialogSettings 传 containerClass="settings-v2-dialog"）。 */
 [data-component="dialog-v2"][data-variant="settings"] [data-slot="dialog-container"].settings-v2-dialog {
-  width: min(calc(100vw - 32px), 1470px);
-  height: min(calc(100vh - 92px), 900px);
+  width: min(calc(100vw - 32px), 1250px);
+  height: min(calc(100vh - 92px), 765px);
+  /* 可拖动/可缩放：脱离 flex 居中，先给一个居中默认值，JS 接管后改为显式 left/top。
+     (fallback before attachSettingsWindow runs) */
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  margin: 0;
+  transform: translate(-50%, -50%);
+}
+
+/* 顶部拖动条 + 右下角缩放手柄（仅设置弹窗） */
+[data-slot="settings-drag-handle"] {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 28px;
+  z-index: 30;
+  cursor: move;
+  touch-action: none;
+}
+
+[data-slot="settings-drag-handle"]::after {
+  content: "";
+  position: absolute;
+  top: 9px;
+  left: 50%;
+  width: 40px;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--v2-border-border-base);
+  opacity: 0;
+  transform: translateX(-50%);
+  transition: opacity 150ms ease;
+}
+
+[data-slot="settings-drag-handle"]:hover::after {
+  opacity: 0.9;
+}
+
+[data-slot="settings-resize-handle"] {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 22px;
+  height: 22px;
+  z-index: 30;
+  cursor: nwse-resize;
+  touch-action: none;
+}
+
+[data-slot="settings-resize-handle"]::after {
+  content: "";
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  width: 9px;
+  height: 9px;
+  border-right: 2px solid var(--v2-icon-icon-muted);
+  border-bottom: 2px solid var(--v2-icon-icon-muted);
+  opacity: 0.45;
+  transition: opacity 150ms ease;
+}
+
+[data-slot="settings-resize-handle"]:hover::after {
+  opacity: 1;
+}
+
+[data-component="dialog-v2"][data-variant="settings"] [data-slot="dialog-container"][data-window-active] {
+  user-select: none;
 }
 
 .settings-v2-panel {
