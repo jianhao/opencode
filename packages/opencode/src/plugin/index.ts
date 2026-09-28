@@ -35,7 +35,7 @@ import {
   readV1Plugin,
   resolvePluginId,
 } from "./shared"
-import { pluginSpecifier } from "@/config/plugin"
+import { pluginSpecifier, rawPluginSpelling, type Origin as PluginOrigin } from "@/config/plugin"
 import { registerAdapter } from "@/control-plane/adapters"
 import type { WorkspaceAdapter } from "@/control-plane/types"
 import { RuntimeFlags } from "@/effect/runtime-flags"
@@ -78,6 +78,22 @@ function failureMessage(failure: LoadFailure) {
     return `Plugin ${failure.spec} skipped: ${failure.message}`
   }
   return `Failed to load plugin ${failure.spec}: ${failure.message}`
+}
+
+type PluginSetting = { enabled?: boolean; autoupdate?: boolean | "notify" }
+
+// plugin_settings 的 key 有两种合理写法：用户按配置里的原样写法（例如 "./plugin.ts"），
+// 或者已经解析过的 file:// 绝对路径（配置界面读到的就是这种）。两种都要能命中——只按其中
+// 一种比对会让另一种静默失效。
+function resolvePluginSettings(origins: PluginOrigin[], settings: Record<string, PluginSetting>) {
+  const bySpec = new Map<string, PluginSetting>()
+  for (const origin of origins) {
+    const spec = pluginSpecifier(origin.spec)
+    const raw = rawPluginSpelling(spec)
+    const value = settings[spec] ?? (raw ? settings[raw] : undefined)
+    if (value) bySpec.set(spec, value)
+  }
+  return bySpec
 }
 
 // Hook names that follow the (input, output) => Promise<void> trigger pattern
@@ -237,13 +253,14 @@ const layer = Layer.effect(
         }
         // 每个插件可以在 plugin_settings 里单独启用/停用、覆盖更新策略；缺省回落到全局 plugin_autoupdate。
         const pluginSettings = globalCfg.plugin_settings ?? {}
-        const plugins = allPlugins.filter((origin) => pluginSettings[pluginSpecifier(origin.spec)]?.enabled !== false)
+        const settings = resolvePluginSettings(allPlugins, pluginSettings)
+        const plugins = allPlugins.filter((origin) => settings.get(pluginSpecifier(origin.spec))?.enabled !== false)
         if (plugins.length) yield* config.waitForDependencies()
 
         const autoUpdate = globalCfg.plugin_autoupdate
         const mode: Npm.AddMode = autoUpdate === "notify" ? "notify" : autoUpdate === false ? "off" : "auto"
         const modeFor = (spec: string): Npm.AddMode => {
-          const value = pluginSettings[spec]?.autoupdate
+          const value = settings.get(spec)?.autoupdate
           if (value === true) return "auto"
           if (value === false) return "off"
           if (value === "notify") return "notify"

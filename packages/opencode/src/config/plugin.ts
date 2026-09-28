@@ -37,6 +37,16 @@ export function pluginOptions(plugin: ConfigPluginV1.Spec): ConfigPluginV1.Optio
   return Array.isArray(plugin) ? plugin[1] : undefined
 }
 
+// plugin_settings 这类按插件 spec 键控的配置，用户写的 key 往往就是配置里的原样写法
+// （例如 "./plugin.ts"），但运行时拿到的是解析后的 file:// 绝对路径。这里在解析时顺手记下
+// 「原样写法」，让按 spec 查表的地方能同时接受两种写法。解析只发生在配置文件加载阶段，
+// 生命周期与进程一致，条目数等于配置里出现过的本地插件数量，可以忽略。
+const rawSpellings = new Map<string, string>()
+
+export function rawPluginSpelling(spec: string): string | undefined {
+  return rawSpellings.get(spec)
+}
+
 // Path-like specs are resolved relative to the config file that declared them so merges later on do not
 // accidentally reinterpret `./plugin.ts` relative to some other directory.
 export async function resolvePluginSpec(
@@ -54,6 +64,7 @@ export async function resolvePluginSpec(
   })()
 
   const resolved = await resolvePathPluginTarget(file).catch(() => file)
+  if (resolved !== spec) rawSpellings.set(resolved, spec)
 
   if (Array.isArray(plugin)) return [resolved, plugin[1]]
   return resolved

@@ -29,9 +29,24 @@ case "$1" in
   desktop)
     echo "[build] electron-vite build"
     bun run --cwd packages/desktop build
+    # 桌面端 dev 渠道的 prebuild 会从 registry 下载上游 CLI 当内置服务端
+    # （packages/desktop/scripts/prebuild.ts -> downloadCliToResources）。
+    # fork 自用必须换成我们自己构建的那个，否则界面是新的、服务端还是上游的。
+    FORK_CLI="$REPO/packages/opencode/dist/opencode-$PLATFORM/bin/opencode"
+    if [ -f "$FORK_CLI" ]; then
+      cp "$FORK_CLI" "$REPO/packages/desktop/resources/opencode-cli"
+      chmod +x "$REPO/packages/desktop/resources/opencode-cli"
+      [ "$(uname -s)" = "Darwin" ] && codesign --force --sign - "$REPO/packages/desktop/resources/opencode-cli" 2>/dev/null
+      echo "[build] 已用 fork CLI 覆盖 bundles 内的 opencode-cli"
+    else
+      echo "[build] 警告：没找到 fork CLI（先跑一次 ./.fork/build.sh），桌面端仍会内嵌上游 CLI"
+    fi
     echo "[build] electron-builder package:mac（未签名、不发布）"
-    CSC_IDENTITY_AUTO_DISCOVERY=false ELECTRON_BUILDER_ALLOW_UNRESOLVED_DEPENDENCIES=true \
-      npx electron-builder --mac --publish never --config electron-builder.config.ts
+    # 必须在 packages/desktop 下执行：electron-builder 可执行文件与 --config 都相对该目录解析。
+    # ELECTRON_MIRROR 兜底走国内镜像，GitHub 直连经常超时；需要时可自行覆盖该变量。
+    (cd packages/desktop && CSC_IDENTITY_AUTO_DISCOVERY=false ELECTRON_BUILDER_ALLOW_UNRESOLVED_DEPENDENCIES=true \
+      ELECTRON_MIRROR="${ELECTRON_MIRROR:-https://npmmirror.com/mirrors/electron/}" \
+      npx electron-builder --mac --publish never --config electron-builder.config.ts)
     echo "[build] 产物在 packages/desktop/dist/"
     ;;
   *)

@@ -290,8 +290,9 @@ describe("plugin.loader.shared", () => {
           try {
             yield* load(tmp.path)
 
-            expect(add.mock.calls).toContainEqual(["acme-plugin@latest"])
-            expect(add.mock.calls).toContainEqual(["scope-plugin@2.3.4"])
+            // Npm.add 现在还会收到更新策略参数，这里只断言解析后的 spec。
+            expect(add.mock.calls.map((call) => call[0])).toContain("acme-plugin@latest")
+            expect(add.mock.calls.map((call) => call[0])).toContain("scope-plugin@2.3.4")
           } finally {
             add.mockRestore()
           }
@@ -654,7 +655,8 @@ describe("plugin.loader.shared", () => {
 
           try {
             yield* load(tmp.path)
-            expect(install).toHaveBeenCalledWith("broken-plugin@9.9.9")
+            // Npm.add 现在还会收到更新策略参数，这里只断言解析后的 spec。
+            expect(install.mock.calls.map((call) => call[0])).toContain("broken-plugin@9.9.9")
             expect(yield* Effect.promise(() => Bun.file(tmp.extra.mark).text())).toBe("ok")
           } finally {
             install.mockRestore()
