@@ -51,10 +51,11 @@ parentPort.on("message", (event) => {
 async function start(command: StartCommand) {
   try {
     prepareSidecarEnv(command.password, command.userDataPath)
-    ensureLoopbackNoProxy()
     useSystemCertificates()
-    useEnvProxy()
+    // 先加载代理变量，再判断是否用代理
     const { Server } = await import("virtual:opencode-server")
+    ensureLoopbackNoProxy()
+    useEnvProxy()
 
     listener = await Server.listen({
       port: command.port,
