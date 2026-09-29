@@ -221,6 +221,17 @@ export const dict = {
   "command.session.export": "导出会话",
   "command.session.export.description": "将完整会话记录导出为 JSON",
 
+  "command.session.handoff": "交接到新会话",
+  "command.session.handoff.description": "总结当前会话，并在当前目录新建一个会话继续处理",
+  "dialog.handoff.title": "交接到新会话",
+  "dialog.handoff.description": "下面是根据当前会话生成的交接简报，可编辑后再创建。新会话会立即以它作为首条消息开始工作。",
+  "dialog.handoff.generating": "正在生成交接简报…",
+  "dialog.handoff.failed": "生成交接简报失败，请重试。",
+  "dialog.handoff.empty": "交接简报不能为空。",
+  "dialog.handoff.retry": "重新生成",
+  "dialog.handoff.starting": "正在创建…",
+  "dialog.handoff.confirm": "创建并发送",
+
   "palette.search.placeholder": "搜索文件、命令和会话",
   "palette.search.placeholder.home": "搜索命令和会话",
   "palette.empty": "未找到结果",

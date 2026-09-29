@@ -195,6 +195,10 @@ import type {
   SessionForkResponses,
   SessionGetErrors,
   SessionGetResponses,
+  SessionHandoffPreviewErrors,
+  SessionHandoffPreviewResponses,
+  SessionHandoffStartErrors,
+  SessionHandoffStartResponses,
   SessionInitErrors,
   SessionInitResponses,
   SessionListErrors,
@@ -4126,6 +4130,83 @@ export class Session2 extends HeyApiClient {
         ...params.headers,
       },
     })
+  }
+
+  /**
+   * Preview session handoff
+   *
+   * Generate a handoff brief (objective, progress, next steps) that a fresh session can continue from without changing the current session.
+   */
+  public handoffPreview<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+      directory?: string
+      workspace?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "sessionID" },
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<
+      SessionHandoffPreviewResponses,
+      SessionHandoffPreviewErrors,
+      ThrowOnError
+    >({
+      url: "/session/{sessionID}/handoff/preview",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Start session handoff
+   *
+   * Create a new root session in the current directory and send the handoff brief as its first message.
+   */
+  public handoffStart<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+      directory?: string
+      workspace?: string
+      brief?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "sessionID" },
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+            { in: "body", key: "brief" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<SessionHandoffStartResponses, SessionHandoffStartErrors, ThrowOnError>(
+      {
+        url: "/session/{sessionID}/handoff/start",
+        ...options,
+        ...params,
+        headers: {
+          "Content-Type": "application/json",
+          ...options?.headers,
+          ...params.headers,
+        },
+      },
+    )
   }
 
   /**

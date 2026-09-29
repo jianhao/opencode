@@ -1,0 +1,33 @@
+/* Wider than the default 480px dialog with a fixed 624px height (clamped to the
+   viewport); the brief scrolls inside the editor. */
+[data-component="dialog-v2"] [data-slot="dialog-container"].handoff-dialog {
+  width: min(calc(100vw - 32px), 864px);
+  height: min(calc(100vh - 92px), 624px);
+}
+
+/* Hint under the title: a touch smaller and lighter than the default description.
+   `dialog-v2.css` uses CSS nesting, so its rule resolves to ~5 attribute selectors;
+   force ours to win. */
+[data-component="dialog-v2"] [data-slot="dialog-container"].handoff-dialog [data-slot="dialog-description"] {
+  color: var(--v2-text-text-accent) !important;
+  font-size: 12px !important;
+  line-height: 16px !important;
+  opacity: 0.8;
+}
+
+/* Primary action follows the active theme's primary color instead of neutral contrast. */
+[data-component="button-v2"].handoff-primary {
+  background-image: none !important;
+  background-color: var(--v2-background-bg-accent) !important;
+  color: var(--v2-text-text-contrast) !important;
+  text-shadow: none !important;
+}
+
+[data-component="button-v2"].handoff-primary:not(:disabled):hover {
+  background-color: color-mix(in srgb, var(--v2-background-bg-accent) 86%, black) !important;
+}
+
+[data-component="button-v2"].handoff-primary:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}

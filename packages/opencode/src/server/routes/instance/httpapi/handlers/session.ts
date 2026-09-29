@@ -9,6 +9,11 @@ import { Session } from "@/session/session"
 import { SessionCompaction } from "@/session/compaction"
 import { MessageV2 } from "@/session/message-v2"
 import { SessionPrompt } from "@/session/prompt"
+import { renderHandoffTranscript } from "@/session/handoff"
+import { LLM } from "@/session/llm"
+import { Provider } from "@/provider/provider"
+import { buildPrompt } from "@opencode-ai/core/session/compaction"
+import { LLMEvent } from "@opencode-ai/llm"
 import { SessionRevert } from "@/session/revert"
 import { SessionRunState } from "@/session/run-state"
 import { SessionStatus } from "@/session/status"
@@ -26,6 +31,7 @@ import {
   CommandPayload,
   DiffQuery,
   ForkPayload,
+  HandoffPayload,
   InitPayload,
   ListQuery,
   MessagesQuery,
@@ -45,6 +51,29 @@ const tryParseJson = (text: string) =>
     catch: () => new HttpApiError.BadRequest({}),
   })
 
+// Synthetic agent for the one-off handoff brief. No tools, no project prompt —
+// just the summarization prompt we hand to the model.
+const HANDOFF_AGENT: Agent.Info = {
+  name: "handoff",
+  mode: "primary",
+  permission: [],
+  options: {},
+  native: true,
+  prompt: "",
+}
+
+// The shared compaction template is English; ask for a Chinese brief while
+// keeping the same section order and Markdown shape.
+const HANDOFF_LANGUAGE = [
+  "请用简体中文撰写这份交接简报，并把模板里的英文小标题一并译成中文",
+  "（Objective→目标，Important Details→重要信息，Work State→工作状态，Completed→已完成，",
+  "Active→进行中，Blocked→受阻，Next Move→下一步，Relevant Files→相关文件），章节顺序保持不变。",
+].join("")
+
+function handoffPrompt(transcript: string) {
+  return [buildPrompt({ context: [transcript] }), HANDOFF_LANGUAGE].join("\n\n")
+}
+
 export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", (handlers) =>
   Effect.gen(function* () {
     const session = yield* Session.Service
@@ -60,6 +89,8 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
     const summary = yield* SessionSummary.Service
     const events = yield* EventV2Bridge.Service
     const scope = yield* Scope.Scope
+    const llm = yield* LLM.Service
+    const provider = yield* Provider.Service
 
     const list = Effect.fn("SessionHttpApi.list")(function* (ctx: { query: typeof ListQuery.Type }) {
       const directory = ctx.query.directory ? yield* InstanceState.directory : undefined
@@ -292,6 +323,89 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       return true
     })
 
+    const handoffPreview = Effect.fn("SessionHttpApi.handoffPreview")(function* (ctx: {
+      params: { sessionID: SessionID }
+    }) {
+      const info = yield* requireSession(ctx.params.sessionID)
+      const messages = yield* SessionError.mapStorageNotFound(session.messages({ sessionID: ctx.params.sessionID }))
+      const transcript = renderHandoffTranscript(messages)
+      if (!transcript.trim()) return yield* new HttpApiError.BadRequest({})
+      const lastUser = messages.findLast((message) => message.info.role === "user")
+      const messageModel = lastUser?.info.role === "user" ? lastUser.info.model : undefined
+      const ref = messageModel
+        ? { providerID: messageModel.providerID, modelID: messageModel.modelID }
+        : info.model
+          ? { providerID: info.model.providerID, modelID: info.model.id }
+          : yield* provider.defaultModel().pipe(Effect.orDie)
+      const model = yield* provider.getModel(ref.providerID, ref.modelID).pipe(Effect.orDie)
+      const brief = yield* llm
+        .stream({
+          agent: HANDOFF_AGENT,
+          user: {
+            id: MessageID.ascending(),
+            sessionID: SessionID.descending(),
+            role: "user",
+            time: { created: Date.now() },
+            agent: HANDOFF_AGENT.name,
+            model: { providerID: model.providerID, modelID: model.id },
+          },
+          system: [],
+          small: false,
+          tools: {},
+          model,
+          sessionID: ctx.params.sessionID,
+          retries: 2,
+          messages: [{ role: "user", content: handoffPrompt(transcript) }],
+        })
+        .pipe(
+          Stream.filter(LLMEvent.is.textDelta),
+          Stream.map((event) => event.text),
+          Stream.mkString,
+          Effect.mapError(() => new HttpApiError.BadRequest({})),
+        )
+      return { brief: brief.trim() }
+    })
+
+    const handoffStart = Effect.fn("SessionHttpApi.handoffStart")(function* (ctx: {
+      params: { sessionID: SessionID }
+      payload: typeof HandoffPayload.Type
+    }) {
+      const original = yield* requireSession(ctx.params.sessionID)
+      const brief = ctx.payload.brief.trim()
+      if (!brief) return yield* new HttpApiError.BadRequest({})
+      const agent = original.agent ?? (yield* agentSvc.defaultAgent())
+      const created = yield* session.create({
+        title: `↪ ${original.title}`,
+        agent,
+        model: original.model,
+        metadata: { handoffFrom: { id: original.id, title: original.title } },
+      })
+      // Admit the brief as the new session's first message and start it in the
+      // background; the caller only needs the session id to navigate to it.
+      yield* promptSvc
+        .prompt({
+          sessionID: created.id,
+          messageID: MessageID.ascending(),
+          model: original.model ? { providerID: original.model.providerID, modelID: original.model.id } : undefined,
+          agent,
+          variant: original.model?.variant,
+          parts: [{ type: "text", text: brief }],
+        })
+        .pipe(
+          Effect.catchCause((cause) =>
+            Effect.gen(function* () {
+              yield* Effect.logError("handoff prompt failed", { sessionID: created.id, cause })
+              yield* events.publish(Session.Event.Error, {
+                sessionID: created.id,
+                error: new NamedError.Unknown({ message: Cause.pretty(cause) }).toObject(),
+              })
+            }),
+          ),
+          Effect.forkIn(scope, { startImmediately: true }),
+        )
+      return { sessionID: created.id, title: created.title }
+    })
+
     const prompt = Effect.fn("SessionHttpApi.prompt")(function* (ctx: {
       params: { sessionID: SessionID }
       payload: typeof PromptPayload.Type
@@ -428,6 +542,8 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       .handle("share", share)
       .handle("unshare", unshare)
       .handle("summarize", summarize)
+      .handle("handoffPreview", handoffPreview)
+      .handle("handoffStart", handoffStart)
       .handle("prompt", prompt)
       .handle("promptAsync", promptAsync)
       .handle("command", command)

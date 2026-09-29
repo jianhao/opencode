@@ -98,6 +98,17 @@ export const dict = {
   "command.session.export": "Export session",
   "command.session.export.description": "Export the full session transcript as JSON",
 
+  "command.session.handoff": "Hand off to a new session",
+  "command.session.handoff.description": "Summarize this session and continue in a fresh session in the same directory",
+  "dialog.handoff.title": "Hand off to a new session",
+  "dialog.handoff.description": "Below is a handoff brief generated from this session. Edit it if needed, then create the new session — it starts working immediately from this brief.",
+  "dialog.handoff.generating": "Generating the handoff brief…",
+  "dialog.handoff.failed": "Could not generate the handoff brief. Please try again.",
+  "dialog.handoff.empty": "The handoff brief cannot be empty.",
+  "dialog.handoff.retry": "Regenerate",
+  "dialog.handoff.starting": "Creating…",
+  "dialog.handoff.confirm": "Create and send",
+
   "palette.search.placeholder": "Search files, commands, and sessions",
   "palette.search.placeholder.home": "Search commands and sessions",
   "palette.empty": "No results found",

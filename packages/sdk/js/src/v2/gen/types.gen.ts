@@ -2584,6 +2584,15 @@ export type NotFoundError = {
   }
 }
 
+export type SessionHandoffPreview = {
+  brief: string
+}
+
+export type SessionHandoffResult = {
+  sessionID: string
+  title: string
+}
+
 export type TextPartInput = {
   id?: string
   type: "text"
@@ -10264,6 +10273,76 @@ export type SessionSummarizeResponses = {
 }
 
 export type SessionSummarizeResponse = SessionSummarizeResponses[keyof SessionSummarizeResponses]
+
+export type SessionHandoffPreviewData = {
+  body?: never
+  path: {
+    sessionID: string
+  }
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/session/{sessionID}/handoff/preview"
+}
+
+export type SessionHandoffPreviewErrors = {
+  /**
+   * BadRequest | InvalidRequestError
+   */
+  400: EffectHttpApiErrorBadRequest | InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
+}
+
+export type SessionHandoffPreviewError = SessionHandoffPreviewErrors[keyof SessionHandoffPreviewErrors]
+
+export type SessionHandoffPreviewResponses = {
+  /**
+   * Session handoff brief
+   */
+  200: SessionHandoffPreview
+}
+
+export type SessionHandoffPreviewResponse = SessionHandoffPreviewResponses[keyof SessionHandoffPreviewResponses]
+
+export type SessionHandoffStartData = {
+  body?: {
+    brief: string
+  }
+  path: {
+    sessionID: string
+  }
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/session/{sessionID}/handoff/start"
+}
+
+export type SessionHandoffStartErrors = {
+  /**
+   * BadRequest | InvalidRequestError
+   */
+  400: EffectHttpApiErrorBadRequest | InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
+}
+
+export type SessionHandoffStartError = SessionHandoffStartErrors[keyof SessionHandoffStartErrors]
+
+export type SessionHandoffStartResponses = {
+  /**
+   * Session handoff started
+   */
+  200: SessionHandoffResult
+}
+
+export type SessionHandoffStartResponse = SessionHandoffStartResponses[keyof SessionHandoffStartResponses]
 
 export type SessionPromptAsyncData = {
   body?: {

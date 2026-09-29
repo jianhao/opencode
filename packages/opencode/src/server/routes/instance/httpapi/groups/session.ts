@@ -67,6 +67,13 @@ export const SummarizePayload = Schema.Struct({
   modelID: ModelV2.ID,
   auto: Schema.optional(Schema.Boolean),
 })
+export const HandoffPayload = Schema.Struct({
+  brief: Schema.String,
+})
+const HandoffPreview = Schema.Struct({ brief: Schema.String }).annotate({ identifier: "SessionHandoffPreview" })
+const HandoffResult = Schema.Struct({ sessionID: SessionID, title: Schema.String }).annotate({
+  identifier: "SessionHandoffResult",
+})
 export const PromptPayload = Schema.Struct(Struct.omit(SessionPrompt.PromptInput.fields, ["sessionID"]))
 export const CommandPayload = Schema.Struct(Struct.omit(SessionPrompt.CommandInput.fields, ["sessionID"]))
 export const ShellPayload = Schema.Struct(Struct.omit(SessionPrompt.ShellInput.fields, ["sessionID"]))
@@ -92,6 +99,8 @@ export const SessionPaths = {
   share: `${root}/:sessionID/share`,
   init: `${root}/:sessionID/init`,
   summarize: `${root}/:sessionID/summarize`,
+  handoffPreview: `${root}/:sessionID/handoff/preview`,
+  handoffStart: `${root}/:sessionID/handoff/start`,
   prompt: `${root}/:sessionID/message`,
   promptAsync: `${root}/:sessionID/prompt_async`,
   command: `${root}/:sessionID/command`,
@@ -311,6 +320,33 @@ export const SessionApi = HttpApi.make("session")
             identifier: "session.summarize",
             summary: "Summarize session",
             description: "Generate a concise summary of the session using AI compaction to preserve key information.",
+          }),
+        ),
+        HttpApiEndpoint.post("handoffPreview", SessionPaths.handoffPreview, {
+          params: { sessionID: SessionID },
+          query: WorkspaceRoutingQuery,
+          success: described(HandoffPreview, "Session handoff brief"),
+          error: [HttpApiError.BadRequest, ApiNotFoundError],
+        }).annotateMerge(
+          OpenApi.annotations({
+            identifier: "session.handoff_preview",
+            summary: "Preview session handoff",
+            description:
+              "Generate a handoff brief (objective, progress, next steps) that a fresh session can continue from without changing the current session.",
+          }),
+        ),
+        HttpApiEndpoint.post("handoffStart", SessionPaths.handoffStart, {
+          params: { sessionID: SessionID },
+          query: WorkspaceRoutingQuery,
+          payload: HandoffPayload,
+          success: described(HandoffResult, "Session handoff started"),
+          error: [HttpApiError.BadRequest, ApiNotFoundError],
+        }).annotateMerge(
+          OpenApi.annotations({
+            identifier: "session.handoff_start",
+            summary: "Start session handoff",
+            description:
+              "Create a new root session in the current directory and send the handoff brief as its first message.",
           }),
         ),
         HttpApiEndpoint.post("prompt", SessionPaths.prompt, {
