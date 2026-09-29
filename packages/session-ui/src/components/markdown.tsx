@@ -1,6 +1,7 @@
 import { useI18n } from "@opencode-ai/ui/context/i18n"
 import { useDialog } from "@opencode-ai/ui/context/dialog"
 import { ImagePreview } from "@opencode-ai/ui/image-preview"
+import { resolveImageSrc } from "./image-source"
 import morphdom from "morphdom"
 import { checksum } from "@opencode-ai/core/util/encode"
 import {
@@ -385,6 +386,17 @@ function setupImagePreview(root: HTMLDivElement, open: (src: string, alt: string
   return () => root.removeEventListener("click", handleClick)
 }
 
+// Point local `file://` / absolute image sources at a loadable URL (desktop rewrites
+// them to the opencode server's /file/raw route). No-op when no resolver is set.
+function rewriteLocalImages(root: HTMLElement) {
+  root.querySelectorAll<HTMLImageElement>("img").forEach((img) => {
+    const current = img.getAttribute("src")
+    if (!current) return
+    const resolved = resolveImageSrc(current)
+    if (resolved !== current) img.setAttribute("src", resolved)
+  })
+}
+
 export function Markdown(
   props: ComponentProps<"div"> & {
     text: string
@@ -551,6 +563,7 @@ export function Markdown(
     container
       .querySelectorAll<HTMLElement>('[data-slot="markdown-copy-button"]')
       .forEach((button) => setCopyState(button, labels, button.dataset.copied === "true"))
+    rewriteLocalImages(container)
     if (!copyCleanup)
       copyCleanup = setupCodeCopy(container, () => ({
         copy: i18n.t("ui.message.copy"),

@@ -48,6 +48,7 @@ import { Markdown } from "./markdown"
 import { ImagePreview } from "@opencode-ai/ui/image-preview"
 import { getDirectory as _getDirectory, getFilename } from "@opencode-ai/core/util/path"
 import { AttachmentCardV2 } from "../v2/components/attachment-card-v2"
+import { resolveImageSrc } from "./image-source"
 import { CommentCardV2 } from "../v2/components/comment-card-v2"
 import { checksum } from "@opencode-ai/core/util/encode"
 import { Tooltip } from "@opencode-ai/ui/tooltip"
@@ -702,7 +703,12 @@ export function groupParts(parts: { messageID: string; part: PartType }[]) {
   const foldable = (item: { messageID: string; part: PartType }, index: number) => {
     if (index === answerIndex) return false
     const part = item.part
-    if (part.type === "tool") return isContextGroupTool(part) || isActivityGroupTool(part)
+    if (part.type === "tool") {
+      // A tool that produced files (e.g. an image) is kept visible instead of
+      // folded into the process group, so its result is actually shown.
+      if (toolAttachments(part).length > 0) return false
+      return isContextGroupTool(part) || isActivityGroupTool(part)
+    }
     if (foldNarration && (part.type === "text" || part.type === "reasoning")) return true
     return false
   }
@@ -919,6 +925,11 @@ function isActivityGroupTool(part: PartType): part is ToolPart {
   if (CONTEXT_GROUP_TOOLS.has(part.tool)) return false
   if (ACTIVITY_STANDALONE_TOOLS.has(part.tool)) return false
   return true
+}
+
+function toolAttachments(part: ToolPart) {
+  const state = part.state
+  return "attachments" in state && Array.isArray(state.attachments) ? state.attachments : []
 }
 
 function activityToolSummary(parts: PartType[]) {
@@ -1828,6 +1839,9 @@ PART_MAPPING["tool"] = function ToolPartDisplay(props) {
   })
 
   const render = createMemo(() => ToolRegistry.render(part().tool) ?? GenericTool)
+  // Tool-produced files (e.g. an image returned by `read`) live on the tool state,
+  // not as a standalone part, so they must be rendered here.
+  const attachments = createMemo(() => toolAttachments(part()))
   const controlledOpen = () => (props.onToolOpenChange ? (props.toolOpen ?? props.defaultOpen) : undefined)
   const handleToolOpenChange = (open: boolean) => props.onToolOpenChange?.(open)
 
@@ -1891,6 +1905,11 @@ PART_MAPPING["tool"] = function ToolPartDisplay(props) {
             />
           </Match>
         </Switch>
+        <Show when={attachments().length > 0}>
+          <div data-component="tool-attachments">
+            <For each={attachments()}>{(file) => <FileAttachment file={file} />}</For>
+          </div>
+        </Show>
       </div>
     </Show>
   )
@@ -2035,6 +2054,37 @@ PART_MAPPING["reasoning"] = function ReasoningPartDisplay(props) {
       </div>
     </Show>
   )
+}
+
+// Renders a file part/attachment inline: images show as clickable thumbnails,
+// other files as a compact card. Shared by standalone `file` parts and by the
+// attachments carried on a tool result.
+function FileAttachment(props: { file: FilePart }) {
+  const i18n = useI18n()
+  const dialog = useDialog()
+  const type = () => kind(props.file)
+  const name = () => props.file.filename ?? i18n.t("ui.message.attachment.alt")
+  const open = () => dialog.show(() => <ImagePreview src={resolveImageSrc(props.file.url)} alt={name()} />)
+
+  return (
+    <div data-component="assistant-attachment" data-type={type()}>
+      <Show
+        when={type() === "image"}
+        fallback={
+          <div data-slot="assistant-attachment-file">
+            <FileIcon node={{ path: name(), type: "file" }} />
+            <span data-slot="assistant-attachment-name">{name()}</span>
+          </div>
+        }
+      >
+        <img data-slot="assistant-attachment-image" src={resolveImageSrc(props.file.url)} alt={name()} onClick={open} />
+      </Show>
+    </div>
+  )
+}
+
+PART_MAPPING["file"] = function FilePartDisplay(props: MessagePartProps) {
+  return <FileAttachment file={props.part as FilePart} />
 }
 
 ToolRegistry.register({

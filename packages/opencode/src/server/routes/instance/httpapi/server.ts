@@ -73,6 +73,7 @@ import { ServerAuth } from "@/server/auth"
 import { InstanceHttpApi, RootHttpApi } from "./api"
 import { Api } from "@opencode-ai/server/api"
 import { PublicApi } from "./public"
+import { localImageRoute } from "./local-image"
 import {
   authorizationLayer,
   authorizationRouterMiddleware,
@@ -283,6 +284,7 @@ export function createRoutes(
     serverRoutes,
     docRoute,
     uiRoute,
+    localImageRoute,
   ).pipe(
     Layer.provide([
       errorLayer,

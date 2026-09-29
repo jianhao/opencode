@@ -13,6 +13,7 @@ import { useGlobal } from "./global"
 import { ServerScope } from "@/utils/server-scope"
 import { detectServerProtocol, type ServerProtocol } from "@/utils/server-protocol"
 import { createCompatibleApi, type CompatibleApi } from "@/utils/server-compat"
+import { localImageUrl, setImageResolver } from "@opencode-ai/session-ui/image-source"
 
 const isAbortError = (error: unknown) =>
   error !== null && typeof error === "object" && "name" in error && error.name === "AbortError"
@@ -187,6 +188,15 @@ type ServerSDKBase = {
 function createServerSdkContextBase(server: ServerConnection.Any, scope: ServerScope): ServerSDKBase {
   const platform = usePlatform()
   const abort = new AbortController()
+
+  // Teach the renderer how to load local screenshots: rewrite `file://` / absolute
+  // image paths to the server's /file/raw route (loopback, CSP-allowed).
+  try {
+    const origin = new URL(server.http.url).origin
+    setImageResolver((src) => localImageUrl(src, origin))
+  } catch {
+    setImageResolver(undefined)
+  }
 
   const eventFetch = (() => {
     if (!platform.fetch || !server) return
