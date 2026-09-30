@@ -674,14 +674,22 @@ export function groupParts(parts: { messageID: string; part: PartType }[]) {
   const result: PartGroup[] = []
   let runStart = -1
 
-  // The last text part is the turn's final answer; it stays visible on its own.
-  // Everything before it (tool calls + the model's in-between narration) is
-  // treated as process and folded into one collapsible group, Codex-style.
-  let answerIndex = -1
+  // Fold the model's in-between narration, but never the answer. A text/reasoning
+  // part is "process" only when more tool work still follows it; text after the
+  // last tool call is the answer and stays visible. A long text block is kept even
+  // when a tool follows, so a substantial mid-turn answer can't be swallowed.
+  // Tool calls always fold. (Codex can do this exactly because its model tags each
+  // message with a commentary/final channel; chat models give us no such signal.)
+  const hasAnswer = parts.some((item) => item.part.type === "text")
+  let lastToolIndex = -1
   parts.forEach((item, index) => {
-    if (item.part.type === "text") answerIndex = index
+    if (item.part.type === "tool") lastToolIndex = index
   })
-  const foldNarration = answerIndex >= 0
+  const NARRATION_MAX_CHARS = 300
+  const NARRATION_MAX_LINES = 3
+  const substantial = (text: string) =>
+    text.trim().length > NARRATION_MAX_CHARS ||
+    text.split("\n").filter((line) => line.trim().length > 0).length > NARRATION_MAX_LINES
 
   const refs = (start: number, end: number) =>
     parts.slice(start, end + 1).map((item) => ({
@@ -701,7 +709,6 @@ export function groupParts(parts: { messageID: string; part: PartType }[]) {
   }
 
   const foldable = (item: { messageID: string; part: PartType }, index: number) => {
-    if (index === answerIndex) return false
     const part = item.part
     if (part.type === "tool") {
       // A tool that produced files (e.g. an image) is kept visible instead of
@@ -709,7 +716,12 @@ export function groupParts(parts: { messageID: string; part: PartType }[]) {
       if (toolAttachments(part).length > 0) return false
       return isContextGroupTool(part) || isActivityGroupTool(part)
     }
-    if (foldNarration && (part.type === "text" || part.type === "reasoning")) return true
+    if (part.type === "text" || part.type === "reasoning") {
+      // No later tool call → this is the trailing answer, keep it out of the group.
+      if (lastToolIndex < 0 || index > lastToolIndex) return false
+      if (part.type === "text" && substantial(part.text)) return false
+      return true
+    }
     return false
   }
 
@@ -736,7 +748,7 @@ export function groupParts(parts: { messageID: string; part: PartType }[]) {
       return
     }
     // Without a final answer, keep a lone tool call visible so its command shows.
-    if (!foldNarration && run.length < 2) {
+    if (!hasAnswer && run.length < 2) {
       pushPart(first)
       return
     }
