@@ -27,6 +27,7 @@ export function TabNavItem(props: {
   fallbackTitle?: string
   onRename: (title: string) => Promise<void>
   onClose: () => void
+  onCloseOthers: () => void
   onNavigate: () => void
   active?: boolean
   forceTruncate?: boolean
@@ -337,6 +338,7 @@ export function TabNavItem(props: {
             {language.t("common.rename")}
           </MenuV2.Item>
           <MenuV2.Item onSelect={props.onClose}>{language.t("common.closeTab")}</MenuV2.Item>
+          <MenuV2.Item onSelect={props.onCloseOthers}>{language.t("common.closeOthers")}</MenuV2.Item>
         </MenuV2.Context.Content>
       </MenuV2.Context.Portal>
     </MenuV2.Context>
