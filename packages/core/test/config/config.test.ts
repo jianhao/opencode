@@ -1696,7 +1696,7 @@ describe("Config", () => {
     ),
   )
 
-  it.live("loads global and ancestor configuration across the project boundary", () =>
+  it.live("loads global and in-project configuration without crossing the worktree root", () =>
     Effect.acquireDisposable(Effect.promise(() => tmpdir())).pipe(
       Effect.flatMap((tmp) => {
         const global = path.join(tmp.path, "global")
@@ -1754,7 +1754,6 @@ describe("Config", () => {
             ])
             expect(documents.map((document) => document.info.$schema)).toEqual([
               "global",
-              "outside",
               "root",
               "parent",
               "directory",
@@ -1764,7 +1763,6 @@ describe("Config", () => {
             expect(entries.map((entry) => (entry.type === "document" ? entry.info.$schema : entry.path))).toEqual([
               "global",
               AbsolutePath.make(global),
-              "outside",
               "root",
               "parent",
               "directory",

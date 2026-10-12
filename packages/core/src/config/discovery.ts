@@ -30,10 +30,15 @@ export const discover = Effect.fn("ConfigDiscovery.discover")(function* (options
   const globalRoots = yield* Effect.forEach([globalDirectory, globalClaudeDirectory, globalAgentsDirectory], (item) =>
     fs.resolve(item),
   )
+  // Bound the ancestor walk at the VCS worktree root. Otherwise a config in a shared
+  // ancestor directory (for example ~/Desktop) is treated as project config and, being
+  // loaded after global config, silently overrides it. This matches v1, which stopped at
+  // the worktree; a directory outside any VCS still walks to the filesystem root.
+  const stop = location.vcs ? location.project.directory : undefined
   const directories =
     (yield* fs.resolve(location.directory)) === globalRoots[0] || options?.project === false
       ? []
-      : yield* fs.up({ targets: ["."], start: location.directory }).pipe(Effect.orDie)
+      : yield* fs.up({ targets: ["."], start: location.directory, stop }).pipe(Effect.orDie)
   const discovered = yield* Effect.forEach(directories, (directory) =>
     Effect.gen(function* () {
       // Resolve the parent too: missing children must honor symlinked global roots.
