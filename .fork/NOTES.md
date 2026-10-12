@@ -170,4 +170,7 @@ fork 改为在新分支 `v2-port`（基于 `upstream/dev`）上逐功能移植�
 - （可选）插件「逐插件 autoupdate 策略」：v2 未提供，如确实需要再单做。
 
 **注意：** `.fork/build.sh` 已按 v2 结构重写（`packages/cli` 构建 CLI → `OPENCODE_CLI_DIST` → 桌面打包），
-但**尚未实跑验证**，首次使用需要真机构建确认。
+并在 2026-10-12 实跑通过：CLI `v2.0.27`（含 `session_v2` 存储，可与官方共用 `opencode.db`）、
+桌面端 `2.0.27`、ad-hoc 签名 `codesign --verify --deep --strict` 通过。
+构建 CLI 时会用 `OPENCODE_VERSION=<cli/package.json 的 version>` 固定版本号（否则会得到
+`0.0.0-<branch>-<时间>` 的预览版号）。

@@ -22,8 +22,9 @@ trap restore_lock EXIT
 
 case "$1" in
   desktop)
-    echo "[build] 构建 CLI（当前平台）"
-    bun run --cwd packages/cli build
+    CLI_VERSION=$(bun -e 'console.log(require("./packages/cli/package.json").version)')
+    echo "[build] 构建 CLI（当前平台，version=$CLI_VERSION）"
+    OPENCODE_CHANNEL=prod OPENCODE_VERSION="$CLI_VERSION" bun run --cwd packages/cli build
     # 桌面端 prod/beta 渠道的 prebuild 会把 OPENCODE_CLI_DIST 指向的 CLI 拷进
     # resources/opencode-cli（packages/desktop/scripts/prebuild.ts）。fork 自用必须
     # 用我们自己构建的 CLI，否则界面是新的、服务端还是上游的。
@@ -39,8 +40,9 @@ case "$1" in
     echo "[build] 产物在 packages/desktop/dist/"
     ;;
   *)
-    echo "[build] 构建 CLI（当前平台）"
-    bun run --cwd packages/cli build
+    CLI_VERSION=$(bun -e 'console.log(require("./packages/cli/package.json").version)')
+    echo "[build] 构建 CLI（当前平台，version=$CLI_VERSION）"
+    OPENCODE_CHANNEL=prod OPENCODE_VERSION="$CLI_VERSION" bun run --cwd packages/cli build
     echo "[build] 产物在 packages/cli/dist/"
     ;;
 esac
