@@ -31,6 +31,7 @@ function SessionTabSlot(props: {
   onRename: (title: string) => Promise<void>
   onNavigate: (element: HTMLDivElement) => void
   onClose: () => void
+  onCloseOthers: () => void
 }) {
   const sortable = useSortable({
     get id() {
@@ -68,6 +69,7 @@ function SessionTabSlot(props: {
         onRename={props.onRename}
         onNavigate={() => props.onNavigate(ref)}
         onClose={props.onClose}
+        onCloseOthers={props.onCloseOthers}
         active={props.active}
         dragging={sortable.isDragSource()}
         orientation={props.orientation}
@@ -194,6 +196,7 @@ function SessionTabEntry(props: {
         onRename={rename}
         onNavigate={props.onNavigate}
         onClose={props.onClose}
+        onCloseOthers={() => tabs.closeOthers(props.id)}
       />
     </Show>
   )

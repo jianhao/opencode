@@ -444,6 +444,7 @@ export const dict = {
   "common.copied": "已复制",
 
   "common.closeTab": "关闭标签页",
+  "common.closeOthers": "关闭其他标签页",
   "common.dismiss": "忽略",
   "common.requestFailed": "请求失败",
   "common.moreOptions": "更多选项",

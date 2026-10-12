@@ -419,6 +419,45 @@ export const { use: useTabs, provider: TabsProvider } = createSimpleContext({
         if (tab.type === "session") updateClosed((stack) => pushClosedTab(stack, tab, index, info[tabKey(tab)]))
         removeTab(index)
       },
+      // Close every tab except the one with `key`. The kept tab is navigated to, and
+      // closed session tabs are recorded so they can be reopened like a normal close.
+      closeOthers(key: string) {
+        const keep = store.find((tab) => tabKey(tab) === key)
+
+        if (!keep) return
+        const removed = store.filter((tab) => tabKey(tab) !== key)
+
+        if (removed.length === 0) return
+
+        for (const tab of removed) {
+          if (tab.type === "session")
+            updateClosed((stack) => pushClosedTab(stack, tab, store.indexOf(tab), info[tabKey(tab)]))
+          closing.add(tabKey(tab))
+        }
+
+        void startTransition(() => {
+          setStore(
+            produce((tabs) => {
+              for (let index = tabs.length - 1; index >= 0; index--) {
+                if (tabKey(tabs[index]!) !== key) tabs.splice(index, 1)
+              }
+            }),
+          )
+
+          for (const tab of removed) {
+            const closedKey = tabKey(tab)
+            memory.remove(closedKey)
+            removeInfo(closedKey)
+            removeRegions(closedKey)
+
+            if (tab.type === "draft") removeDraftPersisted(tab.draftID)
+          }
+
+          navigateTab(keep)
+        }).finally(() => {
+          for (const tab of removed) closing.delete(tabKey(tab))
+        })
+      },
       reopenClosedTab(target?: SessionTab, options?: { append?: boolean }) {
         if (!closedReady()) {
           void closedReady.promise?.then(() => actions.reopenClosedTab(target, options))

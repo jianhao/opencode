@@ -592,6 +592,7 @@ export const dict = {
   "titlebar.channel.beta": "Beta",
 
   "common.closeTab": "Close tab",
+  "common.closeOthers": "Close other tabs",
   "common.dismiss": "Dismiss",
   "common.moreCountSuffix": " (+{{count}} more)",
   "common.requestFailed": "Request failed",
