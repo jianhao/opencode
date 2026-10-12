@@ -3,13 +3,14 @@ import { useNavigate } from "@solidjs/router"
 import type { SessionMessageInfo } from "@opencode/client/promise"
 import { useDialog } from "@opencode/ui/context/dialog"
 import { Button } from "@opencode/ui/button"
-import { Dialog, DialogBody, DialogFooter, DialogHeader, DialogTitle } from "@opencode/ui/dialog"
+import { Dialog, DialogBody, DialogFooter, DialogHeader, DialogTitleGroup } from "@opencode/ui/dialog"
 import { Textarea } from "@opencode/ui/textarea"
 import { useLanguage } from "@/runtime/i18n/language"
 import { useData, useServer } from "@/runtime/server/current"
 import { useServerSDK } from "@/runtime/server/client"
 import { sessionHref } from "@/shell/routes/session"
 import { showToast } from "@/shell/notifications/toast"
+import "./handoff-dialog.css"
 
 // Keep the handoff brief anchored on what the session is trying to do, not on a
 // replay of every command. Newest messages win when the transcript is over budget.
@@ -114,15 +115,18 @@ export const DialogHandoff: Component<{ sessionID: string }> = (props) => {
   const canStart = () => !busy() && !generating() && !failed()
 
   return (
-    <Dialog>
+    <Dialog containerClass="handoff-dialog">
       <DialogHeader>
-        <DialogTitle>{language.t("dialog.handoff.title")}</DialogTitle>
+        <DialogTitleGroup
+          title={language.t("dialog.handoff.title")}
+          description={language.t("dialog.handoff.description")}
+        />
       </DialogHeader>
-      <DialogBody class="flex min-h-0 flex-col gap-3">
+      <DialogBody class="flex min-h-0 flex-1 flex-col px-4 py-3">
         <Show
           when={!generating()}
           fallback={
-            <div class="flex min-h-24 flex-1 items-center justify-center text-[13px] text-v2-text-text-muted">
+            <div class="flex flex-1 items-center justify-center text-[13px] text-v2-text-text-muted">
               {language.t("dialog.handoff.generating")}
             </div>
           }
@@ -130,7 +134,7 @@ export const DialogHandoff: Component<{ sessionID: string }> = (props) => {
           <Show
             when={!failed()}
             fallback={
-              <div class="flex min-h-24 flex-1 flex-col items-center justify-center gap-3">
+              <div class="flex flex-1 flex-col items-center justify-center gap-3">
                 <div class="text-[13px] text-v2-state-fg-danger">{language.t("dialog.handoff.failed")}</div>
                 <Button type="button" variant="neutral" onClick={() => void generate()}>
                   {language.t("dialog.handoff.retry")}
@@ -139,7 +143,7 @@ export const DialogHandoff: Component<{ sessionID: string }> = (props) => {
             }
           >
             <Textarea
-              class="min-h-64 w-full [font-family:var(--font-mono,monospace)]"
+              class="handoff-brief"
               value={brief()}
               spellcheck={false}
               onInput={(event) => setBrief(event.currentTarget.value)}

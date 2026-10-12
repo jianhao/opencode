@@ -1,0 +1,20 @@
+/* Wider/taller than the default 480x368 dialog so the brief has room to read and
+   edit; clamped to the viewport. Matches the original fork's handoff layout. */
+[data-component="dialog-v2"] [data-slot="dialog-container"].handoff-dialog {
+  width: min(calc(100vw - 32px), 864px);
+  height: min(calc(100vh - 92px), 624px);
+}
+
+/* The shared Textarea is a fixed 280x80 box (flex: none). Inside the handoff dialog
+   it should fill the body so the whole brief is visible and scrolls in place. */
+.handoff-dialog [data-component="textarea-v2"] {
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+}
+
+.handoff-dialog [data-component="textarea-v2"] [data-slot="textarea-v2-textarea"] {
+  min-height: 0;
+  height: 100%;
+  resize: none;
+}
