@@ -165,9 +165,14 @@ fork 改为在新分支 `v2-port`（基于 `upstream/dev`）上逐功能移植�
 - 插件「按策略更新」（v2 已有 `plugin add/check/update/remove` + server `plugin.update`）
 
 **待定：**
-- 消息分组 / 可读性（工具活动折叠，v1 commit `6cddaacd09`/`14eb89d357`）：v2 无此分组，但绑定 v1 的
-  `row().group`/`ToolActivityGroup` 时间线模型，移植成本较高。**待核实 v2 时间线模型后再决定是否迁移。**
 - （可选）插件「逐插件 autoupdate 策略」：v2 未提供，如确实需要再单做。
+
+**已补齐（v2 上的分叉改动）：**
+- 消息分组/可读性：已移植 Codex 风格「最终回答之前的过程内容（工具 + 中间叙述）折叠为一组」，
+  落在 `packages/session-ui/src/timeline/projection.ts`（`groupContent` 的 `answerIndex` 折叠）+
+  `session-timeline-row.tsx`（组内渲染 text）+ `tools/tool-renderer.tsx`（`ContextGroupPart` 支持 text）。
+- 语言/风格系统提示：并入 `SessionSystemPrompt.render()`（`withFork`），不再被模型族提示
+  （`plugin/optimize.ts` 的 gpt/claude/kimi/... 覆盖）冲掉；并强化了「所有输出含工具间短状态行都必须用用户语言」。
 
 **注意：** `.fork/build.sh` 已按 v2 结构重写（`packages/cli` 构建 CLI → `OPENCODE_CLI_DIST` → 桌面打包），
 并在 2026-10-12 实跑通过：CLI `v2.0.27`（含 `session_v2` 存储，可与官方共用 `opencode.db`）、
