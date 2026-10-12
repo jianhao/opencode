@@ -141,3 +141,33 @@ git fetch upstream
 bun install --frozen-lockfile
 ./.fork/build.sh
 ```
+
+## v1 → v2 移植状态（2026-10-12）
+
+上游在 2026-10-10 用 `chore: promote v2 to dev`（`5caf1f9f6f`）把整条 v2 线并进 `dev`，是一次
+**整仓重写**：monorepo 重排（`packages/opencode` → `cli`/`server`/`ai`/…，`app/src` 目录全改）
+＋ 存储 v1→v2（`session` → `session_v2`）。因此**直接 `git merge upstream/dev` 会得到新旧包并存的坏树**，
+fork 改为在新分支 `v2-port`（基于 `upstream/dev`）上逐功能移植，`dev`（v1）保持不动。
+
+**已移植（`v2-port`）：**
+- 会话右侧对话导航条
+- purple-vibe 主题 + fork 图标
+- 标签页右键「关闭其他标签页」
+- `~/.config/opencode/.env` 启动加载
+- 系统提示：强制同语言回复 + 回复风格（`packages/core/src/session/fork-prompts.ts`）
+- handoff 交接会话：**改为纯前端实现**（用现有 `session.generate/create/prompt`，不新增/覆盖上游路由）
+- `.fork/build.sh`、维护文档、ad-hoc 签名钩子
+
+**丢弃（v2 已覆盖 / 场景消失）：**
+- 设置弹窗拖动/缩放（v2 设置已改为整屏路由 `settings/surface.tsx`）
+- sidecar 代理顺序修复（v2 桌面端不再进程内 import server）
+- 本地截图/工具附件、markdown 图片预览（v2 内置 `session-ui/markdown-image.ts`、`image-preview.tsx`）
+- 插件「按策略更新」（v2 已有 `plugin add/check/update/remove` + server `plugin.update`）
+
+**待定：**
+- 消息分组 / 可读性（工具活动折叠，v1 commit `6cddaacd09`/`14eb89d357`）：v2 无此分组，但绑定 v1 的
+  `row().group`/`ToolActivityGroup` 时间线模型，移植成本较高。**待核实 v2 时间线模型后再决定是否迁移。**
+- （可选）插件「逐插件 autoupdate 策略」：v2 未提供，如确实需要再单做。
+
+**注意：** `.fork/build.sh` 已按 v2 结构重写（`packages/cli` 构建 CLI → `OPENCODE_CLI_DIST` → 桌面打包），
+但**尚未实跑验证**，首次使用需要真机构建确认。
