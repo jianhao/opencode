@@ -263,6 +263,16 @@ export const useSessionCommands = (actions: SessionCommandContext) => {
     )
   }
 
+  const handoff = () => {
+    const sessionID = actions.session.identity.params.id
+
+    if (!sessionID) return
+    void openDialog(
+      () => import("@/session/commands/handoff-dialog"),
+      (x) => dialog.show(() => <x.DialogHandoff sessionID={sessionID} />),
+    )
+  }
+
   const sessionCmds = () => [
     sessionCommand({
       id: "session.new",
@@ -309,6 +319,14 @@ export const useSessionCommands = (actions: SessionCommandContext) => {
       slash: "fork",
       disabled: !actions.session.identity.params.id || actions.session.history.visibleUserMessages().length === 0,
       onSelect: fork,
+    }),
+    sessionCommand({
+      id: "session.handoff",
+      title: language.t("command.session.handoff"),
+      description: language.t("command.session.handoff.description"),
+      slash: "handoff",
+      disabled: !actions.session.identity.params.id || actions.session.history.visibleUserMessages().length === 0,
+      onSelect: handoff,
     }),
     sessionCommand({
       id: "session.export",

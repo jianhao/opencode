@@ -149,6 +149,8 @@ export const dict = {
   "command.session.compact.description": "总结会话以减少上下文大小",
   "command.session.fork": "从消息创建新会话",
   "command.session.fork.description": "从之前的消息创建新会话",
+  "command.session.handoff": "交接会话",
+  "command.session.handoff.description": "把当前会话总结成交接简报，并在新会话中继续",
 
   "command.session.export": "导出会话",
   "command.session.export.description": "将完整会话记录导出为 JSON",
@@ -318,6 +320,14 @@ export const dict = {
   "mcp.status.disabled": "已禁用",
 
   "dialog.fork.empty": "没有可用于创建新会话的消息",
+  "dialog.handoff.title": "交接会话",
+  "dialog.handoff.description": "生成交接简报，并据此开启一个新会话",
+  "dialog.handoff.generating": "正在生成交接简报…",
+  "dialog.handoff.failed": "无法生成交接简报。",
+  "dialog.handoff.retry": "重试",
+  "dialog.handoff.confirm": "开始交接",
+  "dialog.handoff.starting": "正在开始…",
+  "dialog.handoff.empty": "交接简报为空",
 
   "dialog.directory.action.selectFile": "选择文件",
   "dialog.directory.action.selectFolder": "选择文件夹",

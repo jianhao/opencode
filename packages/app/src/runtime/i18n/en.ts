@@ -76,6 +76,8 @@ export const dict = {
   "command.session.compact.description": "Summarize the session to reduce context size",
   "command.session.fork": "Fork from message",
   "command.session.fork.description": "Create a new session from a previous message",
+  "command.session.handoff": "Handoff session",
+  "command.session.handoff.description": "Summarize this session into a brief and continue in a new session",
   "command.session.export": "Export session",
   "command.session.export.description": "Export the full session transcript as JSON",
   "command.session.import": "Import session",
@@ -321,6 +323,14 @@ export const dict = {
   "mcp.auth.interactiveForm": "MCP server {{name}} requires an interactive authentication form",
 
   "dialog.fork.empty": "No messages to fork from",
+  "dialog.handoff.title": "Handoff session",
+  "dialog.handoff.description": "Generate a brief and start a new session from it",
+  "dialog.handoff.generating": "Generating handoff brief…",
+  "dialog.handoff.failed": "Could not generate the handoff brief.",
+  "dialog.handoff.retry": "Retry",
+  "dialog.handoff.confirm": "Start handoff",
+  "dialog.handoff.starting": "Starting…",
+  "dialog.handoff.empty": "The handoff brief is empty",
 
   "dialog.directory.action.selectFile": "Select file",
   "dialog.directory.action.selectFolder": "Select folder",
