@@ -10,6 +10,12 @@ import { CLI_BINARIES, getCurrentCli, nodePtyPackage } from "./scripts/utils"
 
 const execFileAsync = promisify(execFile)
 
+// Fork: without an Apple Developer ID we build unsigned. An unsigned bundle
+// carries no usable signature, so once a downloaded copy has the quarantine
+// flag macOS reports it as "damaged / 已损坏". Ad-hoc signing downgrades that to
+// "unidentified developer", which the recipient can open via right-click → Open.
+const adHocSign = process.env.CSC_IDENTITY_AUTO_DISCOVERY === "false"
+
 const packageDir = path.dirname(fileURLToPath(import.meta.url))
 
 const rootDir = path.resolve(packageDir, "../..")
@@ -126,6 +132,11 @@ const getBase = (appId: string): Configuration => {
 
       if ((await stat(version)).size === 0) throw new Error(`Bundled CLI version must be a non-empty file: ${version}`)
 
+      if (context.electronPlatformName === "darwin" && adHocSign) {
+        const app = path.join(context.appOutDir, `${context.packager.appInfo.productFilename}.app`)
+        await execFileAsync("codesign", ["--force", "--deep", "--sign", "-", app])
+      }
+
       if (context.electronPlatformName !== "win32") return
 
       const addon = path.join(
@@ -150,10 +161,12 @@ const getBase = (appId: string): Configuration => {
       entitlements: "resources/entitlements.plist",
       entitlementsInherit: "resources/entitlements.plist",
       sign: async (options) => {
+        // Ad-hoc builds are signed in afterPack; skip the identity-based signer.
+        if (adHocSign) return
         const { sign } = await import("app-builder-lib/out/codeSign/macCodeSign")
         await sign(macSignOptions(options))
       },
-      notarize: true,
+      notarize: !adHocSign,
       target: ["dmg", "zip"],
     },
     protocols: {
