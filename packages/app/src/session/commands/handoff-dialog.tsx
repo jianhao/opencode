@@ -143,7 +143,6 @@ export const DialogHandoff: Component<{ sessionID: string }> = (props) => {
             }
           >
             <Textarea
-              class="handoff-brief"
               value={brief()}
               spellcheck={false}
               onInput={(event) => setBrief(event.currentTarget.value)}
