@@ -174,3 +174,14 @@ fork 改为在新分支 `v2-port`（基于 `upstream/dev`）上逐功能移植�
 桌面端 `2.0.27`、ad-hoc 签名 `codesign --verify --deep --strict` 通过。
 构建 CLI 时会用 `OPENCODE_VERSION=<cli/package.json 的 version>` 固定版本号（否则会得到
 `0.0.0-<branch>-<时间>` 的预览版号）。
+
+**关键：内置 CLI 必须用 `OPENCODE_CHANNEL=latest` 构建**（不是 `prod`）。桌面端启动时
+`Service.ensure({ file: undefined })` 会去读客户端默认的注册文件 `~/.local/state/opencode/service.json`
+（见 `@opencode/client` 的 `fallback()`）；而 CLI 注册的注册文件名由它自己的 channel 决定
+（`ServiceConfig.filename()`）：
+- `latest`/`dev`/`beta`/`next` → `service.json`、默认端口 `0xc0de`
+- 其它（如 `prod`）→ `service-<channel>.json`、`10000+hash(channel)%50000` 端口
+
+用 `prod` 构建时 CLI 会注册 `service-prod.json`，桌面端却一直探测 `service.json` → 永远找不到服务
+→ 报 `Timed out waiting for the background service to start`，卡在启动界面。官方发布的 CLI 就是用
+`latest` 构建的，所以 fork 也必须用 `latest`（DB 仍是 `opencode.db`，不受影响）。
