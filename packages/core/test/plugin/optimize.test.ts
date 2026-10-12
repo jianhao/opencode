@@ -22,7 +22,6 @@ import PROMPT_ANTHROPIC from "../../src/plugin/system-prompt/anthropic.txt"
 
 const it = testEffect(PluginTestLayer)
 const fallback = SessionSystemPrompt.make([])
-const appended = `${fallback}\n\n${SessionSystemPrompt.render(PROMPT_ANTHROPIC, [])}`
 const makeHost = Effect.gen(function* () {
   const agents = yield* Agent.Service
   const plugins = yield* Plugin.Service
@@ -71,21 +70,27 @@ describe("OptimizePlugin", () => {
       yield* Effect.forEach(OptimizePlugin.Plugins, (plugin) => plugin.effect(pluginHost), {
         discard: true,
       })
-      const cases = [
-        ["gpt-5", PROMPT_GPT],
-        ["gpt-4.1", PROMPT_GPT],
-        ["o3", fallback],
-        ["gpt-5-codex", PROMPT_GPT],
-        ["gpt-6", PROMPT_GPT],
-        ["gpt-6-astra", PROMPT_ASTRA],
-        ["gpt-5-astra", PROMPT_ASTRA],
-        ["gemini-2.5-pro", fallback],
-        ["claude-sonnet-4", appended],
-        ["kimi-k2", PROMPT_KIMI],
-        ["trinity", PROMPT_TRINITY],
-        ["meta/muse-spark-1.1", PROMPT_META.replaceAll("{{MODEL_NAME}}", "Muse Spark")],
-        ["llama-3.3", fallback],
-      ] as const
+      const cases: Array<[string, (tools: string[]) => string]> = [
+        ["gpt-5", (tools) => SessionSystemPrompt.withFork(SessionSystemPrompt.render(PROMPT_GPT, tools))],
+        ["gpt-4.1", (tools) => SessionSystemPrompt.withFork(SessionSystemPrompt.render(PROMPT_GPT, tools))],
+        ["o3", () => fallback],
+        ["gpt-5-codex", (tools) => SessionSystemPrompt.withFork(SessionSystemPrompt.render(PROMPT_GPT, tools))],
+        ["gpt-6", (tools) => SessionSystemPrompt.withFork(SessionSystemPrompt.render(PROMPT_GPT, tools))],
+        ["gpt-6-astra", (tools) => SessionSystemPrompt.withFork(SessionSystemPrompt.render(PROMPT_ASTRA, tools))],
+        ["gpt-5-astra", (tools) => SessionSystemPrompt.withFork(SessionSystemPrompt.render(PROMPT_ASTRA, tools))],
+        ["gemini-2.5-pro", () => fallback],
+        ["claude-sonnet-4", (tools) => `${fallback}\n\n${SessionSystemPrompt.render(PROMPT_ANTHROPIC, tools)}`],
+        ["kimi-k2", (tools) => SessionSystemPrompt.withFork(SessionSystemPrompt.render(PROMPT_KIMI, tools))],
+        ["trinity", (tools) => SessionSystemPrompt.withFork(SessionSystemPrompt.render(PROMPT_TRINITY, tools))],
+        [
+          "meta/muse-spark-1.1",
+          (tools) =>
+            SessionSystemPrompt.withFork(
+              SessionSystemPrompt.render(PROMPT_META.replaceAll("{{MODEL_NAME}}", "Muse Spark"), tools),
+            ),
+        ],
+        ["llama-3.3", () => fallback],
+      ]
 
       yield* Effect.forEach(
         cases,
@@ -96,9 +101,7 @@ describe("OptimizePlugin", () => {
             .pipe(
               Effect.tap(() =>
                 Effect.sync(() =>
-                  expect(event.system.map((part) => part.text)).toEqual([
-                    SessionSystemPrompt.render(expected, Object.keys(event.tools)),
-                  ]),
+                  expect(event.system.map((part) => part.text)).toEqual([expected(Object.keys(event.tools))]),
                 ),
               ),
             )
@@ -124,7 +127,7 @@ describe("OptimizePlugin", () => {
       yield* hooks.trigger("session", "context", event)
 
       expect(event.system.map((part) => part.text)).toEqual([
-        SessionSystemPrompt.render(PROMPT_GPT, Object.keys(event.tools)),
+        SessionSystemPrompt.withFork(SessionSystemPrompt.render(PROMPT_GPT, Object.keys(event.tools))),
         "Project instructions",
       ])
       expect(event.system[0]?.text).not.toContain("${OPENCODE_TOOL_GUIDANCE}")
@@ -204,14 +207,18 @@ describe("OptimizePlugin", () => {
           yield* OptimizePlugin.OpenAIToolsPlugin.effect(pluginHost)
           const event = context("gpt-5")
           yield* hooks.trigger("session", "context", event)
-          expect(event.system[0]?.text).toBe(SessionSystemPrompt.render(PROMPT_GPT, Object.keys(event.tools)))
+          expect(event.system[0]?.text).toBe(
+            SessionSystemPrompt.withFork(SessionSystemPrompt.render(PROMPT_GPT, Object.keys(event.tools))),
+          )
           expect(Object.keys(event.tools).sort()).toEqual(["edit", "patch", "read", "shell", "write"])
         }),
       )
 
       const event = context("gpt-5")
       yield* hooks.trigger("session", "context", event)
-      expect(event.system[0]?.text).toBe(SessionSystemPrompt.render(PROMPT_GPT, Object.keys(event.tools)))
+      expect(event.system[0]?.text).toBe(
+        SessionSystemPrompt.withFork(SessionSystemPrompt.render(PROMPT_GPT, Object.keys(event.tools))),
+      )
       expect(Object.keys(event.tools).sort()).toEqual(["edit", "glob", "grep", "patch", "read", "shell", "write"])
       const claude = context("claude-sonnet-4-6")
       yield* hooks.trigger("session", "context", claude)
@@ -247,7 +254,9 @@ describe("OptimizePlugin", () => {
             Effect.tap(() =>
               Effect.sync(() => {
                 expect(event.system[0]?.text).toBe(
-                  SessionSystemPrompt.render(PROMPT_META.replaceAll("{{MODEL_NAME}}", name), Object.keys(event.tools)),
+                  SessionSystemPrompt.withFork(
+                    SessionSystemPrompt.render(PROMPT_META.replaceAll("{{MODEL_NAME}}", name), Object.keys(event.tools)),
+                  ),
                 )
                 expect(event.system[0]?.text).not.toContain("{{MODEL_NAME}}")
               }),
@@ -310,7 +319,9 @@ describe("OptimizePlugin", () => {
       yield* hooks.trigger("session", "context", kimi)
 
       expect(gemini.system[0]?.text).toBe(fallback)
-      expect(kimi.system[0]?.text).toBe(SessionSystemPrompt.render(PROMPT_KIMI, Object.keys(kimi.tools)))
+      expect(kimi.system[0]?.text).toBe(
+        SessionSystemPrompt.withFork(SessionSystemPrompt.render(PROMPT_KIMI, Object.keys(kimi.tools))),
+      )
     }),
   )
 
@@ -319,18 +330,23 @@ describe("OptimizePlugin", () => {
       const catalog = yield* Provider.Service
       const hooks = yield* PluginHooks.Service
       const pluginHost = yield* makeHost
-      const cases = [
-        ["gpt-5-alias", "custom-model", undefined, PROMPT_GPT],
-        ["gpt-6-alias", "custom-model", undefined, PROMPT_GPT],
-        ["gpt-5-astra-alias", "custom-model", undefined, PROMPT_ASTRA],
-        ["openai-alias", "GPT-5", undefined, fallback],
-        ["codex-family-alias", "custom-deployment", "GPT-CODEX", fallback],
-        ["astra-api-alias", "gpt-6-astra", undefined, fallback],
-        ["astra-family-alias", "custom-deployment", "gpt-6", fallback],
-        ["claude-catalog-alias", "custom-model", undefined, appended],
-        ["anthropic-api-alias", "Claude-Opus-4-8", undefined, fallback],
-        ["anthropic-family-alias", "custom-deployment", "CLAUDE-SONNET", fallback],
-      ] as const
+      const cases: Array<[string, string, string | undefined, (tools: string[]) => string]> = [
+        ["gpt-5-alias", "custom-model", undefined, (tools) => SessionSystemPrompt.withFork(SessionSystemPrompt.render(PROMPT_GPT, tools))],
+        ["gpt-6-alias", "custom-model", undefined, (tools) => SessionSystemPrompt.withFork(SessionSystemPrompt.render(PROMPT_GPT, tools))],
+        ["gpt-5-astra-alias", "custom-model", undefined, (tools) => SessionSystemPrompt.withFork(SessionSystemPrompt.render(PROMPT_ASTRA, tools))],
+        ["openai-alias", "GPT-5", undefined, () => fallback],
+        ["codex-family-alias", "custom-deployment", "GPT-CODEX", () => fallback],
+        ["astra-api-alias", "gpt-6-astra", undefined, () => fallback],
+        ["astra-family-alias", "custom-deployment", "gpt-6", () => fallback],
+        [
+          "claude-catalog-alias",
+          "custom-model",
+          undefined,
+          (tools) => `${fallback}\n\n${SessionSystemPrompt.render(PROMPT_ANTHROPIC, tools)}`,
+        ],
+        ["anthropic-api-alias", "Claude-Opus-4-8", undefined, () => fallback],
+        ["anthropic-family-alias", "custom-deployment", "CLAUDE-SONNET", () => fallback],
+      ]
       yield* catalog.transform((editor) => {
         for (const [id, modelID, family] of cases)
           editor.models.update(Provider.ID.make("test"), Model.ID.make(id), (model) => {
@@ -341,11 +357,11 @@ describe("OptimizePlugin", () => {
       yield* Effect.forEach(OptimizePlugin.Plugins, (plugin) => plugin.effect(pluginHost), { discard: true })
       yield* Effect.forEach(
         cases,
-        ([id, , , prompt]) =>
+        ([id, , , expected]) =>
           Effect.gen(function* () {
             const event = context(id)
             yield* hooks.trigger("session", "context", event)
-            expect(event.system[0]?.text).toBe(SessionSystemPrompt.render(prompt, Object.keys(event.tools)))
+            expect(event.system[0]?.text).toBe(expected(Object.keys(event.tools)))
             expect(Object.keys(event.tools).sort()).toEqual(["edit", "glob", "grep", "patch", "read", "shell", "write"])
           }),
         { discard: true },

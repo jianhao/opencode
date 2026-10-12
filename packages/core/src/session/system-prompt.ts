@@ -4,7 +4,14 @@ import PROMPT from "./runner/prompt/system.txt"
 import { SessionForkPrompts } from "./fork-prompts.js"
 
 export function make(tools: string[]) {
-  return `${SessionForkPrompts.LANGUAGE}\n\n${SessionForkPrompts.STYLE}\n\n${render(PROMPT, tools)}`
+  return withFork(render(PROMPT, tools))
+}
+
+// The fork language/style directive must sit at the top of the final system text so it
+// also survives the model-family prompt the optimize plugin installs (gpt/claude/kimi/...):
+// that plugin replaces the whole system text with render(familyTemplate, tools).
+export function withFork(text: string) {
+  return `${SessionForkPrompts.LANGUAGE}\n\n${SessionForkPrompts.STYLE}\n\n${text}`
 }
 
 export function render(prompt: string, tools: string[]) {

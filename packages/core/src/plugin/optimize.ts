@@ -82,7 +82,7 @@ function make(
           const system = event.system[0]
           if (!system) return
           const rendered = SessionSystemPrompt.render(template, Object.keys(event.tools))
-          const text = mode === "append" ? `${system.text}\n\n${rendered}` : rendered
+          const text = mode === "append" ? `${system.text}\n\n${rendered}` : SessionSystemPrompt.withFork(rendered)
           event.system[0] = { ...system, text }
         }).pipe(Effect.catch(() => Effect.void))
       yield* ctx.session.hook("context", hook)
