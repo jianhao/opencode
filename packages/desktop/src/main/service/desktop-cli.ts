@@ -1,7 +1,7 @@
 export * as DesktopCli from "./desktop-cli"
 
 import { execFile, spawn } from "node:child_process"
-import { existsSync, readFileSync } from "node:fs"
+import { readFileSync } from "node:fs"
 import { promisify } from "node:util"
 import { app } from "electron"
 import { Context, Effect, FileSystem, Layer, Option, Path, Schema } from "effect"
@@ -141,8 +141,14 @@ const installCli = Effect.fn("DesktopCli.install")(function* (source: string, ve
   const path = yield* Path.Path
   const directory = path.join(app.getPath("userData"), "cli", version.replace(/[^a-zA-Z0-9._-]/g, "-"))
   const destination = path.join(directory, executableName())
+  const marker = destination + ".source"
+  // A rebuilt CLI can keep the same version (fork rebuilds of one upstream release), so reuse
+  // the staged copy only while it still matches the bundled file's size and mtime.
+  const identity = yield* fileIdentity(source)
+  const staged = yield* fileIdentity(destination)
+  const recorded = yield* fs.readFileString(marker).pipe(Effect.orElseSucceed(() => undefined))
 
-  if (existsSync(destination)) {
+  if (identity !== undefined && staged !== undefined && recorded === identity) {
     yield* Effect.logInfo("v2 CLI staged executable reused", { path: destination, version })
 
     return destination
@@ -156,9 +162,19 @@ const installCli = Effect.fn("DesktopCli.install")(function* (source: string, ve
   yield* fs
     .rename(temp, destination)
     .pipe(Effect.catch((error) => fs.remove(temp, { force: true }).pipe(Effect.andThen(Effect.fail(error)))))
+  if (identity !== undefined) yield* fs.writeFileString(marker, identity).pipe(Effect.orElseSucceed(() => undefined))
   yield* Effect.logInfo("v2 CLI executable staged", { source, path: destination, version })
 
   return destination
+})
+
+const fileIdentity = Effect.fnUntraced(function* (file: string) {
+  const fs = yield* FileSystem.FileSystem
+  const stat = yield* fs.stat(file).pipe(Effect.orElseSucceed(() => undefined))
+
+  if (stat?.type !== "File") return undefined
+
+  return `${stat.size}:${Option.getOrUndefined(stat.mtime)?.getTime() ?? ""}`
 })
 
 const run = Effect.fn("DesktopCli.run")(function* (binary: string, args: string[]) {
