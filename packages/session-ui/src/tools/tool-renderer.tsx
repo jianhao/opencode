@@ -534,7 +534,7 @@ function ExaOutput(props: { output?: string }) {
 export type ContextGroupPart =
   | SessionMessageAssistantTool
   | (SessionMessageAssistantReasoning & { id: string; streaming?: boolean })
-  | { type: "notice" | "shell"; id: string; render: () => JSX.Element }
+  | { type: "notice" | "shell" | "text"; id: string; render: () => JSX.Element }
 
 export function CurrentContextToolGroup(props: {
   parts: ContextGroupPart[]
@@ -739,7 +739,9 @@ export function CurrentContextToolGroup(props: {
               const callback = createMemo(() => {
                 const value = item()
 
-                return !Array.isArray(value) && (value.type === "notice" || value.type === "shell") ? value : undefined
+                return !Array.isArray(value) && (value.type === "notice" || value.type === "shell" || value.type === "text")
+                  ? value
+                  : undefined
               })
 
               return (

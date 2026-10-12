@@ -489,7 +489,11 @@ export namespace Timeline {
 
       const appendGroups = (items: typeof refs) => {
         let offset = 0
-        groupContent(items, shellToolDefaultOpen, editToolDefaultOpen, detail).forEach((group) => {
+        // Fork: everything before the turn's final answer (tool calls and the model's
+        // in-between narration) folds into one collapsible group, Codex-style. Only the
+        // answer text stays visible on its own.
+        const answer = items.findLastIndex((item) => item.content.type === "text")
+        groupContent(items, shellToolDefaultOpen, editToolDefaultOpen, detail, answer).forEach((group) => {
           const tool = group.type !== "part" || items[offset]?.content.type !== "text"
           offset += group.type === "part" ? 1 : group.refs.length
           rows.push(
@@ -806,9 +810,10 @@ function groupContent(
   shellToolDefaultOpen: boolean,
   editToolDefaultOpen: boolean,
   detail?: TimelineDetail,
+  answerIndex = -1,
 ): PartGroup[] {
   const groups: PartGroup[] = []
-  let adjacent: { type: "context" | "file" | "read"; refs: PartRef[]; tools: boolean } | undefined
+  let adjacent: { type: "context" | "file" | "read"; refs: PartRef[]; tools: boolean; folded: boolean } | undefined
 
   const flush = () => {
     const current = adjacent
@@ -816,7 +821,8 @@ function groupContent(
 
     if (!first) return
 
-    if (!current.tools && !detail) {
+    // A run of only reasoning stays individual rows unless it is folding narration.
+    if (!current.tools && !current.folded && !detail) {
       groups.push(
         ...current.refs.map((ref) => ({ type: "part" as const, key: `part:${ref.messageID}:${ref.partID}`, ref })),
       )
@@ -836,19 +842,23 @@ function groupContent(
     adjacent = undefined
   }
 
-  items.forEach((item) => {
-    const type = contentGroupType(
-      item.content,
-      shellToolDefaultOpen,
-      editToolDefaultOpen,
-      adjacent?.type === "context" && adjacent.tools,
-      detail,
-    )
+  items.forEach((item, index) => {
+    const folded = item.content.type === "text" && index < answerIndex
+    const type = folded
+      ? "context"
+      : contentGroupType(
+          item.content,
+          shellToolDefaultOpen,
+          editToolDefaultOpen,
+          adjacent?.type === "context" && adjacent.tools,
+          detail,
+        )
 
     if (type) {
       if (adjacent?.type !== type) flush()
-      adjacent ??= { type, refs: [], tools: false }
+      adjacent ??= { type, refs: [], tools: false, folded: false }
       adjacent.tools ||= item.content.type === "tool"
+      adjacent.folded ||= folded
       adjacent.refs.push({ messageID: item.messageID, partID: item.partID })
 
       return

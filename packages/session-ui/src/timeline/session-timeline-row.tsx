@@ -198,6 +198,23 @@ export function createSessionTimelineRowRenderer(input: {
             ]
           const message = input.projection.messageByID().get(ref.messageID)
 
+          // Fork: narration folded into the group renders its own text when expanded.
+          if (content?.type === "text" && message?.type === "assistant")
+            return [
+              {
+                type: "text",
+                id: ref.partID,
+                render: () => (
+                  <SessionAssistantContent
+                    message={message}
+                    content={content}
+                    contentID={ref.partID}
+                    turnDurationMs={duration(row().userMessageID)}
+                  />
+                ),
+              },
+            ]
+
           if (ref.messageID !== ref.partID || !message) return []
 
           if (message.type === "shell")
