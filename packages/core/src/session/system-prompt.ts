@@ -1,9 +1,10 @@
 export * as SessionSystemPrompt from "./system-prompt.js"
 
 import PROMPT from "./runner/prompt/system.txt"
+import { SessionForkPrompts } from "./fork-prompts.js"
 
 export function make(tools: string[]) {
-  return render(PROMPT, tools)
+  return `${SessionForkPrompts.LANGUAGE}\n\n${SessionForkPrompts.STYLE}\n\n${render(PROMPT, tools)}`
 }
 
 export function render(prompt: string, tools: string[]) {
