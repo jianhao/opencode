@@ -6,11 +6,13 @@
 
 - `origin` = `git@github.com:jianhao/opencode.git`（自己的 fork）
 - `upstream` = `https://github.com/anomalyco/opencode.git`
-- 直接在自己的 `dev` 上改，定期从 upstream 跟进：
+- **`dev` 是本 fork 的主线**（v2 线，2026-10-14 由 `v2-port` 改名而来），直接在上面改，定期从 upstream 跟进：
   ```sh
   git fetch upstream
   git merge upstream/dev       # 本 fork 统一用 merge（见下方「同步 upstream」）
   ```
+- `dev-v1` = 旧 v1 线（`60184a065b`，即 `origin/dev` 现在指向的提交）：**只作存档**，
+  不要再往上提交，也不要把它和 `upstream/dev` 合并（上游在 2026-10-10 已把 dev 换成 v2，两条线包结构不同）。
 - **约定：一个问题一个 commit**，commit message 用上游风格 `fix(scope): ...` /
   `feat(scope): ...`。这样以后要给上游提 PR，可以直接 `git cherry-pick` 单个 commit。
 
@@ -18,7 +20,7 @@
 
 | 项 | 值 |
 |---|---|
-| 上游版本（dev） | `1.18.33`（= 官方最新 release；跟着合并自动同步） |
+| 上游版本（dev） | `2.0.28`（v2 线；跟着合并自动同步） |
 | bun | 需要 `^1.3.14`（本机已升到 1.4.2） |
 | npm registry | 淘宝镜像。**这是关键**：普通 `bun install` 会把镜像 URL 写进 `bun.lock`，把 fork 弄脏 |
 
@@ -142,14 +144,19 @@ bun install --frozen-lockfile
 ./.fork/build.sh
 ```
 
-## v1 → v2 移植状态（2026-10-12）
+## v1 → v2 移植状态（2026-10-14）
 
 上游在 2026-10-10 用 `chore: promote v2 to dev`（`5caf1f9f6f`）把整条 v2 线并进 `dev`，是一次
 **整仓重写**：monorepo 重排（`packages/opencode` → `cli`/`server`/`ai`/…，`app/src` 目录全改）
-＋ 存储 v1→v2（`session` → `session_v2`）。因此**直接 `git merge upstream/dev` 会得到新旧包并存的坏树**，
-fork 改为在新分支 `v2-port`（基于 `upstream/dev`）上逐功能移植，`dev`（v1）保持不动。
+＋ 存储 v1→v2（`session` → `session_v2`）。
 
-**已移植（`v2-port`）：**
+处理经过：fork 先在临时分支 `v2-port`（基于 `upstream/dev`）上逐功能移植，**2026-10-14 移植告一段落，
+把 `v2-port` 改名为 `dev` 作为主线**，旧 v1 线保留为 `dev-v1`。因此现在：
+
+- `dev` 与 `upstream/dev` 同为 v2 线，`git merge upstream/dev` 恢复为正常流程。
+- `dev-v1`（v1）与 `upstream/dev`（v2）**不可合并**，合并会得到新旧包并存的坏树。
+
+**已移植（现 `dev`）：**
 - 会话右侧对话导航条
 - purple-vibe 主题 + fork 图标
 - 标签页右键「关闭其他标签页」
