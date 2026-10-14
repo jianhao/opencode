@@ -275,6 +275,23 @@ describe("Vcs", () => {
     ),
   )
 
+  synthetic.effect("fails a diff that outruns its budget instead of scanning forever", () =>
+    Effect.gen(function* () {
+      const vcs = yield* Vcs.Service
+      yield* vcs.transform((editor) => {
+        editor.add(provider({ diff: () => Effect.never }))
+        editor.default.set("custom")
+      })
+
+      const fiber = yield* Effect.forkChild(vcs.diff("working"))
+      yield* TestClock.adjust(Vcs.MAX_DIFF_DURATION)
+      const exit = yield* Fiber.await(fiber)
+      const error = Exit.isFailure(exit) ? Cause.squash(exit.cause) : undefined
+      expect(error).toBeInstanceOf(Vcs.DiffError)
+      expect(String(error)).toContain("Diff ran past")
+    }),
+  )
+
   it.live("preserves provider interruption", () =>
     withTmp((directory) =>
       Effect.gen(function* () {

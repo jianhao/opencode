@@ -1,7 +1,7 @@
 export * as Vcs from "./vcs.js"
 
 import path from "path"
-import { Cause, Context, Effect, FiberSet, Layer, Schema, Semaphore, Stream } from "effect"
+import { Cause, Context, Duration, Effect, FiberSet, Layer, Schema, Semaphore, Stream } from "effect"
 import type { VcsDefinition, VcsEditor } from "@opencode/plugin/effect/vcs"
 import { FileDiff } from "@opencode/schema/file-diff"
 import { FileSystem } from "@opencode/schema/filesystem"
@@ -34,6 +34,13 @@ export interface BranchOptions {
   readonly search?: string
   readonly limit?: number
 }
+
+/**
+ * How long one review diff may run. The app gives up on a diff request after a minute, so a provider
+ * that scans past this budget only keeps git busy on an answer nobody reads. Timing out interrupts the
+ * provider, which tears down the git children it spawned.
+ */
+export const MAX_DIFF_DURATION = Duration.seconds(45)
 
 export interface Adapter {
   readonly info: () => Effect.Effect<Info>
@@ -231,15 +238,26 @@ const layer = Layer.effect(
         const rows = yield* review(
           provider,
           "diff",
-          provider
-            .diff({
-              ...scope,
-              mode,
-              ...(options?.base !== undefined ? { base: options.base } : {}),
-              context: options?.context ?? PATCH_CONTEXT_LINES,
-              maxOutputBytes: MAX_TOTAL_PATCH_BYTES,
-            })
-            .pipe(Effect.flatMap(decodeDiff)),
+          // The budget sits inside `review` so the timeout fails like any other provider failure, instead of
+          // the interrupt it raises being re-raised as a defect.
+          Effect.timeoutOrElse(
+            provider
+              .diff({
+                ...scope,
+                mode,
+                ...(options?.base !== undefined ? { base: options.base } : {}),
+                context: options?.context ?? PATCH_CONTEXT_LINES,
+                maxOutputBytes: MAX_TOTAL_PATCH_BYTES,
+              })
+              .pipe(Effect.flatMap(decodeDiff)),
+            {
+              duration: MAX_DIFF_DURATION,
+              orElse: () =>
+                Effect.fail(
+                  new DiffError({ message: `Diff ran past ${Duration.toSeconds(MAX_DIFF_DURATION)} seconds` }),
+                ),
+            },
+          ),
         )
         let total = 0
         return rows.map((row) => {
