@@ -6,6 +6,40 @@
 
 ---
 
+## 2026-10-14
+
+### 🐛 修复巨型工作区上 diff 卡死导致会话白屏（`71e42e755a`）
+
+- 现象：在 `/pier` 这类"全树未跟踪"的大仓库里切标签页时，**整屏聊天消失**（DOM 只剩 5 个节点的空面板），
+  每约 60s 一轮；实测白屏时长正好等于 `/api/vcs/diff?mode=working` 请求的存活时间，屏蔽该请求后立即恢复。
+- 根因：审查扩展的工作区 diff 查询没有初值，`@tanstack/solid-query` 的 `.data` 在 `state.data === undefined`
+  时是**挂起读**（`queryResource()`），于是整条会话路由被 Suspense 换成空面板 —— 是"路由被卸载"，不是渲染卡死。
+- 修复：
+  - 两个 diff 查询带 `initialData`，渲染期不再读到挂起资源（这是白屏的开关）。
+  - 新增 `ChangeStatus`（`idle`/`loading`/`ready`/`failed`）：加载失败显示"无法加载变更"，
+    不再被读成"没有变更"；审查面板、侧栏、文件树 Changes 页签、会话详情变更行都按状态出文案。
+  - 失败冷却：按**完整 query key**（目录/服务器/分支/模式）记录，只有真实扫描写时间，
+    被拒绝的触发不会把冷却重新计时；冷却结束后下一次触发照常扫描。
+  - 触发收口：关闭自动重试；刷新只 invalidate 当前模式与详情行的**确切 key**
+    （原先按前缀刷新会取消其它模式在途的扫描）；两者共用 key 时只刷一次。
+  - 会话路由 Suspense 的兜底由空面板换成 "Loading…"，便于区分"在加载"和"渲染没了"。
+- 回归测试（`packages/app/e2e/regression/review.spec.ts`）：冷却不被自身触发刷新（含冷却结束后恢复扫描）、
+  冷却按目录隔离（A 失败不影响切到 B，切回 A 仍守冷却）。
+
+### 🐛 服务端 diff 增加执行预算（`c07c207e48`）
+
+- 客户端 1 分钟就放弃的 diff，服务端仍会继续扫完整个工作区（大仓库上按未跟踪文件逐个
+  `git diff --no-index`）。新增 `MAX_DIFF_DURATION`（45s，为客户端 60s 留余量），超时在 `review()`
+  内部失败成 `Vcs.DiffError`，并随效应作用域结束**杀掉对应的 git 子进程**（实测子进程被清理）。
+- 补测试：`Effect.never` 的 provider + `TestClock` 推进预算断言 `DiffError`；原"中断语义"用例仍通过。
+
+### 🔧 打包时校验 CLI 渠道、版本、签名与副本一致（`2be889661b`）
+
+- `build.sh` 不再 checkout 用户的 `bun.lock`（会静默丢弃锁文件改动），改用 `--skip-install` 只用已装依赖。
+- 新增 `.fork/verify-cli.ts`：不启动服务，校验二进制内嵌的渠道/版本、`--version` 与 `opencode-cli.version`。
+- `desktop` 流程断言 CLI 构建产物 → `resources/opencode-cli` → 打包后 app 内副本三处一致
+  （签名会改哈希，比较签名后的两份），并用 sha256 确认构建目录未被并发构建改写。
+
 ## 2026-09-30
 
 ### ✨ 标签页右键支持「关闭其他标签页」
