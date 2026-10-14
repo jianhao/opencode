@@ -8,6 +8,7 @@ import { usePlatform } from "@/runtime/platform/platform"
 import { ExtensionSettingsSections } from "@/runtime/extension/settings-page-view"
 import {
   type FollowUpBehavior,
+  type OutlineSide,
   type TerminalPlacement,
   type WorkspaceDefaultDestination,
   useSettings,
@@ -156,6 +157,34 @@ const FollowUpBehaviorSetting: Component = () => {
         placement="bottom-end"
         gutter={6}
         onSelect={(option) => option && settings.general.setFollowUpBehavior(option.value)}
+      />
+    </SettingsRow>
+  )
+}
+
+const OutlineSideSetting: Component = () => {
+  const language = useLanguage()
+  const settings = useSettings()
+
+  const options = createMemo((): { value: OutlineSide; label: string }[] => [
+    { value: "left", label: language.t("settings.general.row.outlineSide.left") },
+    { value: "right", label: language.t("settings.general.row.outlineSide.right") },
+  ])
+
+  return (
+    <SettingsRow
+      title={language.t("settings.general.row.outlineSide.title")}
+      description={language.t("settings.general.row.outlineSide.description")}
+    >
+      <Select
+        data-action="settings-outline-side"
+        options={options()}
+        current={options().find((option) => option.value === settings.general.outlineSide())}
+        value={(option) => option.value}
+        label={(option) => option.label}
+        placement="bottom-end"
+        gutter={6}
+        onSelect={(option) => option && settings.general.setOutlineSide(option.value)}
       />
     </SettingsRow>
   )
@@ -317,6 +346,8 @@ export const SettingsGeneral: Component = () => {
                 onChange={settings.general.setTimelineDetail}
               />
             </div>
+
+            <OutlineSideSetting />
           </SettingsList>
         </section>
 

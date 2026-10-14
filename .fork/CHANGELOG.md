@@ -8,6 +8,17 @@
 
 ## 2026-10-14
 
+### ✨ 会话导航条支持左侧/右侧设置（`9965fa2600`）
+
+- 新增 `settings.general.outlineSide`（`left` / `right`，默认**右侧**），设置行在「时间轴」区块，
+  也可通过设置搜索（`settings-outline-side`）找到。
+- 横向布局全部由 CSS 驱动：基础保留逻辑属性（无 `data-side` 时跟随语言方向、RTL 自动镜像，
+  这一形态给上游 PR 用），`[data-side]` 才按物理位置钉住——轨道贴边、tick 朝内容方向伸长、
+  hover 卡片朝对话侧展开，不再被窗口边缘裁切。
+- 顺手清掉 `session-outline.tsx` / `screen.tsx` 的 39 处 `require-readable-spacing` 警告。
+- e2e：新增 `e2e/regression/session-outline.spec.ts`（默认右侧 + 几何位置、切左侧后移到左边缘、
+  设置行只有左/右）。
+
 ### 🐛 修复巨型工作区上 diff 卡死导致会话白屏（`71e42e755a`）
 
 - 现象：在 `/pier` 这类"全树未跟踪"的大仓库里切标签页时，**整屏聊天消失**（DOM 只剩 5 个节点的空面板），

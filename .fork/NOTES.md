@@ -15,6 +15,8 @@
   不要再往上提交，也不要把它和 `upstream/dev` 合并（上游在 2026-10-10 已把 dev 换成 v2，两条线包结构不同）。
 - **约定：一个问题一个 commit**，commit message 用上游风格 `fix(scope): ...` /
   `feat(scope): ...`。这样以后要给上游提 PR，可以直接 `git cherry-pick` 单个 commit。
+- **约定：新增功能时，同一次改动里就更新 `.fork/CHANGELOG.md`**（不必单独开 docs commit，
+  代码 + 文档一起提交，历史更短）。
 
 ## 环境
 

@@ -55,6 +55,12 @@ export const clientSettings: Entry<SettingsRootTab>[] = [
   },
   {
     tab: "general",
+    label: "settings.general.row.outlineSide.title",
+    target: "settings-outline-side",
+    keywords: "session outline navigator rail turn timeline left right side position",
+  },
+  {
+    tab: "general",
     label: "settings.general.row.pinchZoom.title",
     target: "settings-pinch-zoom",
     available: "desktop",

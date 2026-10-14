@@ -1,16 +1,31 @@
-/* Conversation navigator rail (Codex-style), pinned just inside the right edge.
-   The container is inert; only the rail area receives pointer events, so it
-   never blocks selecting or clicking the content underneath. */
+/* Conversation navigator rail (Codex-style), pinned just inside an edge of the
+   conversation. The container is inert; only the rail area receives pointer
+   events, so it never blocks selecting or clicking the content underneath.
+
+   The side is a preference (`data-side` on the container): `left` / `right` pin the
+   rail to that physical edge, and without one it stays on the inline end, so it
+   flips under RTL. Everything horizontal is driven from here; the component only
+   positions the rail and the card vertically. */
 .session-outline {
   position: absolute;
   inset-block: 0;
-  right: 16px;
+  inset-inline-end: 16px;
   width: 40px;
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 20;
   pointer-events: none;
+}
+
+.session-outline[data-side="left"] {
+  inset-inline-start: 16px;
+  inset-inline-end: auto;
+}
+
+.session-outline[data-side="right"] {
+  inset-inline-end: 16px;
+  inset-inline-start: auto;
 }
 
 /* A compact, vertically-centered column of ticks. The gap is set inline and
@@ -25,18 +40,28 @@
   pointer-events: auto;
 }
 
-/* Right-aligned so the bars share the same right edge and grow to the LEFT,
-   matching Codex (its rail sits on the right too). */
+/* Ticks hug the outer edge and grow inward, matching Codex. The base uses the
+   inline end so it mirrors under RTL; an explicit side is physical. */
 .session-outline-tick {
   display: flex;
   align-items: center;
   justify-content: flex-end;
   width: 40px;
   height: 9px;
-  padding: 0 8px 0 0;
+  padding-inline: 0 8px;
   border: 0;
   background: transparent;
   cursor: pointer;
+}
+
+.session-outline[data-side="left"] .session-outline-tick {
+  justify-content: left;
+  padding-inline: 8px 0;
+}
+
+.session-outline[data-side="right"] .session-outline-tick {
+  justify-content: right;
+  padding-inline: 0 8px;
 }
 
 /* Every tick is the same 10px when idle. Only the exact tick under the pointer
@@ -69,9 +94,11 @@
   background: var(--v2-outline-highlight, #a78bfa);
 }
 
+/* The hover card opens towards the conversation, so it never covers the rail or
+   runs off the edge the rail sits on. */
 .session-outline-card {
   position: absolute;
-  right: calc(100% + 12px);
+  inset-inline-end: calc(100% + 12px);
   transform: translateY(-50%) translateX(6px);
   width: 340px;
   max-width: 44vw;
@@ -88,6 +115,17 @@
   transition:
     opacity 140ms ease,
     transform 140ms ease;
+}
+
+.session-outline[data-side="left"] .session-outline-card {
+  inset-inline-start: calc(100% + 12px);
+  inset-inline-end: auto;
+  transform: translateY(-50%) translateX(-6px);
+}
+
+.session-outline[data-side="right"] .session-outline-card {
+  inset-inline-end: calc(100% + 12px);
+  inset-inline-start: auto;
 }
 
 .session-outline-card.is-open {

@@ -827,6 +827,11 @@ export const dict = {
     "Choose whether to queue follow-ups or steer the current turn. Use {{keybind}} to switch.",
   "settings.general.row.followUpBehavior.queue": "Queue",
   "settings.general.row.followUpBehavior.steer": "Steer",
+  "settings.general.row.outlineSide.title": "Session outline",
+  "settings.general.row.outlineSide.description":
+    "Place the turn navigator on the left or right edge of the conversation",
+  "settings.general.row.outlineSide.left": "Left",
+  "settings.general.row.outlineSide.right": "Right",
   "settings.general.row.pinchZoom.title": "Pinch to zoom",
   "settings.general.row.pinchZoom.description": "Allow trackpad pinch and Ctrl-scroll gestures to zoom",
 

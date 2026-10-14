@@ -17,6 +17,8 @@ export type TerminalPlacement = Settings["general"]["terminalPlacement"]
 
 export type FollowUpBehavior = Settings["general"]["followUpBehavior"]
 
+export type OutlineSide = Settings["general"]["outlineSide"]
+
 export type TabLayout = Settings["appearance"]["tabLayout"]
 
 export type NotificationSettings = Settings["notifications"]
@@ -116,6 +118,7 @@ const generalSchema = Persistence.struct({
   mobileDiffWrap: Persistence.optional(Schema.Boolean),
   terminalPlacement: Schema.Literals(["side", "bottom"]),
   followUpBehavior: Schema.Literals(["queue", "steer"]),
+  outlineSide: Schema.Literals(["left", "right"]),
 })
 
 const appearanceSchema = Persistence.struct({
@@ -271,6 +274,7 @@ export const defaultSettings: Settings = {
     mobileTitlebarPosition: "top",
     terminalPlacement: "side",
     followUpBehavior: "steer",
+    outlineSide: "right",
   },
   appearance: { fontSize: 14, mono: "", sans: "", terminal: "", tabLayout: "horizontal" },
   keybinds: {},
@@ -349,6 +353,10 @@ export const { use: useSettings, provider: SettingsProvider } = createSimpleCont
         followUpBehavior: withFallback(() => store.general?.followUpBehavior, defaultSettings.general.followUpBehavior),
         setFollowUpBehavior(value: FollowUpBehavior) {
           setStore("general", "followUpBehavior", value)
+        },
+        outlineSide: withFallback(() => store.general?.outlineSide, defaultSettings.general.outlineSide),
+        setOutlineSide(value: OutlineSide) {
+          setStore("general", "outlineSide", value)
         },
       },
       visibility: {

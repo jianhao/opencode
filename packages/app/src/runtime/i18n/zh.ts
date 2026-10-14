@@ -501,6 +501,10 @@ export const dict = {
   "settings.general.row.mobileTitlebarBottom.description": "在移动设备上将标题栏和会话标签页置于屏幕底部",
   "settings.general.row.showCustomAgents.title": "显示智能体",
   "settings.general.row.showCustomAgents.description": "在输入框中切换智能体。隐藏时默认使用 Build 智能体。",
+  "settings.general.row.outlineSide.title": "会话导航条",
+  "settings.general.row.outlineSide.description": "把对话导航条放在会话的左侧或右侧",
+  "settings.general.row.outlineSide.left": "左侧",
+  "settings.general.row.outlineSide.right": "右侧",
   "settings.general.row.pinchZoom.title": "双指缩放",
   "settings.general.row.pinchZoom.description": "允许使用触控板双指捏合和 Ctrl+滚轮手势缩放",
 
