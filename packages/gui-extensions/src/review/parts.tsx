@@ -43,7 +43,13 @@ export function ReviewTitle(props: { review: ReviewModel }) {
 
 export function ReviewEmpty(props: { review: ReviewModel; loadingClass: string }) {
   const ctx = useExtension()
-  const loading = () => !props.review.ready()
+
+  // `idle` waits for the stored mode, which is the same wait the reader sees as loading.
+  const loading = () => {
+    const status = props.review.status()
+
+    return status === "idle" || status === "loading"
+  }
 
   const text = () => {
     if (props.review.mode() === "git") return ctx.t("empty.git")
@@ -57,6 +63,10 @@ export function ReviewEmpty(props: { review: ReviewModel; loadingClass: string }
     <Switch>
       <Match when={loading()}>
         <div class={props.loadingClass}>{ctx.t("loadingChanges")}</div>
+      </Match>
+      {/* A failed load has no changes to show: saying "no changes" would hide that nothing loaded. */}
+      <Match when={props.review.status() === "failed"}>
+        <div class={props.loadingClass}>{ctx.t("failedChanges")}</div>
       </Match>
       <Match when={props.review.noGit()}>
         <div class="h-full flex flex-col">
@@ -74,12 +84,20 @@ export function ReviewEmpty(props: { review: ReviewModel; loadingClass: string }
 
 export function ReviewPanelEmpty(props: { review: ReviewModel }) {
   const ctx = useExtension()
-  const loading = () => !props.review.ready()
+
+  const loading = () => {
+    const status = props.review.status()
+
+    return status === "idle" || status === "loading"
+  }
 
   return (
     <Switch>
       <Match when={loading()}>
         <div class="px-6 py-4 text-text-weak">{ctx.t("loadingChanges")}</div>
+      </Match>
+      <Match when={props.review.status() === "failed"}>
+        <div class="px-6 py-4 text-text-weak">{ctx.t("failedChanges")}</div>
       </Match>
       <Match when={props.review.noGit()}>
         <SessionReviewEmptyNoGitV2 pending={props.review.initializingGit()} onInitGit={props.review.initializeGit} />

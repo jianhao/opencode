@@ -86,7 +86,9 @@ test("Git initialization belongs to its session and refreshes after a session sw
   await expect(pending).toHaveCount(0)
 })
 
-test("a rejected Git init releases its session's button without showing an error in another session", async ({ page }) => {
+test("a rejected Git init releases its session's button without showing an error in another session", async ({
+  page,
+}) => {
   await openSession(page, {
     name: "ReviewInitFailure",
     project: { vcs: undefined },
@@ -1011,3 +1013,115 @@ async function expectHeaderClearOfToggle(page: Page, toggle: Locator, progress: 
     await page.screenshot({ clip, style: ".session-review-v2-tabs-bar { visibility: hidden !important; }" }),
   )
 }
+
+test("a failed working diff waits out its cooldown instead of restarting", async ({ page }) => {
+  const modes: string[] = []
+  const working = () => modes.filter((mode) => mode === "working").length
+
+  await openSession(page, {
+    name: "ReviewCooldown",
+    vcs: { current: "feature", default: "dev" },
+    vcsDiff: [fileDiff("src/changed.ts")],
+  })
+
+  // Registered after the workspace's mock route, which it falls back to for everything but the diff.
+  await page.route(
+    (url) => url.pathname === "/api/vcs/diff",
+    (route) => {
+      if (route.request().method() === "OPTIONS") return route.fallback()
+      modes.push(new URL(route.request().url()).searchParams.get("mode") ?? "")
+
+      return route.fulfill({
+        status: 500,
+        contentType: "application/json",
+        body: JSON.stringify({ error: "diff unavailable" }),
+      })
+    },
+  )
+
+  const toggle = page.getByRole("button", { name: "Toggle review", exact: true })
+  await toggle.click()
+  const panel = page.locator("#review-panel")
+  // The sidebar and the empty state both report the failure, so one match is enough.
+  const failed = panel.getByText("Could not load changes", { exact: true }).first()
+  await expect(failed).toBeVisible()
+  // A failed diff is not retried, so the review made exactly one attempt.
+  expect(working()).toBe(1)
+
+  // Every trigger that used to restart it: focus, reopening the panel, and returning to the failed mode.
+  await page.evaluate(() => window.dispatchEvent(new Event("focus")))
+  await page.waitForTimeout(500)
+  await toggle.click()
+  await toggle.click()
+  await page.waitForTimeout(500)
+  await page.getByRole("button", { name: "Git changes", exact: true }).click()
+  await page.getByRole("option", { name: "Branch changes" }).click()
+  await page.getByRole("button", { name: "Branch changes", exact: true }).click()
+  await page.getByRole("option", { name: "Git changes" }).click()
+  await expect(failed).toBeVisible()
+  await page.waitForTimeout(2000)
+
+  // Branch loaded once, because it never failed; returning to the failed mode started nothing.
+  expect(modes).toEqual(["working", "branch"])
+
+  // The cooldown postpones a scan instead of cancelling it, so the next trigger after it scans again.
+  await page.waitForTimeout(31_000)
+  await toggle.click()
+  await toggle.click()
+  await expect.poll(working).toBe(2)
+})
+
+test("a failed diff cools down its own directory, not the session the reader switches to", async ({ page }) => {
+  const first = "C:/OpenCode/ReviewCooldownFirst"
+  const second = "C:/OpenCode/ReviewCooldownSecond"
+  const asked: string[] = []
+  const attempts = (directory: string) => asked.filter((entry) => entry.startsWith(`${directory}|`)).length
+
+  await openSession(page, {
+    name: "ReviewCooldownDirectories",
+    vcs: { current: "feature", default: "dev" },
+    vcsDiff: [fileDiff("src/changed.ts")],
+    sessions: [
+      { id: "ses_cooldown_first", title: "Cooling Alpha", directory: first },
+      { id: "ses_cooldown_second", title: "Cooling Beta", directory: second },
+    ],
+  })
+
+  // Only the first directory fails, so the second one has to load from the mock server.
+  await page.route(
+    (url) => url.pathname === "/api/vcs/diff",
+    (route) => {
+      if (route.request().method() === "OPTIONS") return route.fallback()
+      const url = new URL(route.request().url())
+      const directory = url.searchParams.get("location[directory]") ?? ""
+      asked.push(`${directory}|${url.searchParams.get("mode")}`)
+
+      if (directory !== first) return route.fallback()
+
+      return route.fulfill({
+        status: 500,
+        contentType: "application/json",
+        body: JSON.stringify({ error: "diff unavailable" }),
+      })
+    },
+  )
+
+  const toggle = page.getByRole("button", { name: "Toggle review", exact: true })
+  await toggle.click()
+  const panel = page.locator("#review-panel")
+  const failed = panel.getByText("Could not load changes", { exact: true })
+  await expect(failed.first()).toBeVisible()
+  expect(attempts(first)).toBe(1)
+
+  // The session the reader switches to never failed, so it loads instead of inheriting the cooldown.
+  await page.locator("[data-titlebar-tab-slot]", { hasText: "Cooling Beta" }).click()
+  await expectSessionTitle(page, "Cooling Beta")
+  await expect.poll(() => attempts(second)).toBe(1)
+  await expect(failed).toHaveCount(0)
+
+  // Going back to the failed directory still holds its scan off.
+  await page.locator("[data-titlebar-tab-slot]", { hasText: "Cooling Alpha" }).click()
+  await expectSessionTitle(page, "Cooling Alpha")
+  await expect.poll(() => failed.count()).toBeGreaterThan(0)
+  expect(attempts(first)).toBe(1)
+})

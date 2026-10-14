@@ -256,10 +256,11 @@ const setup: Setup<typeof Review> = (ctx) => {
 
   ctx.provide(Changes, {
     diffs: (session) => modelFor(session)?.diffs() ?? none,
-    ready: (session) => modelFor(session)?.ready() ?? false,
+    status: (session) => modelFor(session)?.status() ?? "idle",
     kinds: (session) => modelFor(session)?.kinds() ?? noKinds,
     active: (session) => modelFor(session)?.activeFile(),
     details: (session) => modelFor(session)?.details(),
+    detailsStatus: (session) => modelFor(session)?.detailsStatus() ?? "idle",
     focus: (session, path) => modelFor(session)?.focusFile(path),
     open(session) {
       // The session details' changes row: narrow screens switch to the Changes view; wide ones open the side region.

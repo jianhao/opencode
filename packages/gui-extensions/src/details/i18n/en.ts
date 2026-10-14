@@ -28,6 +28,7 @@ export default {
   configFileMissing: "No configuration file found",
   loadingChanges: "Loading changes…",
   noChanges: "No changes",
+  failedChanges: "Could not load changes",
   basedOn: "Based on {{branch}}",
   "workspace.local": "Local repository",
   "workspace.existing": "Worktree",

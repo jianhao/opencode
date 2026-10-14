@@ -32,6 +32,7 @@ export function DetailsHeader(props: {
 
     return {
       details: () => live.value.details(props.session),
+      detailsStatus: () => live.value.detailsStatus(props.session),
       open: () => {
         setOpen(false)
         live.value.open(props.session)
@@ -57,6 +58,7 @@ export function DetailsHeader(props: {
               shown={open()}
               project={project()}
               diffs={project().vcs ? review()?.details() : []}
+              diffsStatus={project().vcs ? review()?.detailsStatus() : "ready"}
               moveDismissed={store.dismissed}
               onMoveDismiss={() => setStore("dismissed", true)}
               onReview={review()?.open}

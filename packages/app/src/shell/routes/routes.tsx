@@ -10,6 +10,7 @@ import { SettingsSurfaceProvider } from "@/settings/surface"
 import Shell from "@/shell/shell"
 import { requireServerKey } from "./session"
 import { ExtensionAttachment } from "@/runtime/extension/root"
+import { useLanguage } from "@/runtime/i18n/language"
 
 export const File = lazy(() => import("@opencode/session-ui/file").then((module) => ({ default: module.File })))
 
@@ -26,6 +27,25 @@ const ConnectServerScreen = lazy(() =>
 const TargetSessionRouteContent = lazy(() =>
   loadSessionRoute().then((module) => ({ default: module.TargetSessionRouteContent })),
 )
+
+/**
+ * Fallback for the session route while its lazy chunk loads. A busy main process can delay that chunk
+ * well past a frame, and the session screen must stay recognizable instead of collapsing to an empty
+ * panel — the review extension's queries used to suspend the route for as long as a slow request ran.
+ */
+function RoutePendingPanel() {
+  const language = useLanguage()
+
+  return (
+    <div class="flex min-h-0 flex-1 px-[var(--shell-inline-inset,8px)] pb-[var(--shell-bottom-inset,8px)] pt-[var(--shell-top-inset,8px)]">
+      <SessionPanelFrame raised>
+        <div class="flex min-h-0 flex-1 items-center justify-center p-6">
+          <span class="text-13-regular leading-text-compact text-text-weak">{language.t("common.loading")}</span>
+        </div>
+      </SessionPanelFrame>
+    </div>
+  )
+}
 
 export function preloadRoute(url: string) {
   const pathname = url.split(/[?#]/, 1)[0]
@@ -50,11 +70,7 @@ export function AppRoutes() {
         component={() => (
           <SessionRouteFrame>
             <Suspense
-              fallback={
-                <div class="flex min-h-0 flex-1 px-[var(--shell-inline-inset,8px)] pb-[var(--shell-bottom-inset,8px)] pt-[var(--shell-top-inset,8px)]">
-                  <SessionPanelFrame raised />
-                </div>
-              }
+              fallback={<RoutePendingPanel />}
             >
               <TargetServerRoute>
                 <TargetSessionRouteContent />

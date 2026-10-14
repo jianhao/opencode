@@ -3,7 +3,7 @@ import type { SessionReviewLineComment } from "@opencode/session-ui/session-revi
 import { previewSelectedLines } from "@opencode/session-ui/pierre/selection-bridge"
 import { checksum } from "@opencode/util/encode"
 import { showToast } from "@opencode/ui/toast"
-import { createQuery, useQueryClient } from "@tanstack/solid-query"
+import { createQuery, hashKey, useQueryClient } from "@tanstack/solid-query"
 import { debounce } from "@solid-primitives/scheduled"
 import { createMemo, on, onCleanup, type Accessor } from "solid-js"
 import { createStore } from "solid-js/store"
@@ -15,6 +15,7 @@ import {
   type SessionScreen,
   type SetupContext,
 } from "../sdk"
+import type { ChangeStatus } from "./contract"
 import type Review from "./index"
 import {
   filterRenderableDiff,
@@ -36,6 +37,34 @@ const selectionFromLines = (range: LineRange): FileSelection => ({
   startChar: 0,
   endChar: 0,
 })
+
+/**
+ * How long a failed diff holds every trigger off. A working tree this large can spend a minute per attempt,
+ * so enabling the review, returning to a failed mode, mounting the panel or a filesystem event must not start
+ * the same scan again. The next trigger after the cooldown scans for real.
+ */
+const FAILED_DIFF_COOLDOWN = 30_000
+
+const withinCooldown = (failedAt: number) => failedAt > 0 && Date.now() - failedAt < FAILED_DIFF_COOLDOWN
+
+/**
+ * The load state of one diff query, which must tell a failed load apart from an empty change list. The
+ * cooldown decides `failed` on its own: a refused trigger settles the query without an error.
+ */
+const changeStatus = (
+  query: {
+    readonly isFetching: boolean
+    readonly isError: boolean
+    readonly isFetched: boolean
+  },
+  cooling: boolean,
+): ChangeStatus => {
+  if (query.isFetching) return "loading"
+
+  if (cooling || query.isError) return "failed"
+
+  return query.isFetched ? "ready" : "idle"
+}
 
 /**
  * The routed session's review: its diffs, selection, and comments. Lives as long as the session screen; `view`
@@ -148,49 +177,115 @@ export function createReviewModel(input: {
 
   const turnKey = () => [ctx.id, view().server.id, "session-turn", view().id] as const
 
+  // Both diff queries seed their data so their resource resolves on the first read. Reading a pending
+  // resource in render blanks the boundary above it, and the only boundary above this model is the
+  // session route: a slow diff would detach the whole screen until the request settled.
+  const noDiffs: FileDiffInfo[] = []
+
+  const diffKey = (value: ChangeMode) => (value === "turn" ? turnKey() : ([...vcsKey(), value] as const))
+
+  // When each diff query last failed, and how recently, keyed by the whole query key: this model follows the
+  // routed session, so the directory, server, branch and mode of a failed scan all change underneath it. A
+  // cooldown kept per mode would report the session the reader switched to as failed before it ever asked.
+  //
+  // TanStack's own error time cannot carry this either: a refused trigger still runs a query function, so
+  // waiting on that time would let every trigger extend the cooldown and the diff would never scan again.
+  const [cooled, setCooled] = createStore<Record<string, number>>({})
+  const cooling = (key: readonly unknown[]) => withinCooldown(cooled[hashKey(key)] ?? 0)
+
+  /** Records how a real attempt ended, so the cooldown measures scans and not trigger attempts. */
+  const recordScan = (key: readonly unknown[], outcome: "ok" | "failed") =>
+    setCooled(hashKey(key), outcome === "failed" ? Date.now() : 0)
+
+  /** A diff query that is running, or failed within its cooldown, must not be triggered again. */
+  const busy = (query: { readonly isFetching: boolean }, key: readonly unknown[]) => query.isFetching || cooling(key)
+
+  /**
+   * Runs one diff scan. Every path TanStack takes for the query, including the option change it refetches on
+   * unconditionally, calls this, so a scan that fails holds the next trigger off here as well as in `staleTime`:
+   * a refusal settles with the changes already shown and leaves the failure the reader sees in place.
+   */
+  const scan = async (key: readonly unknown[], request: () => Promise<FileDiffInfo[]>) => {
+    // A refused trigger keeps the changes already shown: the reader sees the failure, not an empty change list.
+    if (cooling(key)) return queryClient.getQueryData<FileDiffInfo[]>(key) ?? noDiffs
+
+    try {
+      const rows = await request()
+      recordScan(key, "ok")
+
+      return rows
+    } catch (error) {
+      recordScan(key, "failed")
+      throw error
+    }
+  }
+
   const diffQuery = createQuery(() => {
     const value = mode()
     const turn = value === "turn"
 
     return {
-      queryKey: turn ? turnKey() : ([...vcsKey(), value] as const),
+      queryKey: diffKey(value),
       // Desktop storage loads asynchronously; until this session's mode is known, a request would use the default.
       enabled: !!stored() && view().server.connected && wantsReview() && !!view().project?.vcs,
-      refetchOnMount: "always" as const,
+      // Global defaults disable both, so ask for a refresh whenever the query is stale. A cooling scan does not
+      // look stale, so the paths that go through `staleTime` never reach the query function at all.
+      refetchOnMount: true,
       // A finished turn does not change on focus or filesystem events; refresh it when the session goes idle.
       refetchOnWindowFocus: !turn,
+      staleTime: () => (cooling(diffKey(value)) ? Number.POSITIVE_INFINITY : 0),
+      initialData: noDiffs,
+      // A large or slow working tree can take longer than the client's request timeout; retrying only adds
+      // another attempt behind the same cost, and every refresh below already brings a fresh one.
+      retry: 0,
       queryFn: turn
-        ? () => view().server.client.session.diff({ sessionID: view().id })
+        ? () => scan(diffKey(value), () => view().server.client.session.diff({ sessionID: view().id }))
         : () =>
-            view()
-              .server.client.vcs.diff({
-                location: { directory: directory() },
-                mode: value === "git" ? "working" : value,
-              })
-              .then((result) => result.data),
+            scan(diffKey(value), () =>
+              view()
+                .server.client.vcs.diff({
+                  location: { directory: directory() },
+                  mode: value === "git" ? "working" : value,
+                })
+                .then((result) => result.data),
+            ),
     }
   })
 
   // The session details' changes row: the session directory's working tree, loaded only while the details show.
   const detailsKey = () => [ctx.id, view().server.id, "session-details", view().directory] as const
 
-  const detailsQuery = createQuery(() => ({
-    queryKey: detailsKey(),
-    enabled: input.demand.details > 0 && view().server.connected && !!view().project?.vcs,
-    queryFn: () =>
-      view()
-        .server.client.vcs.diff({ location: { directory: view().directory }, mode: "working" })
-        .then((result) => result.data)
-        .catch((error) => {
-          console.debug("[session-review] failed to load session details diff", { error })
+  // The details row asks for the same working-tree diff the "git" mode shows, so both share one cache entry
+  // and one in-flight request instead of scanning the same tree twice. The review follows the screen's file
+  // root and the details row the session's directory, so the keys only merge while those agree.
+  const sharedWorkingKey = () => mode() === "git" && directory() === view().directory
 
-          return []
-        }),
+  const detailsQueryKey = () => (sharedWorkingKey() ? ([...vcsKey(), "git"] as const) : detailsKey())
+
+  const detailsQuery = createQuery(() => ({
+    queryKey: detailsQueryKey(),
+    enabled: input.demand.details > 0 && view().server.connected && !!view().project?.vcs,
+    staleTime: () => (cooling(detailsQueryKey()) ? Number.POSITIVE_INFINITY : 0),
+    initialData: noDiffs,
+    retry: 0,
+    queryFn: () =>
+      scan(detailsQueryKey(), () =>
+        view()
+          .server.client.vcs.diff({ location: { directory: view().directory }, mode: "working" })
+          .then((result) => result.data),
+      ),
   }))
 
   const refresh = debounce(() => {
-    void queryClient.invalidateQueries({ queryKey: vcsKey() })
-    void queryClient.invalidateQueries({ queryKey: detailsKey() })
+    // Only the queries this model shows, each judged on its own: a key prefix would also restart another mode's
+    // scan that is still running, and invalidating a query that is fetching cancels that attempt to start a new
+    // one. The review and the details row share a key while they read the same working tree.
+    const review = diffKey(mode())
+
+    if (!busy(diffQuery, review)) void queryClient.invalidateQueries({ queryKey: review, exact: true })
+
+    if (!sharedWorkingKey() && !busy(detailsQuery, detailsQueryKey()))
+      void queryClient.invalidateQueries({ queryKey: detailsQueryKey(), exact: true })
   }, 100)
 
   // The server reports file changes in the directory; its event stream follows a restarted server. Routing another
@@ -218,7 +313,7 @@ export function createReviewModel(input: {
   )
 
   createKeyed(opened, () => {
-    if (diffQuery.isFetching) return
+    if (busy(diffQuery, diffKey(mode()))) return
 
     if (input.demand.tree > 0) {
       refresh()
@@ -229,7 +324,10 @@ export function createReviewModel(input: {
     if (view().server.connected && view().project?.vcs) void diffQuery.refetch()
   })
 
-  const diffs = (): FileDiffInfo[] => (diffQuery.isFetched ? (diffQuery.data ?? []) : [])
+  // Seeded with an empty list, so nothing here reads a pending resource: a read would suspend the only
+  // boundary above this model, which is the whole session route. `status` and `detailsStatus` tell a
+  // load that has not happened or has failed apart from a real "no changes".
+  const diffs = (): FileDiffInfo[] => diffQuery.data ?? noDiffs
   const renderable = createMemo(() => diffs().filter(filterRenderableDiff))
   const kinds = createMemo(() => reviewDiffKinds(renderable()))
 
@@ -245,15 +343,15 @@ export function createReviewModel(input: {
   const count = () => diffs().length
   const hasChanges = () => count() > 0
 
-  const ready = () => {
-    // A project without VCS never enables diffQuery, so its status stays "pending" forever.
+  const status = (): ChangeStatus => {
+    // A project without VCS never enables diffQuery, so it has no load to wait for.
     const project = view().project
 
-    if (project && !project.vcs) return true
+    if (project && !project.vcs) return "ready"
 
-    if (!stored()) return false
+    if (!stored()) return "idle"
 
-    return !diffQuery.isPending
+    return changeStatus(diffQuery, cooling(diffKey(mode())))
   }
 
   const lifetime = { disposed: false }
@@ -494,7 +592,7 @@ export function createReviewModel(input: {
     () => {
       const pending = pendingFile()
 
-      if (!pending || !scroll() || !ready()) return
+      if (!pending || !scroll() || status() !== "ready") return
 
       return { pending }
     },
@@ -575,7 +673,8 @@ export function createReviewModel(input: {
     },
     count,
     deferRender,
-    details: (): FileDiffInfo[] | undefined => (detailsQuery.isFetched ? (detailsQuery.data ?? []) : undefined),
+    details: (): FileDiffInfo[] | undefined => detailsQuery.data,
+    detailsStatus: (): ChangeStatus => changeStatus(detailsQuery, cooling(detailsQueryKey())),
     diffVersion: () => diffQuery.dataUpdatedAt,
     diffs,
     renderable,
@@ -586,6 +685,7 @@ export function createReviewModel(input: {
     initializingGit: () => !!state.initializingGit[view().key],
     loadDiff,
     mode,
+    status,
     noGit: createMemo(() => {
       const project = view().project
 
@@ -604,7 +704,6 @@ export function createReviewModel(input: {
       }),
     options,
     panelRendered,
-    ready,
     setMode: (value: ChangeMode) =>
       update((draft) => {
         draft.mode = value

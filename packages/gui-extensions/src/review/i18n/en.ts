@@ -9,6 +9,7 @@ export default {
   "git.title": "Create a Git repository",
   "git.description": "Track, review, and undo changes in this project",
   loadingChanges: "Loading changes…",
+  failedChanges: "Could not load changes",
   noChanges: "No changes",
   "settings.wrapLines.title": "Wrap lines",
   "settings.wrapLines.description": "Wrap long lines in mobile diffs instead of scrolling horizontally",

@@ -74,6 +74,7 @@ const setup: Setup<typeof Details> = (ctx) => {
 
         return {
           details: () => live.value.details(props.session),
+          detailsStatus: () => live.value.detailsStatus(props.session),
           open: () => {
             drawer?.close()
             live.value.open(props.session)
@@ -96,6 +97,7 @@ const setup: Setup<typeof Details> = (ctx) => {
                 session={props.session}
                 project={project()}
                 diffs={project().vcs ? review()?.details() : []}
+                diffsStatus={project().vcs ? review()?.detailsStatus() : "ready"}
                 moveDismissed={store.dismissed}
                 onMoveDismiss={() => setStore("dismissed", true)}
                 onReview={review()?.open}

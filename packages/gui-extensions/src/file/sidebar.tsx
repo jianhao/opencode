@@ -1,6 +1,6 @@
 import { createMemo, Match, onCleanup, Show, Switch } from "solid-js"
 import { Tabs } from "@opencode/ui/tabs"
-import type { ChangeKind } from "../review/contract"
+import type { ChangeKind, ChangeStatus } from "../review/contract"
 import { createKeyed, useExtension, type MountedSession, type SessionScreen } from "../sdk"
 import { current, useShared } from "./context"
 import FileTree from "./tree"
@@ -41,7 +41,7 @@ export default function FileSidebar(props: { session: MountedSession; screen: Se
   // Without the review extension only the workspace files can show.
   const tab = createMemo(() => (changes() ? shared.tree.tab() : "all"))
   const count = createMemo(() => changes()?.diffs(props.session).length ?? 0)
-  const ready = createMemo(() => changes()?.ready(props.session) ?? false)
+  const status = createMemo<ChangeStatus>(() => changes()?.status(props.session) ?? "idle")
   const diffFiles = createMemo(() => (changes()?.diffs(props.session) ?? []).map((diff) => diff.file))
   const kinds = createMemo(() => changes()?.kinds(props.session) ?? empty)
 
@@ -86,35 +86,33 @@ export default function FileSidebar(props: { session: MountedSession; screen: Se
       <Show when={tab() === "changes"}>
         <Tabs.Content value="changes" class="bg-background-stronger px-3 py-0">
           <Switch>
-            <Match when={count() > 0 || !ready()}>
-              <Show
-                when={ready()}
-                fallback={
-                  <div class="px-2 py-2 text-12-regular text-text-weak">
-                    {ctx.t("common.loading")}
-                    {ctx.t("common.loading.ellipsis")}
-                  </div>
-                }
-              >
-                <FileTree
-                  session={props.session}
-                  screen={props.screen}
-                  path=""
-                  class="pt-3"
-                  allowed={diffFiles()}
-                  kinds={kinds()}
-                  draggable={false}
-                  active={changes()?.active(props.session)}
-                  onFileClick={(node) => {
-                    const live = shared.changes()
+            {/* A failed load has no changes to list: the tab says so instead of showing an empty tree. */}
+            <Match when={status() === "failed"}>{emptyState(ctx.t("tree.changesFailed"))}</Match>
+            <Match when={status() !== "ready"}>
+              <div class="px-2 py-2 text-12-regular text-text-weak">
+                {ctx.t("common.loading")}
+                {ctx.t("common.loading.ellipsis")}
+              </div>
+            </Match>
+            <Match when={count() > 0}>
+              <FileTree
+                session={props.session}
+                screen={props.screen}
+                path=""
+                class="pt-3"
+                allowed={diffFiles()}
+                kinds={kinds()}
+                draggable={false}
+                active={changes()?.active(props.session)}
+                onFileClick={(node) => {
+                  const live = shared.changes()
 
-                    // Review shows the change; while it is pending or off, the file opens instead.
-                    if (live.status === "active") return live.value.focus(props.session, node.path)
+                  // Review shows the change; while it is pending or off, the file opens instead.
+                  if (live.status === "active") return live.value.focus(props.session, node.path)
 
-                    shared.open(props.session, node.path)
-                  }}
-                />
-              </Show>
+                  shared.open(props.session, node.path)
+                }}
+              />
             </Match>
           </Switch>
         </Tabs.Content>

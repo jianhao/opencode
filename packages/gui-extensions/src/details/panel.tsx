@@ -1,7 +1,8 @@
 import { DiffChanges } from "@opencode/ui/diff-changes"
 import { Icon } from "@opencode/ui/icon"
 import { containsDirectory, getFilename } from "@opencode/util/path"
-import { createMemo, Show } from "solid-js"
+import { createMemo, Match, Show, Switch } from "solid-js"
+import type { ChangeStatus } from "../review/contract"
 import { useExtension, type Project, type MountedSession } from "../sdk"
 import { workspaceDirectories } from "./paths"
 import { ProjectDetailsCard } from "./project-card"
@@ -21,6 +22,8 @@ export type DetailsPanelProps = {
   shown?: boolean
   mobile?: boolean
   diffs?: readonly { additions: number; deletions: number }[]
+  /** The row's load state from the review extension; absent while the extension is disabled. */
+  diffsStatus?: ChangeStatus
   moveDismissed: boolean
   onMoveDismiss: () => void
   /** Absent while the review extension is disabled, which also leaves `diffs` undefined. */
@@ -60,6 +63,10 @@ export default function SessionDetailsPanel(props: DetailsPanelProps) {
   )
 
   const branch = () => data().location.vcs.info({ directory: props.session.directory })?.branch.current
+
+  // The review extension reports the row's state; while it is disabled there is no load to wait for.
+  const diffsStatus = (): ChangeStatus => props.diffsStatus ?? (props.diffs === undefined ? "loading" : "ready")
+  const diffs = (): readonly { additions: number; deletions: number }[] => props.diffs ?? []
   const baseBranch = () => data().location.vcs.info({ directory: props.project.worktree })?.branch.current
 
   return (
@@ -109,21 +116,23 @@ export default function SessionDetailsPanel(props: DetailsPanelProps) {
             <button type="button" class="session-summary-row" onClick={() => props.onReview?.()}>
               <Icon name="review" class="shrink-0 text-v2-icon-icon-muted" />
               <span class="session-summary-label flex items-center gap-2">
-                <Show
-                  when={props.diffs}
-                  fallback={<span class="truncate text-v2-text-text-muted">{ctx.t("loadingChanges")}</span>}
-                >
-                  {(diffs) => (
-                    <Show
-                      when={diffs().length > 0}
-                      fallback={<span class="truncate text-v2-text-text-muted">{ctx.t("noChanges")}</span>}
-                    >
-                      <span class="min-w-0 truncate">{ctx.plural("ui.sessionTurn.diffs.changed", diffs().length)}</span>
-                      <span class="shrink-0 text-v2-text-text-muted">·</span>
-                      <DiffChanges appearance="standard" changes={[...diffs()]} />
-                    </Show>
-                  )}
-                </Show>
+                <Switch>
+                  {/* A failed load keeps its own copy: "no changes" would hide that nothing loaded. */}
+                  <Match when={diffsStatus() === "failed"}>
+                    <span class="truncate text-v2-text-text-muted">{ctx.t("failedChanges")}</span>
+                  </Match>
+                  <Match when={diffsStatus() === "loading" || diffsStatus() === "idle"}>
+                    <span class="truncate text-v2-text-text-muted">{ctx.t("loadingChanges")}</span>
+                  </Match>
+                  <Match when={diffs().length > 0}>
+                    <span class="min-w-0 truncate">{ctx.plural("ui.sessionTurn.diffs.changed", diffs().length)}</span>
+                    <span class="shrink-0 text-v2-text-text-muted">·</span>
+                    <DiffChanges appearance="standard" changes={[...diffs()]} />
+                  </Match>
+                  <Match when={true}>
+                    <span class="truncate text-v2-text-text-muted">{ctx.t("noChanges")}</span>
+                  </Match>
+                </Switch>
               </span>
             </button>
           </Show>
