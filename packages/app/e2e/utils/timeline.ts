@@ -212,7 +212,7 @@ export async function setupTimeline(
     messages?: TimelineMessage[]
     sessionMessages?: SessionMessageInfo[]
     sessionStatus?: Record<string, SessionStatus>
-    settings?: Record<string, unknown>
+    settings?: Record<string, boolean | string | TimelineDetail>
     sessions?: Session[]
     cpuRate?: number
     viewport?: { width: number; height: number }
