@@ -13,14 +13,17 @@ import {
   createSignal,
   onCleanup,
   type JSX,
+  untrack,
 } from "solid-js"
 import { useLanguage } from "@/runtime/i18n/language"
-import { useMcpToggle } from "@/providers/connect/mcp"
+import { useMcpController } from "@/providers/connect/mcp"
+import { mcpRowView } from "@/providers/connect/mcp-machine"
 import { useWorkspaceLocation } from "@/workspaces/location"
 import { useServerSDK } from "@/runtime/server/client"
 import { useData } from "@/runtime/server/current"
 import { pluginLabels } from "@/providers/catalog/plugin"
 import { ExternalLink } from "@/runtime/platform/external-link"
+import { ProjectFolderMissing } from "./project-folder-missing"
 import { configuredLanguageServers } from "./project-lsp"
 import { SettingsList } from "@/settings/list"
 import "./project.css"
@@ -218,7 +221,7 @@ export const ProjectSettingsExtensions: Component<{
   const serverSDK = useServerSDK()
   const directorySDK = useWorkspaceLocation()
   const data = useData()
-  const toggleMcp = useMcpToggle(() => directorySDK().directory)
+  const mcp = useMcpController(() => directorySDK().directory)
 
   createEffect(() => {
     if (serverSDK.connection.status() !== "connected") return
@@ -244,19 +247,29 @@ export const ProjectSettingsExtensions: Component<{
       .sort()
   })
 
-  const mcpEnabled = (name: string) =>
+  const mcpStatus = (name: string) =>
     data.location.mcp.server.list({ directory: directorySDK().directory })?.find((server) => server.name === name)
-      ?.status.status === "connected"
+      ?.status.status
 
+  // Reading `.latest` rethrows a failed fetch, such as the project's plugin list after its folder is deleted, so these
+  // lists fall back to empty instead of crashing the page.
   const [globalPluginList] = createResource(
     () => serverSDK.connection.status() === "connected",
-    () => serverSDK.api.plugin.list().then((result) => result.data),
+    () =>
+      serverSDK.api.plugin
+        .list()
+        .then((result) => result.data)
+        .catch(() => []),
     { initialValue: [] },
   )
 
   const [projectPluginList] = createResource(
     () => (serverSDK.connection.status() === "connected" ? directorySDK().directory : undefined),
-    (directory) => serverSDK.api.plugin.list({ location: { directory } }).then((result) => result.data),
+    (directory) =>
+      serverSDK.api.plugin
+        .list({ location: { directory } })
+        .then((result) => result.data)
+        .catch(() => []),
     { initialValue: [] },
   )
 
@@ -283,13 +296,12 @@ export const ProjectSettingsExtensions: Component<{
       {(name) => (
         <ExtensionRow icon="mcp" name={name}>
           <Switch
-            checked={mcpEnabled(name)}
-            disabled={toggleMcp.isPending && toggleMcp.variables === name}
+            checked={mcpStatus(name) === "connected"}
+            disabled={mcpRowView(mcp.state(), name, undefined).busy}
             hideLabel
-            onChange={() => {
-              if (toggleMcp.isPending) return
-              toggleMcp.mutate(name)
-            }}
+            onChange={(enabled) =>
+              mcp.dispatch({ type: "toggle.requested", name, enabled, status: untrack(() => mcpStatus(name)) })
+            }
           >
             {name}
           </Switch>
@@ -318,6 +330,7 @@ export const ProjectSettingsExtensions: Component<{
       </div>
 
       <div class="settings-tab-body">
+        <ProjectFolderMissing />
         <Tabs
           variant="pill"
           value={props.subtab ?? "mcps"}
@@ -367,7 +380,7 @@ export const ProjectSettingsExtensions: Component<{
                 kind="skills"
                 empty={projectSkills().length === 0}
                 action={
-                  <ExternalLink class="settings-extension-link" href="https://opencode.ai/docs/skills/">
+                  <ExternalLink class="settings-extension-link" href="https://opencode.ai/v2/docs/skills">
                     {language.t("settings.extensions.addSkills")}
                   </ExternalLink>
                 }

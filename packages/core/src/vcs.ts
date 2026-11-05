@@ -5,7 +5,7 @@ import { Cause, Context, Duration, Effect, FiberSet, Layer, Schema, Semaphore, S
 import type { VcsDefinition, VcsEditor } from "@opencode/plugin/effect/vcs"
 import { FileDiff } from "@opencode/schema/file-diff"
 import { FileSystem } from "@opencode/schema/filesystem"
-import { Base, BranchList, FileStatus, Info, Mode } from "@opencode/schema/vcs"
+import { Base, BranchList, FileStatus, Info, Mode, Untracked } from "@opencode/schema/vcs"
 import { VcsEvent } from "@opencode/schema/vcs-event"
 import { makeLocationNode } from "@opencode/util/effect/app-node"
 import { FSUtil } from "@opencode/util/fs-util"
@@ -15,7 +15,7 @@ import { Bus } from "./bus.js"
 import { State } from "./state.js"
 import { emptyPatch, MAX_TOTAL_PATCH_BYTES, PATCH_CONTEXT_LINES } from "./vcs/patch.js"
 
-export { Base, BranchList, FileStatus, Info, Mode }
+export { Base, BranchList, FileStatus, Info, Mode, Untracked }
 
 export class DiffError extends Schema.TaggedError<DiffError>()("Vcs.DiffError", {
   message: Schema.String,
@@ -28,6 +28,7 @@ export class InitializeError extends Schema.TaggedError<InitializeError>()("Vcs.
 export interface DiffOptions {
   readonly context?: number
   readonly base?: string
+  readonly untracked?: Untracked
 }
 
 export interface BranchOptions {
@@ -37,8 +38,7 @@ export interface BranchOptions {
 
 /**
  * How long one review diff may run. The app gives up on a diff request after a minute, so a provider
- * that scans past this budget only keeps git busy on an answer nobody reads. Timing out interrupts the
- * provider, which tears down the git children it spawned.
+ * that scans past this budget only keeps VCS children busy on an answer nobody reads.
  */
 export const MAX_DIFF_DURATION = Duration.seconds(45)
 
@@ -238,14 +238,14 @@ const layer = Layer.effect(
         const rows = yield* review(
           provider,
           "diff",
-          // The budget sits inside `review` so the timeout fails like any other provider failure, instead of
-          // the interrupt it raises being re-raised as a defect.
+          // Keep the timeout inside `review` so an over-budget provider becomes a normal DiffError.
           Effect.timeoutOrElse(
             provider
               .diff({
                 ...scope,
                 mode,
                 ...(options?.base !== undefined ? { base: options.base } : {}),
+                ...(options?.untracked !== undefined ? { untracked: options.untracked } : {}),
                 context: options?.context ?? PATCH_CONTEXT_LINES,
                 maxOutputBytes: MAX_TOTAL_PATCH_BYTES,
               })

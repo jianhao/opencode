@@ -1,26 +1,45 @@
+import { createEffect, createSignal, on, onCleanup } from "solid-js"
+import { createEventListener } from "@solid-primitives/event-listener"
 import { useCommand, type CommandOption } from "@/shell/commands/command"
+import { adjacentTabKey } from "@/shell/titlebar/tab-order"
 import { useDialog } from "@opencode/ui/context/dialog"
 import { previewSelectedLines } from "@opencode/session-ui/pierre/selection-bridge"
 import { useFile, selectionFromLines, type FileSelection } from "@/workspaces/files/model"
 import { useLanguage } from "@/runtime/i18n/language"
-import { useLayout } from "@/shell/state/layout"
 import { useComposerState } from "@/composer/persistence"
 import { useServerSDK } from "@/runtime/server/client"
 import { useData } from "@/runtime/server/current"
 import { formatServerError } from "@/runtime/server/errors"
-import { useSettings } from "@/settings/model"
+import { projectSettingsKey, useSettings } from "@/settings/model"
 import { showToast } from "@/shell/notifications/toast"
 import { fetchSessionExport, saveSessionExport, sessionExportFilename } from "@/session/commands/export"
 import { usePlatform } from "@/runtime/platform/platform"
 import type { SessionModel } from "@/session/model"
 import type { SessionRevert } from "@/session/revert"
-import { Command } from "@opencode/gui-extensions/sdk"
-import { useExtensionHost } from "@/runtime/extension/host"
-import type { Region } from "@/runtime/extension/panels"
+import { usePluginClaims, usePluginScoped } from "@/runtime/plugin/commands"
+import type { Region } from "@/runtime/plugin/panels"
+import { sideTabShortcuts } from "@/runtime/plugin/closed-tabs"
+import {
+  createCloseTabGuardState,
+  createSessionCommandsState,
+  selectCloseTabSwallowed,
+  transitionCloseTabGuard,
+  transitionSessionCommands,
+  type CloseTabGuardEvent,
+  type SessionCommandsEffect,
+  type SessionCommandsEvent,
+} from "@/session/commands/machine"
+
+// Shared by every dispatch: pointer, focus and key events arrive constantly while the guard is disarmed.
+const POINTER_DOWN: CloseTabGuardEvent = { type: "pointer.down" }
+
+const FOCUS_IN: CloseTabGuardEvent = { type: "focus.in" }
+
+const WINDOW_BLUR: CloseTabGuardEvent = { type: "window.blur" }
 
 type SessionCommandSource = {
   identity: SessionModel["identity"]
-  data: Pick<SessionModel["data"], "info" | "revertMessageID">
+  data: Pick<SessionModel["data"], "info">
   history: Pick<SessionModel["history"], "visibleUserMessages">
   layout: SessionModel["layout"]
   ownership: SessionModel["ownership"]
@@ -34,7 +53,7 @@ export type SessionCommandContext = {
     move: () => Promise<void>
   }
   navigateMessageByOffset: (offset: number) => void
-  revert: Pick<SessionRevert, "undo" | "redo">
+  revert: Pick<SessionRevert, "undo" | "redo" | "canUndo" | "canRedo">
   focusInput: () => void
   // The composer's model, which a compaction runs with.
   model: () => { id: string; providerID: string; variant?: string } | undefined
@@ -57,8 +76,8 @@ export const useSessionCommands = (actions: SessionCommandContext) => {
   const data = useData()
   const settings = useSettings()
   const platform = usePlatform()
-  const layout = useLayout()
-  const host = useExtensionHost()
+  const pluginScoped = usePluginScoped()
+  const pluginClaims = usePluginClaims()
 
   const openDialog = async <T,>(load: () => Promise<T>, show: (value: T) => void) => {
     const owner = actions.session.ownership.capture()
@@ -66,22 +85,71 @@ export const useSessionCommands = (actions: SessionCommandContext) => {
     owner.run(() => show(value))
   }
 
-  const shown = settings.visibility.fileTree
-
   // The file the selected side tab shows; other tabs have no line selection.
   const activeFile = () => actions.region.selected()?.tab.file
 
-  // Pinned tabs stay open.
+  // Pinned tabs stay open, and hidden side-panel tabs do not claim Close Tab while the region is collapsed.
   const closableTab = () => {
+    if (!actions.session.layout.view().side.opened()) return
+
     const entry = actions.region.selected()
 
     return entry && !entry.tab.pinned ? entry.key : undefined
   }
 
-  // Focus inside an extension command's scope belongs to that extension, which binds its own shortcuts there.
-  const extensionScoped = (target: EventTarget | null) =>
-    target instanceof Element &&
-    host.items(Command).some((item) => !!item.value.scope && !!target.closest(item.value.scope))
+  const inSide = actions.region.focus
+  // ⌘T and ⌘W inside the side region open and close its tabs, unless the focused panel binds the key itself there.
+  const sideKey = (event: KeyboardEvent) => inSide(event) && !pluginClaims(event)
+  // ⌘W on the side panel's last tab, or on a panel with nothing left to close, closes the panel and moves focus out of
+  // it, where one press too many would close the session tab; the guard swallows that press.
+  const [closeGuard, setCloseGuard] = createSignal(createCloseTabGuardState())
+  let settleFrame: number | undefined
+
+  const dispatchCloseGuard = (event: CloseTabGuardEvent) => {
+    const next = transitionCloseTabGuard(closeGuard(), event)
+
+    if (next.state !== closeGuard()) setCloseGuard(next.state)
+    next.effects.forEach((effect) => {
+      if (settleFrame !== undefined) cancelAnimationFrame(settleFrame)
+      settleFrame = undefined
+
+      if (effect.type === "settle.cancel") return
+      const attempt = effect.attempt
+      settleFrame = requestAnimationFrame(() => {
+        settleFrame = undefined
+        dispatchCloseGuard({ type: "settle.completed", attempt })
+      })
+    })
+  }
+
+  createEventListener(document, "pointerdown", () => dispatchCloseGuard(POINTER_DOWN), { capture: true })
+  createEventListener(document, "focusin", () => dispatchCloseGuard(FOCUS_IN), { capture: true })
+  createEventListener(window, "blur", () => dispatchCloseGuard(WINDOW_BLUR))
+  createEventListener(
+    document,
+    "keydown",
+    (event) =>
+      dispatchCloseGuard({ type: "key.down", key: event.key, matchesClose: command.matches("file.close", event) }),
+    { capture: true },
+  )
+  createEffect(
+    on(
+      () => [actions.session.layout.tabKey(), actions.session.layout.view().side.opened()] as const,
+      ([tabKey, sideOpened]) => dispatchCloseGuard({ type: "layout.synced", tabKey, sideOpened }),
+      { defer: true },
+    ),
+  )
+  onCleanup(() => dispatchCloseGuard({ type: "disposed" }))
+  const cycleSideTabs = () => actions.session.layout.view().side.opened() && actions.region.keys().length > 1
+
+  const sideFocused = (target: EventTarget | null) => {
+    const element =
+      target instanceof Element && target !== document.body && target !== document.documentElement
+        ? target
+        : document.activeElement
+
+    return element instanceof Element && !!element.closest("#review-panel") && !pluginScoped(element)
+  }
 
   const selectionPreview = (path: string, selection: FileSelection) => {
     const content = file.get(path)?.content?.content
@@ -115,33 +183,142 @@ export const useSessionCommands = (actions: SessionCommandContext) => {
   const mcpCommand = withCategory(language.t("command.category.mcp"))
   const permissionsCommand = withCategory(language.t("command.category.permissions"))
 
-  const exportSession = async () => {
-    const sessionID = actions.session.identity.params.id
+  const [commandsState, setCommandsState] = createSignal(createSessionCommandsState())
+  const exportFetches = new Map<number, AbortController>()
+  let forkModule: typeof import("@/session/commands/fork-dialog") | undefined
 
-    if (!sessionID) return
+  const dispatchCommands = (event: SessionCommandsEvent) => {
+    const next = transitionSessionCommands(commandsState(), event)
 
-    try {
-      const data = await fetchSessionExport({
-        sessionID,
-        api: serverSDK.api,
-      })
+    if (next.state !== commandsState()) setCommandsState(next.state)
+    next.effects.forEach((effect) =>
+      Promise.try(() => runCommandEffect(effect)).catch((cause: unknown) => console.error("[session.commands]", cause)),
+    )
+  }
 
-      const filename = sessionExportFilename(data.info)
+  const runCommandEffect = (effect: SessionCommandsEffect) => {
+    if (effect.type === "compact.run") {
+      data.session.compact({ sessionID: effect.sessionID, model: actions.model() }).then(
+        () => dispatchCommands({ type: "compact.succeeded", attempt: effect.attempt, sessionID: effect.sessionID }),
+        (cause: unknown) =>
+          dispatchCommands({ type: "compact.failed", attempt: effect.attempt, sessionID: effect.sessionID, cause }),
+      )
 
-      if (!(await saveSessionExport(filename, data, platform))) return
+      return
+    }
+
+    if (effect.type === "export.fetch") {
+      const controller = new AbortController()
+      exportFetches.set(effect.attempt, controller)
+      fetchSessionExport({ sessionID: effect.sessionID, api: serverSDK.api, signal: controller.signal })
+        .finally(() => exportFetches.delete(effect.attempt))
+        .then(
+          (exported) =>
+            dispatchCommands({
+              type: "export.fetched",
+              attempt: effect.attempt,
+              sessionID: effect.sessionID,
+              data: exported,
+            }),
+          (cause: unknown) =>
+            dispatchCommands({
+              type: "export.failed",
+              attempt: effect.attempt,
+              sessionID: effect.sessionID,
+              message: cause instanceof Error ? cause.message : undefined,
+            }),
+        )
+
+      return
+    }
+
+    if (effect.type === "export.abort") {
+      exportFetches.get(effect.attempt)?.abort()
+      exportFetches.delete(effect.attempt)
+
+      return
+    }
+
+    if (effect.type === "export.save") {
+      const filename = sessionExportFilename(effect.data.info)
+      Promise.try(() => saveSessionExport(filename, effect.data, platform)).then(
+        (saved) =>
+          dispatchCommands({
+            type: "export.saved",
+            attempt: effect.attempt,
+            sessionID: effect.sessionID,
+            filename,
+            saved,
+          }),
+        (cause: unknown) =>
+          dispatchCommands({
+            type: "export.failed",
+            attempt: effect.attempt,
+            sessionID: effect.sessionID,
+            message: cause instanceof Error ? cause.message : undefined,
+          }),
+      )
+
+      return
+    }
+
+    if (effect.type === "fork.load") {
+      import("@/session/commands/fork-dialog").then(
+        (mod) => {
+          forkModule = mod
+          dispatchCommands({ type: "fork.loaded", attempt: effect.attempt })
+        },
+        (cause: unknown) => dispatchCommands({ type: "fork.load-failed", attempt: effect.attempt, cause }),
+      )
+
+      return
+    }
+
+    if (effect.type === "fork.show") {
+      const mod = forkModule
+
+      if (mod) dialog.show(() => <mod.DialogFork />)
+
+      return
+    }
+
+    if (effect.type === "toast.request-failed") {
+      showToast({ title: formatServerError(effect.cause, language.t, language.t("common.requestFailed")) })
+
+      return
+    }
+
+    if (effect.type === "toast.exported") {
       showToast({
         variant: "success",
         icon: "circle-check",
         title: language.t("toast.session.export.success.title"),
-        description: language.t("toast.session.export.success.description", { filename }),
+        description: language.t("toast.session.export.success.description", { filename: effect.filename }),
       })
-    } catch (err) {
-      showToast({
-        variant: "error",
-        title: language.t("toast.session.export.failed.title"),
-        description: err instanceof Error ? err.message : language.t("toast.session.export.failed.description"),
-      })
+
+      return
     }
+
+    showToast({
+      variant: "error",
+      title: language.t("toast.session.export.failed.title"),
+      description: effect.message ?? language.t("toast.session.export.failed.description"),
+    })
+  }
+
+  createEffect(
+    on(
+      () => actions.session.identity.params.id,
+      (sessionID) => dispatchCommands({ type: "session.changed", sessionID }),
+      { defer: true },
+    ),
+  )
+  onCleanup(() => dispatchCommands({ type: "disposed" }))
+
+  const exportSession = () => {
+    const sessionID = actions.session.identity.params.id
+
+    if (sessionID) dispatchCommands({ type: "export.requested", sessionID })
   }
 
   const copySessionID = async () => {
@@ -195,10 +372,56 @@ export const useSessionCommands = (actions: SessionCommandContext) => {
     )
   }
 
+  // In the pane holding focus; the region itself, or a key a native page handed over, means the selected tab's pane.
+  const focusedPane = () => {
+    const pane = document.activeElement?.closest("[data-pane-content]")?.getAttribute("data-pane-content")
+
+    return pane === "side" || pane === "split" ? pane : undefined
+  }
+
+  // With nothing left to close, ⌘W closes the side panel itself, as an editor closes the focused pane before the window.
   const closeTab = () => {
+    if (actions.region.closeNewTab(focusedPane())) {
+      const panel = document.getElementById("review-panel")
+
+      // A launcher row that held focus is gone; focus stays in the panel so closing it next returns focus. Closing the
+      // strip's last New tab closes the panel too, which already gave focus back.
+      if (panel && actions.session.layout.view().side.opened() && !panel.contains(document.activeElement))
+        panel.focus({ preventScroll: true, focusVisible: false })
+
+      return
+    }
+
     const tab = closableTab()
 
-    if (tab) actions.region.close(tab)
+    if (tab) return actions.region.close(tab)
+    actions.region.toggle()
+  }
+
+  const openSideTab = () => actions.region.openNewTab(focusedPane())
+
+  const selectAdjacentSideTab = (offset: -1 | 1) => {
+    const key = adjacentTabKey(actions.region.keys(), actions.region.active(), offset)
+
+    if (key) selectSideTab(key)
+  }
+
+  const selectSideTab = (key: string) => {
+    actions.region.select(key)
+
+    const panel = document.getElementById("review-panel")
+
+    if (!panel) return
+
+    const active = document.activeElement
+
+    if (
+      active instanceof HTMLElement &&
+      panel.contains(active) &&
+      !active.closest('[role="tab"][aria-selected="false"], [inert], .hidden')
+    )
+      return
+    ;(panel.querySelector<HTMLElement>('[role="tab"][aria-selected="true"]') ?? panel).focus({ preventScroll: true })
   }
 
   const addSelection = () => {
@@ -227,40 +450,54 @@ export const useSessionCommands = (actions: SessionCommandContext) => {
     )
   }
 
+  const sessionProject = () => projectSettingsKey(serverSDK.scope, actions.session.data.info()?.projectID)
+
+  const autoAccepting = () => settings.permissions.autoApproves(sessionProject())
+
+  // From a session the toggle sets this project's choice, falling back to the default when they match.
   const toggleAutoAccept = () => {
-    const active = !settings.permissions.autoApprove()
-    settings.permissions.setAutoApprove(active)
+    const project = sessionProject()
+    const active = !autoAccepting()
+
+    if (!project) settings.permissions.setAutoApproveDefault(active)
+    else
+      settings.permissions.setAutoApproveOverride(
+        project,
+        active === settings.permissions.autoApproveDefault() ? undefined : active,
+      )
+
+    if (!active) {
+      showToast({
+        title: language.t("toast.permissions.autoaccept.off.title"),
+        description: language.t("toast.permissions.autoaccept.off.description"),
+      })
+
+      return
+    }
+
     showToast({
-      title: active
-        ? language.t("toast.permissions.autoaccept.on.title")
-        : language.t("toast.permissions.autoaccept.off.title"),
-      description: active
-        ? language.t("toast.permissions.autoaccept.on.description")
-        : language.t("toast.permissions.autoaccept.off.description"),
+      title: project
+        ? language.t("toast.permissions.autoaccept.project.title")
+        : language.t("toast.permissions.autoaccept.on.title"),
+      description: project
+        ? language.t("toast.permissions.autoaccept.project.description")
+        : language.t("toast.permissions.autoaccept.on.description"),
     })
   }
 
   const undo = actions.revert.undo
   const redo = actions.revert.redo
 
-  const compact = async () => {
+  const compact = () => {
     const sessionID = actions.session.identity.params.id
 
-    if (!sessionID) return
-
-    await data.session.compact({ sessionID, model: actions.model() }).catch((cause: unknown) => {
-      showToast({ title: formatServerError(cause, language.t, language.t("common.requestFailed")) })
-    })
+    if (sessionID) dispatchCommands({ type: "compact.requested", sessionID })
   }
 
   const fork = () => {
     const sessionID = actions.session.identity.params.id
 
-    if (!sessionID) return
-    void openDialog(
-      () => import("@/session/commands/fork-dialog"),
-      (x) => dialog.show(() => <x.DialogFork />),
-    )
+    if (sessionID) dispatchCommands({ type: "fork.requested", sessionID })
   }
 
   const handoff = () => {
@@ -277,7 +514,6 @@ export const useSessionCommands = (actions: SessionCommandContext) => {
     sessionCommand({
       id: "session.new",
       title: language.t("command.session.new"),
-      keybind: "mod+shift+s",
       slash: "new",
       onSelect: (source) => command.trigger("tab.new", source),
     }),
@@ -286,7 +522,7 @@ export const useSessionCommands = (actions: SessionCommandContext) => {
       title: language.t("command.session.undo"),
       description: language.t("command.session.undo.description"),
       slash: "undo",
-      disabled: !actions.session.identity.params.id || actions.session.history.visibleUserMessages().length === 0,
+      disabled: !actions.revert.canUndo(),
       onSelect: undo,
     }),
     sessionCommand({
@@ -294,7 +530,7 @@ export const useSessionCommands = (actions: SessionCommandContext) => {
       title: language.t("command.session.redo"),
       description: language.t("command.session.redo.description"),
       slash: "redo",
-      disabled: !actions.session.identity.params.id || !actions.session.data.revertMessageID(),
+      disabled: !actions.revert.canRedo(),
       onSelect: redo,
     }),
     sessionCommand({
@@ -346,6 +582,8 @@ export const useSessionCommands = (actions: SessionCommandContext) => {
 
   const fileCmds = () => {
     const tab = closableTab()
+    const cycle = cycleSideTabs()
+    const side = actions.session.layout.view().side.opened()
 
     return [
       fileCommand({
@@ -356,14 +594,68 @@ export const useSessionCommands = (actions: SessionCommandContext) => {
         slash: "open",
         onSelect: openFile,
       }),
-      tab &&
+      fileCommand({
+        id: "file.close",
+        title: language.t("command.tab.close"),
+        keybind: "mod+w",
+        follows: "tab.close",
+        hidden: !tab,
+        when: (event) => (side ? sideKey(event) : selectCloseTabSwallowed(closeGuard())),
+        onSelect: (source) => {
+          if (!side) return
+          closeTab()
+          dispatchCloseGuard({
+            type: "close.completed",
+            keybind: source === "keybind",
+            tabKey: actions.session.layout.tabKey(),
+            sideOpened: actions.session.layout.view().side.opened(),
+          })
+        },
+      }),
+      side &&
         fileCommand({
-          id: "file.close",
-          title: language.t("command.tab.close"),
-          keybind: settings.keybinds.get("tab.close") ?? "mod+w",
-          when: (event) => !extensionScoped(event.target),
-          onSelect: closeTab,
+          id: "file.tab.new",
+          title: "",
+          keybind: settings.keybinds.get("tab.new") ?? "mod+t",
+          hidden: true,
+          when: sideKey,
+          onSelect: openSideTab,
         }),
+      // As in a browser: in the side panel, ⌘⇧T reopens a side tab rather than a session tab.
+      fileCommand({
+        id: "file.tab.reopen",
+        title: "",
+        keybind: settings.keybinds.get("tab.reopenClosed") ?? "mod+shift+t",
+        hidden: true,
+        when: inSide,
+        onSelect: () => actions.region.reopen(),
+      }),
+      cycle &&
+        fileCommand({
+          id: "file.tab.prev",
+          title: "",
+          keybind: settings.keybinds.get("tab.prev") ?? "mod+option+ArrowLeft,ctrl+shift+tab",
+          hidden: true,
+          when: (event) => sideFocused(event.target),
+          onSelect: () => selectAdjacentSideTab(-1),
+        }),
+      cycle &&
+        fileCommand({
+          id: "file.tab.next",
+          title: "",
+          keybind: settings.keybinds.get("tab.next") ?? "mod+option+ArrowRight,ctrl+tab",
+          hidden: true,
+          when: (event) => sideFocused(event.target),
+          onSelect: () => selectAdjacentSideTab(1),
+        }),
+      ...(actions.session.layout.view().side.opened()
+        ? sideTabShortcuts({
+            keys: actions.region.keys,
+            active: actions.region.active,
+            select: selectSideTab,
+            when: inSide,
+          }).map(fileCommand)
+        : []),
     ].filter((v) => !!v)
   }
 
@@ -392,15 +684,18 @@ export const useSessionCommands = (actions: SessionCommandContext) => {
       id: "review.toggle",
       title: language.t("command.review.toggle"),
       keybind: "mod+shift+r",
-      onSelect: () => actions.session.layout.view().side.toggle(),
+      onSelect: actions.region.toggle,
     }),
-    ...(shown()
+    ...(actions.region.pane("bottom").keys().length > 0
       ? [
           viewCommand({
-            id: "fileTree.toggle",
-            title: language.t("command.fileTree.toggle"),
-            keybind: "mod+\\",
-            onSelect: () => layout.fileTree.toggle(),
+            id: "bottom.toggle",
+            title: language.t("command.bottom.toggle"),
+            keybind: "mod+j",
+            onSelect: () => {
+              const bottom = actions.session.layout.view().bottom
+              bottom.setOpened(!bottom.opened())
+            },
           }),
         ]
       : []),
@@ -445,9 +740,11 @@ export const useSessionCommands = (actions: SessionCommandContext) => {
   const permissionsCmds = () => [
     permissionsCommand({
       id: "permissions.autoaccept",
-      title: settings.permissions.autoApprove()
+      title: autoAccepting()
         ? language.t("command.permissions.autoaccept.disable")
-        : language.t("command.permissions.autoaccept.enable"),
+        : sessionProject()
+          ? language.t("command.permissions.autoaccept.project")
+          : language.t("command.permissions.autoaccept.enable"),
       keybind: "mod+shift+a",
       disabled: false,
       onSelect: toggleAutoAccept,
