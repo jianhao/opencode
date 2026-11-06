@@ -411,10 +411,15 @@ function ExaOutput(props: { output?: string }) {
   )
 }
 
+type ContextLabelPart = { type: "notice" | "shell"; id: string; render: () => JSX.Element }
+
+type ContextTextPart = { type: "text"; id: string; text: string; render: () => JSX.Element }
+
 export type ContextGroupPart =
   | SessionMessageAssistantTool
   | (SessionMessageAssistantReasoning & { id: string; streaming?: boolean })
-  | { type: "notice" | "shell" | "text"; id: string; render: () => JSX.Element }
+  | ContextLabelPart
+  | ContextTextPart
 
 export function CurrentContextToolGroup(props: {
   parts: ContextGroupPart[]
@@ -452,6 +457,13 @@ export function CurrentContextToolGroup(props: {
   )
 
   const reasoning = createMemo(() => props.parts.flatMap((part) => (part.type === "reasoning" ? [part] : [])))
+  const narration = createMemo(() =>
+    props.parts
+      .filter((part): part is ContextTextPart => part.type === "text")
+      .findLast((part) => part.text.trim())
+      ?.text.replace(/\s+/g, " ")
+      .trim(),
+  )
   // Thoughts alone are not finished work yet, so the live group reads as Thinking, in place of Working, rather than
   // "Used 1 Thought".
   const thinking = createMemo(() => props.busy && reasoning().length > 0 && reasoning().length === props.parts.length)
@@ -502,7 +514,21 @@ export function CurrentContextToolGroup(props: {
 
     const title = names() || i18n.plural("ui.messagePart.context.thought", thoughts)
     const count = props.parts.filter((part) => part.type === "tool" || part.type === "shell").length || thoughts
-    const text = i18n.plural("ui.messagePart.tools.used", count, { tools: title })
+    const usage = i18n.plural("ui.messagePart.tools.used", count, { tools: title })
+    const step = narration()
+
+    if (step) {
+      return {
+        text: `${step} ${usage}`,
+        title: step,
+        before: "",
+        count: undefined,
+        between: "",
+        after: usage,
+      }
+    }
+
+    const text = usage
     const index = text.indexOf(title)
     const before = text.slice(0, index).trim()
     const countText = String(count)
@@ -631,7 +657,7 @@ export function CurrentContextToolGroup(props: {
               <Show when={label().title}>
                 {(title) => (
                   <span data-slot="basic-tool-tool-title">
-                    <Show when={thinking()} fallback={title()}>
+                    <Show when={thinking() || (props.busy && narration())} fallback={title()}>
                       <TextShimmer text={title()} active />
                     </Show>
                   </span>

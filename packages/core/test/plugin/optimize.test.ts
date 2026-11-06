@@ -398,7 +398,9 @@ describe("OptimizePlugin", () => {
       yield* hooks.trigger("session", "context", named)
       expect(listCalls).toBe(1)
       expect(named.system.map((part) => part.text)).toEqual([
-        SessionSystemPrompt.render(PROMPT_META.replaceAll("{{MODEL_NAME}}", "Muse Spark"), Object.keys(named.tools)),
+        SessionSystemPrompt.withFork(
+          SessionSystemPrompt.render(PROMPT_META.replaceAll("{{MODEL_NAME}}", "Muse Spark"), Object.keys(named.tools)),
+        ),
         IdentityPlugin.identity({ name: "Muse Spark", ref: named.model }),
       ])
 
@@ -406,7 +408,7 @@ describe("OptimizePlugin", () => {
       yield* hooks.trigger("session", "compaction", unknown)
       expect(listCalls).toBe(2)
       expect(unknown.system.map((part) => part.text)).toEqual([
-        SessionSystemPrompt.render(PROMPT_GPT, Object.keys(unknown.tools)),
+        SessionSystemPrompt.withFork(SessionSystemPrompt.render(PROMPT_GPT, Object.keys(unknown.tools))),
         IdentityPlugin.identity({ name: "unknown-gpt-5", ref: unknown.model }),
       ])
     }),

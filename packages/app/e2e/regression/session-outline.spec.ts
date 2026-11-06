@@ -12,6 +12,24 @@ const turns = () => [
 
 const rail = (page: import("@playwright/test").Page) => page.locator(".session-outline")
 
+const history = () =>
+  Array.from({ length: 12 }, (_, index) => {
+    const userId = `msg_outline_history_${index}`
+    const assistantId = `msg_outline_history_${index}_reply`
+
+    return [
+      userMessage([{ id: `prt_${userId}_text`, type: "text", text: `Historical prompt ${index}` }], {
+        id: userId,
+        created: 1700000000000 + index * 10_000,
+      }),
+      assistantMessage([{ id: `prt_${assistantId}_text`, type: "text", text: `Historical reply ${index}` }], {
+        id: assistantId,
+        parentID: userId,
+        created: 1700000001000 + index * 10_000,
+      }),
+    ]
+  }).flat()
+
 async function sides(page: import("@playwright/test").Page) {
   const panel = page.locator('[data-slot="session-chat-panel"]')
   const [railBox, panelBox] = await Promise.all([rail(page).boundingBox(), panel.boundingBox()])
@@ -39,6 +57,32 @@ test("moves the session outline to the left edge it is configured for", async ({
 
   const { railCentre, panelCentre } = await sides(page)
   expect(railCentre).toBeLessThan(panelCentre)
+})
+
+test("lists every prompt without loading the whole transcript, then jumps to an older prompt on demand", async ({
+  page,
+}) => {
+  const messages = history()
+
+  await setupTimeline(page, {
+    viewport: { width: 1440, height: 900 },
+    messages,
+    pageMessages: (_, limit, before) => {
+      const end = before ? messages.findIndex((message) => message.id === before) : messages.length
+      const start = Math.max(0, end - limit)
+
+      return {
+        items: messages.slice(start, end),
+        cursor: start > 0 ? messages[start]?.id : undefined,
+      }
+    },
+  })
+
+  await expect(rail(page).locator(".session-outline-tick")).toHaveCount(12)
+
+  await rail(page).locator(".session-outline-tick").first().click()
+  await expect(page).toHaveURL(/#message-msg_outline_history_0$/)
+  await expect(page.locator('[data-timeline-row="UserMessage"][data-message-id="msg_outline_history_0"]')).toBeVisible()
 })
 
 test("offers the outline sides in settings, left or right", async ({ page }) => {

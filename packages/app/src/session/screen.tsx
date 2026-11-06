@@ -5,6 +5,7 @@ import {
   Show,
   Match,
   Switch,
+  createResource,
   createMemo,
   createEffect,
   createSignal,
@@ -47,9 +48,11 @@ import { SessionIdentityHeader, SessionLocation } from "./session-identity-heade
 import { SessionHeaderDrag, windowDragEnabled } from "./header/drag-area"
 import { usePlatform } from "@/runtime/platform/platform"
 import { useServer } from "@/runtime/server/current"
+import { useServerSDK } from "@/runtime/server/client"
 import { reviewGlyphFill, SessionReviewToggle } from "./header/session-header-actions"
 import { createTimelineCache } from "./timeline/cache"
 import { SessionOutline } from "./session-outline"
+import { loadSessionOutlineMessages, mergeSessionOutlineMessages } from "./session-outline-data"
 import { createPanelMotion, holdLandingWidth, panelOpacity, setPanelResizing } from "@/shell/panel-motion"
 
 export function SessionScreenView(props: { session: SessionModel }) {
@@ -82,6 +85,8 @@ function SessionScreenContent(props: {
   const attachment = usePluginAttachment()
   const settings = useSettings()
   const server = useServer()
+  const serverSDK = useServerSDK()
+  let outlineController: AbortController | undefined
   const isDesktop = session.isDesktop
   const bottomMobileTabs = () => settings.general.mobileTitlebarPosition() === "bottom"
   const sidebar = createPanelSidebar()
@@ -142,9 +147,38 @@ function SessionScreenContent(props: {
 
   const messagesReady = timeline.ready
 
-  // Conversation navigator data: one entry per visible user turn, with the
-  // prompt as the title and the assistant's first line as the subtitle.
-  const outlineItems = createMemo(() => {
+  // The navigator indexes every prompt separately from the paged transcript, so all turns are
+  // visible on open without loading every assistant message and tool output.
+  const outlineSource = createMemo<{ sessionID: string } | undefined>(
+    () => {
+      const sessionID = session.identity.params.id
+
+      return isDesktop() && sessionID ? { sessionID } : undefined
+    },
+    undefined,
+    { equals: (left, right) => left?.sessionID === right?.sessionID },
+  )
+  const [outlineHistory] = createResource(outlineSource, async (source) => {
+    outlineController?.abort()
+    const controller = new AbortController()
+    outlineController = controller
+
+    try {
+      return {
+        sessionID: source.sessionID,
+        messages: await loadSessionOutlineMessages({
+          api: serverSDK.api,
+          sessionID: source.sessionID,
+          signal: controller.signal,
+        }),
+      }
+    } finally {
+      if (outlineController === controller) outlineController = undefined
+    }
+  })
+  onCleanup(() => outlineController?.abort())
+
+  const loadedOutlineItems = createMemo(() => {
     const messages = session.history.messages()
     const position = new Map(messages.map((message, index) => [message.id, index]))
 
@@ -165,24 +199,50 @@ function SessionScreenContent(props: {
       return ""
     }
 
-    return session.history.visibleUserMessages().map((message) => {
-      const title = message.text.replace(/\s+/g, " ").trim()
-      const start = position.get(message.id)
-      // A turn may hold several assistant messages, and the first one can be
-      // tool-only; take the first line of the first one that has prose.
-      let subtitle = ""
+    return new Map(
+      session.history.visibleUserMessages().map((message) => {
+        const title = message.text.replace(/\s+/g, " ").trim()
+        const start = position.get(message.id)
+        // A turn may hold several assistant messages, and the first one can be
+        // tool-only; take the first line of the first one that has prose.
+        let subtitle = ""
 
-      for (let index = (start ?? -1) + 1; start !== undefined && index < messages.length; index++) {
-        const next = messages[index]!
+        for (let index = (start ?? -1) + 1; start !== undefined && index < messages.length; index++) {
+          const next = messages[index]!
 
-        if (next.type === "user") break
-        subtitle = firstLine(next)
+          if (next.type === "user") break
+          subtitle = firstLine(next)
 
-        if (subtitle) break
-      }
+          if (subtitle) break
+        }
 
-      return { id: message.id, title, subtitle }
-    })
+        return [message.id, { id: message.id, title, subtitle }] as const
+      }),
+    )
+  })
+
+  const outlineItems = createMemo(() => {
+    const sessionID = session.identity.params.id
+    const history =
+      sessionID &&
+      (outlineHistory.state === "ready" || outlineHistory.state === "refreshing") &&
+      outlineHistory.latest?.sessionID === sessionID
+        ? outlineHistory.latest.messages
+        : []
+    const loaded = session.history.userMessages()
+    const items = loadedOutlineItems()
+
+    return mergeSessionOutlineMessages({
+      history,
+      loaded,
+      revertMessageID: session.data.revertMessageID(),
+    }).map(
+      (message) =>
+        items.get(message.id) ?? {
+          id: message.id,
+          title: message.text.replace(/\s+/g, " ").trim(),
+        },
+    )
   })
 
   const [store, setStore] = createStore<{
@@ -484,9 +544,8 @@ function SessionScreenContent(props: {
             items={outlineItems}
             side={settings.general.outlineSide()}
             onJump={(id) => {
-              if (!session.history.visibleUserMessages().some((item) => item.id === id)) return
               timeline.follow.dispatch({ type: "detach" })
-              timeline.actions.revealMessage(id)
+              timeline.actions.jumpToMessage(id)
             }}
           />
         </Show>

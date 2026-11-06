@@ -311,6 +311,7 @@ export function createSessionTimelineRowRenderer(input: {
               {
                 type: "text",
                 id: ref.partID,
+                text: content.text,
                 render: () => <SessionAssistantContent message={message} content={content} contentID={ref.partID} />,
               },
             ]
@@ -339,10 +340,7 @@ export function createSessionTimelineRowRenderer(input: {
         if (current.status === "interrupted" || current.status === "failed" || current.status === "retrying")
           return true
 
-        return (
-          phase(row().userMessageID).live &&
-          input.projection.lastAssistantGroupKey().get(row().userMessageID) === row().group.key
-        )
+        return false
       }
 
       return (
