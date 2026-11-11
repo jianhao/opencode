@@ -10,7 +10,7 @@ import { HttpApiBuilder, HttpApiSchema } from "effect/http-api"
 import { Socket } from "effect/socket"
 import { Api } from "../api"
 import { CorsConfig, isAllowedRequestOrigin } from "../cors"
-import { locationErrors, requestRef, response } from "../location"
+import { awaitPlugins, locationErrors, requestRef, response } from "../location"
 import { holdLocation, type Outbound, runPtySocket } from "./pty-socket"
 
 const notFound = <A, R>(effect: Effect.Effect<A, Mcp.NotFoundError, R>) =>
@@ -26,6 +26,8 @@ export const McpHandler = HttpApiBuilder.group(Api, "server.mcp", (handlers) =>
       .handle(
         "mcp.list",
         Effect.fn(function* () {
+          // 配置里的 MCP 由插件写进 MCP 状态，冷启动的 Location 不等插件就会读到空的 servers
+          yield* awaitPlugins
           const service = yield* Mcp.Service
           return yield* response(service.servers())
         }),
@@ -33,6 +35,7 @@ export const McpHandler = HttpApiBuilder.group(Api, "server.mcp", (handlers) =>
       .handle(
         "mcp.add",
         Effect.fn(function* (ctx) {
+          yield* awaitPlugins
           const service = yield* Mcp.Service
           yield* service.add(ctx.params.server, ctx.payload.config)
           return HttpApiSchema.NoContent.make()
@@ -41,6 +44,7 @@ export const McpHandler = HttpApiBuilder.group(Api, "server.mcp", (handlers) =>
       .handle(
         "mcp.remove",
         Effect.fn(function* (ctx) {
+          yield* awaitPlugins
           const service = yield* Mcp.Service
           yield* notFound(service.remove(ctx.params.server))
           return HttpApiSchema.NoContent.make()
@@ -49,6 +53,7 @@ export const McpHandler = HttpApiBuilder.group(Api, "server.mcp", (handlers) =>
       .handle(
         "mcp.connect",
         Effect.fn(function* (ctx) {
+          yield* awaitPlugins
           const service = yield* Mcp.Service
           yield* notFound(service.connect(ctx.params.server))
           return HttpApiSchema.NoContent.make()
@@ -57,6 +62,7 @@ export const McpHandler = HttpApiBuilder.group(Api, "server.mcp", (handlers) =>
       .handle(
         "mcp.disconnect",
         Effect.fn(function* (ctx) {
+          yield* awaitPlugins
           const service = yield* Mcp.Service
           yield* notFound(service.disconnect(ctx.params.server))
           return HttpApiSchema.NoContent.make()
@@ -65,6 +71,7 @@ export const McpHandler = HttpApiBuilder.group(Api, "server.mcp", (handlers) =>
       .handle(
         "mcp.resource.catalog",
         Effect.fn(function* () {
+          yield* awaitPlugins
           const service = yield* Mcp.Service
           return yield* response(service.resourceCatalog())
         }),

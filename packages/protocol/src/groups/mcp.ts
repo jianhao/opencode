@@ -3,7 +3,7 @@ import { Location } from "@opencode/schema/location"
 import { PtyTicket } from "@opencode/schema/pty-ticket"
 import { Context, Schema } from "effect"
 import { HttpApiEndpoint, HttpApiGroup, HttpApiMiddleware, HttpApiSchema, OpenApi } from "effect/http-api"
-import { ForbiddenError, LocationNotFoundError, McpServerNotFoundError } from "../errors.js"
+import { ForbiddenError, LocationNotFoundError, McpServerNotFoundError, ServiceUnavailableError } from "../errors.js"
 import { LocationQuery, locationQueryOpenApi } from "./location.js"
 import { PTY_CONNECT_TICKET_QUERY, PTY_CONNECT_TOKEN_HEADER } from "./pty.js"
 
@@ -26,6 +26,8 @@ export const makeMcpGroup = <LocationId extends HttpApiMiddleware.AnyId, Locatio
       HttpApiEndpoint.get("mcp.list", "/api/mcp", {
         query: LocationQuery,
         success: Location.response(Schema.Array(Mcp.Server)),
+        // 等插件激活是读配置里 MCP 的前提，超时会以 ServiceUnavailableError 结束
+        error: ServiceUnavailableError,
       })
         .annotateMerge(locationQueryOpenApi)
         .annotateMerge(
@@ -44,6 +46,7 @@ export const makeMcpGroup = <LocationId extends HttpApiMiddleware.AnyId, Locatio
         // represent a top-level union payload.
         payload: Schema.Struct({ config: Mcp.ServerConfig }),
         success: HttpApiSchema.NoContent,
+        error: ServiceUnavailableError,
       })
         .annotateMerge(locationQueryOpenApi)
         .annotateMerge(
@@ -59,7 +62,7 @@ export const makeMcpGroup = <LocationId extends HttpApiMiddleware.AnyId, Locatio
         params: { server: Schema.String },
         query: LocationQuery,
         success: HttpApiSchema.NoContent,
-        error: McpServerNotFoundError,
+        error: [McpServerNotFoundError, ServiceUnavailableError],
       })
         .annotateMerge(locationQueryOpenApi)
         .annotateMerge(
@@ -75,7 +78,7 @@ export const makeMcpGroup = <LocationId extends HttpApiMiddleware.AnyId, Locatio
         params: { server: Schema.String },
         query: LocationQuery,
         success: HttpApiSchema.NoContent,
-        error: McpServerNotFoundError,
+        error: [McpServerNotFoundError, ServiceUnavailableError],
       })
         .annotateMerge(locationQueryOpenApi)
         .annotateMerge(
@@ -91,7 +94,7 @@ export const makeMcpGroup = <LocationId extends HttpApiMiddleware.AnyId, Locatio
         params: { server: Schema.String },
         query: LocationQuery,
         success: HttpApiSchema.NoContent,
-        error: McpServerNotFoundError,
+        error: [McpServerNotFoundError, ServiceUnavailableError],
       })
         .annotateMerge(locationQueryOpenApi)
         .annotateMerge(
@@ -106,6 +109,7 @@ export const makeMcpGroup = <LocationId extends HttpApiMiddleware.AnyId, Locatio
       HttpApiEndpoint.get("mcp.resource.catalog", "/api/mcp/resource", {
         query: LocationQuery,
         success: Location.response(Mcp.ResourceCatalog),
+        error: ServiceUnavailableError,
       })
         .annotateMerge(locationQueryOpenApi)
         .annotateMerge(
