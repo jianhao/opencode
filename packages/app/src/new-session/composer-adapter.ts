@@ -14,6 +14,7 @@ import { useTabs } from "@/shell/tabs/tabs"
 import { useWorkspaceLocation } from "@/workspaces/location"
 import { createWorktree } from "@/workspaces/create"
 import { showToast } from "@/shell/notifications/toast"
+import { resolveNewSessionWorkspace } from "./workspace/controller"
 import type { DraftMcpControls } from "./mcp"
 import {
   createNewSessionStartState,
@@ -98,12 +99,15 @@ export function createNewSessionComposerAdapter(props: {
     submitted: props.submitted,
     start(selection, submission, message) {
       const currentDirectory = location().directory
-
-      const projectDirectory =
-        data.location.info({ directory: currentDirectory })?.project.canonical ?? currentDirectory
-
       const worktree = props.worktree()
-      const directory = worktree === "main" ? projectDirectory : worktree
+
+      const workspace = resolveNewSessionWorkspace({
+        worktree,
+        directory: currentDirectory,
+        branch: props.branch(),
+      })
+
+      const directory = workspace.type === "existing" ? workspace.directory : workspace.projectDirectory
       const sessionID = Session.ID.create()
       const settled = Promise.withResolvers<Started>()
 
@@ -111,10 +115,7 @@ export function createNewSessionComposerAdapter(props: {
         {
           type: "start",
           sessionID,
-          workspace:
-            worktree === "create"
-              ? { type: "new", projectDirectory, branch: props.branch() }
-              : { type: "existing", directory },
+          workspace,
           mcp: props.mcp.capture(),
           toggling: worktree !== "create" && props.mcp.toggling(directory),
         },

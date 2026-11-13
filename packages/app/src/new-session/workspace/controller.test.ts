@@ -3,10 +3,31 @@ import {
   cycleNewSessionWorktree,
   resolveNewSessionBranch,
   resolveNewSessionGit,
+  resolveNewSessionWorkspace,
   resolveNewSessionWorktree,
 } from "./controller"
 
 describe("new session workspace selection", () => {
+  test.each([
+    {
+      name: "the selected project directory",
+      input: { worktree: "main", directory: "/projects/pier" },
+      expected: { type: "existing", directory: "/projects/pier" },
+    },
+    {
+      name: "an existing linked worktree",
+      input: { worktree: "/worktrees/feature", directory: "/projects/pier" },
+      expected: { type: "existing", directory: "/worktrees/feature" },
+    },
+    {
+      name: "a new worktree from the selected project directory",
+      input: { worktree: "create", directory: "/projects/pier", branch: "feature" },
+      expected: { type: "new", projectDirectory: "/projects/pier", branch: "feature" },
+    },
+  ])("uses $name", ({ input, expected }) => {
+    expect(resolveNewSessionWorkspace(input)).toEqual(expected)
+  })
+
   test.each([
     {
       name: "main when the workspace bar is unavailable",

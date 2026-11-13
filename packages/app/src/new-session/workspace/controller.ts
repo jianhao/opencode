@@ -8,6 +8,7 @@ import { useTabs } from "@/shell/tabs/tabs"
 import { ServerConnection } from "@/runtime/server/registry"
 import { normalizeProjectInfo } from "@/runtime/server/global-sync/utils"
 import { sameDirectory } from "@opencode/util/path"
+import type { NewSessionWorkspace } from "../machine"
 import {
   isWorkspaceDirectory,
   isWorkspaceSelection,
@@ -15,6 +16,21 @@ import {
   workspaceSelectionDestination,
   workspaceSelectionDirectories,
 } from "@/workspaces/paths"
+
+// 新会话目录以当前选择为准，项目 canonical 只用于 Git worktree 的源目录。
+export function resolveNewSessionWorkspace(input: {
+  worktree: string
+  directory: string
+  branch?: string
+}): NewSessionWorkspace {
+  if (input.worktree === "create")
+    return { type: "new", projectDirectory: input.directory, branch: input.branch }
+
+  return {
+    type: "existing",
+    directory: input.worktree === "main" ? input.directory : input.worktree,
+  }
+}
 
 export function resolveNewSessionWorktree(input: { enabled: boolean; selected?: string; fallback?: string }) {
   if (!input.enabled) return "main"
