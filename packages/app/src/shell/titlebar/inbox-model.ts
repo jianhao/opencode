@@ -14,7 +14,7 @@ import { pathKey } from "@/workspaces/path-key"
 import { parseHomeSessionIndex } from "@/home/sessions/index"
 import { sessionFormRequest, sessionPermissionRequest, sessionTreeIDs } from "@/session/requests/session-request-tree"
 import { notifySessionTabsRemoved } from "./session-events"
-import { errorMessage } from "@/shell/layout/helpers"
+import { errorMessage, sessionProjectRoot } from "@/shell/layout/helpers"
 import { showToast } from "@/shell/notifications/toast"
 import { workingSince } from "./inbox-working"
 import {
@@ -352,7 +352,11 @@ export function createSessionInbox(options: { archived?: boolean } = {}) {
   }
 
   const open = (entry: InboxEntry) => {
-    const directory = entry.ctx.projects.forSession(entry.session)?.worktree ?? entry.session.location.directory
+    const directory = sessionProjectRoot(
+      entry.ctx.projects.forSession(entry.session),
+      entry.session.location.directory,
+    )
+
     void entry.ctx.data.session.message.sync(entry.session.id).catch((error) => {
       if (isSessionNotFoundError(error)) forget(entry.conn, entry.session.id)
     })
@@ -475,7 +479,10 @@ function locationKey(entry: InboxEntry) {
 }
 
 export function inboxInWorktree(entry: InboxEntry) {
-  const root = entry.ctx.projects.forSession(entry.session)?.worktree
+  const root = sessionProjectRoot(
+    entry.ctx.projects.forSession(entry.session),
+    entry.session.location.directory,
+  )
 
-  return !!root && pathKey(root) !== pathKey(entry.session.location.directory)
+  return pathKey(root) !== pathKey(entry.session.location.directory)
 }

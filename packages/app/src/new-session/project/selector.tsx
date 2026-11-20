@@ -43,27 +43,34 @@ export type PromptProjectControls = {
 export function createPromptProjectController(input: { controls: Accessor<PromptProjectControls> }) {
   const language = useLanguage()
 
+  // One list across servers: used projects first, then the rest, each by recent activity.
+  const projects = createMemo(() => {
+    const controls = input.controls()
+
+    return controls.available
+      .map((project) => {
+        if (project.id !== "global") return project
+
+        if (project.server && project.server.key !== controls.server) return project
+
+        // global 代表多个没有独立仓库根的目录，当前草稿目录才是它在 UI 中的真实位置。
+        return { ...project, worktree: controls.directory }
+      })
+      .toSorted((a, b) => Number(!!b.used) - Number(!!a.used) || (b.time?.active ?? 0) - (a.time?.active ?? 0))
+  })
+
   const current = () => {
     const controls = input.controls()
     const key = pathKey(controls.directory)
-    const projects = controls.available.filter((project) => !project.server || project.server.key === controls.server)
+    const available = projects().filter((project) => !project.server || project.server.key === controls.server)
 
     return (
-      projects.find(
+      available.find(
         (project) =>
           pathKey(project.worktree) === key || project.sandboxes?.some((sandbox) => pathKey(sandbox) === key),
-      ) ?? projects.find((project) => controls.projectID && project.id === controls.projectID)
+      ) ?? available.find((project) => controls.projectID && project.id === controls.projectID)
     )
   }
-
-  // One list across servers: used projects first, then the rest, each by recent activity.
-  const projects = createMemo(() =>
-    input
-      .controls()
-      .available.toSorted(
-        (a, b) => Number(!!b.used) - Number(!!a.used) || (b.time?.active ?? 0) - (a.time?.active ?? 0),
-      ),
-  )
 
   const selected = () => current() ?? projects()[0]
 

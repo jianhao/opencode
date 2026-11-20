@@ -36,6 +36,7 @@ import { RecentlyClosedTabsMenu } from "./recently-closed-tabs-menu"
 import { useSettingsDialog } from "@/settings/command"
 import { TitlebarItems, useTitlebarItems } from "@/runtime/plugin/titlebar-items"
 import { createRouteTabSync } from "./route-sync"
+import { selectNewSessionDirectory, type NewSessionRecent } from "./new-session-target"
 import {
   INITIAL_MOBILE_TABS_STATE,
   selectMobileTabsOpen,
@@ -220,6 +221,23 @@ export function Titlebar(props: { verticalTabs?: { mount?: HTMLElement } }) {
             const session = routeSync.session
             const currentTab = routeSync.currentTab
 
+            const recentNewSessionTarget = (server: ServerConnection.Key): NewSessionRecent | undefined => {
+              const tab = tabs.store.find((item) => tabKey(item) === tabs.recentKey())
+
+              if (!tab || tab.server !== server) return
+
+              if (tab.type === "draft") return { type: "draft", server: tab.server, directory: tab.directory }
+
+              const context = global.serverCtx(server)
+              const recent = context?.data.session.get(tab.sessionId)
+
+              return {
+                type: "session",
+                server: tab.server,
+                directory: recent?.location.directory ?? tabs.info[tabKey(tab)]?.directory,
+              }
+            }
+
             makeEventListener(window, SESSION_TABS_REMOVED_EVENT, (event) => {
               const detail = readSessionTabsRemovedDetail(event)
 
@@ -252,12 +270,10 @@ export function Titlebar(props: { verticalTabs?: { mount?: HTMLElement } }) {
                     sessionId: activeSession.id,
                   }
 
+                  const directory = recentNewSessionTarget(route.server)?.directory ?? activeSession.location.directory
                   const model = tabs.stateValue<ComposerState>(sessionTab, "prompt")?.model.current()
-                  void tabs.newDraft(
-                    { server: sessionTab.server, directory: activeSession.location.directory, draftID },
-                    "",
-                    model,
-                  )
+
+                  void tabs.newDraft({ server: sessionTab.server, directory, draftID }, "", model)
 
                   return true
                 }
@@ -283,15 +299,26 @@ export function Titlebar(props: { verticalTabs?: { mount?: HTMLElement } }) {
                     global.servers.list().find((item) => ServerConnection.key(item) === selection.server) ??
                     global.servers.list()[0]
 
-                  const projects = conn ? global.serverCtx(ServerConnection.key(conn))?.projects : undefined
+                  if (!conn) return false
+
+                  const server = ServerConnection.key(conn)
+                  const context = global.serverCtx(server)
+                  const projects = context?.projects
 
                   const project =
                     projects?.list().find((item) => item.worktree === selection.directory) ??
                     projects?.last() ??
                     projects?.list()[0]
 
-                  if (conn && project) {
-                    void tabs.newDraft({ server: ServerConnection.key(conn), directory: project.worktree, draftID }, "")
+                  const directory = selectNewSessionDirectory({
+                    selected: selection.directory,
+                    server,
+                    recent: recentNewSessionTarget(server),
+                    project,
+                  })
+
+                  if (directory) {
+                    void tabs.newDraft({ server, directory, draftID }, "")
 
                     return true
                   }

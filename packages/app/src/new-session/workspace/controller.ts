@@ -32,6 +32,16 @@ export function resolveNewSessionWorkspace(input: {
   }
 }
 
+export function resolveNewSessionProjectRoot(input: {
+  project?: { id?: string; worktree: string }
+  directory: string
+}) {
+  // global 项目没有可区分的仓库根目录，当前选择目录才是真实工作目录。
+  if (!input.project || input.project.id === "global") return input.directory
+
+  return input.project.worktree
+}
+
 export function resolveNewSessionWorktree(input: { enabled: boolean; selected?: string; fallback?: string }) {
   if (!input.enabled) return "main"
 
@@ -183,7 +193,13 @@ export function createNewSessionWorkspaceController(input: {
     }),
   )
 
-  const projectRoot = createMemo(() => currentProject()?.worktree ?? sdk().directory)
+  const projectRoot = createMemo(() =>
+    resolveNewSessionProjectRoot({
+      project: currentProject(),
+      directory: sdk().directory,
+    }),
+  )
+
   const branchDirectory = () => (value() === "create" ? projectRoot() : sdk().directory)
 
   createEffect(() => {

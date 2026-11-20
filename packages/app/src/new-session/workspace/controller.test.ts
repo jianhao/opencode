@@ -3,6 +3,7 @@ import {
   cycleNewSessionWorktree,
   resolveNewSessionBranch,
   resolveNewSessionGit,
+  resolveNewSessionProjectRoot,
   resolveNewSessionWorkspace,
   resolveNewSessionWorktree,
 } from "./controller"
@@ -26,6 +27,26 @@ describe("new session workspace selection", () => {
     },
   ])("uses $name", ({ input, expected }) => {
     expect(resolveNewSessionWorkspace(input)).toEqual(expected)
+  })
+
+  test.each([
+    {
+      name: "the selected directory for a global project",
+      input: { project: { id: "global", worktree: "/" }, directory: "/projects/pier" },
+      expected: "/projects/pier",
+    },
+    {
+      name: "the selected directory when no project resolved",
+      input: { directory: "/projects/pier" },
+      expected: "/projects/pier",
+    },
+    {
+      name: "the canonical root for a concrete project",
+      input: { project: { id: "project", worktree: "/projects/pier" }, directory: "/projects/pier/packages/app" },
+      expected: "/projects/pier",
+    },
+  ])("resolves the project root from $name", ({ input, expected }) => {
+    expect(resolveNewSessionProjectRoot(input)).toBe(expected)
   })
 
   test.each([

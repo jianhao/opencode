@@ -10,7 +10,7 @@ import { Menu } from "@opencode/ui/menu"
 import { useServerCtx } from "@/runtime/server/runtime"
 import { useLanguage } from "@/runtime/i18n/language"
 import { ServerConnection, useServers } from "@/runtime/server/registry"
-import { displayName } from "@opencode/ui/project-avatar"
+import { sessionProjectName } from "@/shell/layout/helpers"
 import { SessionTabAvatarView } from "@/shell/layout/session-tab-avatar"
 import type { SessionInfo } from "@opencode/client/promise"
 import { showToast } from "@/shell/notifications/toast"
@@ -137,7 +137,7 @@ export function TabNavItem(
 
     if (!session) return
 
-    return displayName(project() ?? { worktree: session.location.directory })
+    return sessionProjectName(project(), session.location.directory)
   })
 
   const previewPath = createMemo(() => {

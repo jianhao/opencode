@@ -1,7 +1,6 @@
 import type { SessionInfo } from "@opencode/client/promise"
 import type { LocalProject } from "@/shell/state/layout"
-import { displayName } from "@opencode/ui/project-avatar"
-import { compareSessionTime } from "@/shell/layout/helpers"
+import { compareSessionTime, sessionProjectName } from "@/shell/layout/helpers"
 import { pathKey } from "@/workspaces/path-key"
 import { getFilename } from "@opencode/util/path"
 
@@ -37,7 +36,7 @@ export function buildHomeSessionRecords(input: {
           worktree: session.location.directory,
         }
 
-      return { session, project, projectName: displayName(project) }
+      return { session, project, projectName: sessionProjectName(project, session.location.directory) }
     })
 }
 

@@ -22,7 +22,7 @@ import { useLanguage } from "@/runtime/i18n/language"
 import { ServerConnection } from "@/runtime/server/registry"
 import { useGlobal } from "@/runtime/server/runtime"
 import { sessionHasOpenTab, useTabs } from "@/shell/tabs/tabs"
-import { errorMessage } from "@/shell/layout/helpers"
+import { errorMessage, sessionProjectRoot } from "@/shell/layout/helpers"
 import { useSessionTabAvatarState } from "@/shell/layout/project-avatar-state"
 import { sessionTreeIDs } from "@/session/requests/session-request-tree"
 import { pathKey } from "@/workspaces/path-key"
@@ -311,7 +311,9 @@ export function createHomeSessionsController(home: HomeController) {
               if (!entry.sessionID || !entry.directory || !entry.server) return
               const sessionID = entry.sessionID
               const server = entry.server
-              const directory = entry.project?.worktree ?? entry.directory
+
+              const directory = sessionProjectRoot(entry.project, entry.directory)
+
               ctx.projects.touch(directory)
               void startTransition(() => {
                 const tab = tabs.addSessionTab({ server, sessionId: sessionID })
@@ -496,7 +498,7 @@ export function createHomeSessionsController(home: HomeController) {
 
         if (!conn) return
         const connKey = ServerConnection.key(conn)
-        const directory = project?.worktree ?? session.location.directory
+        const directory = sessionProjectRoot(project, session.location.directory)
         const ctx = home.server.focusedContext()
 
         if (!ctx) return

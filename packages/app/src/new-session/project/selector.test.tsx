@@ -7,6 +7,27 @@ mock.module("@/runtime/i18n/language", () => ({ useLanguage: () => ({ t: (key: s
 const { createPromptProjectController } = await import("./selector")
 
 describe("new session project selection", () => {
+  test("shows a global project at the draft's real directory", () => {
+    const global = { id: "global", worktree: "/" }
+
+    const controls: PromptProjectControls = {
+      available: [global],
+      directory: "/Users/user/Desktop/work/pier",
+      projectID: "global",
+      select() {},
+      add() {},
+    }
+
+    createRoot((dispose) => {
+      const controller = createPromptProjectController({ controls: () => controls })
+
+      expect(controller.selected()).toEqual({ ...global, worktree: controls.directory })
+      expect(controller.projects()).toEqual([{ ...global, worktree: controls.directory }])
+      expect(controller.isSelected(controller.projects()[0]!)).toBe(true)
+      dispose()
+    })
+  })
+
   test("shows the current project's appearance before its worktree inventory loads", () => {
     const generic = { id: "other", worktree: "/other" }
 
@@ -38,6 +59,7 @@ describe("new session project selection", () => {
       worktree: "/remote",
       server: { key: "remote", name: "Remote", kind: "remote" as const },
     }
+
     const local = {
       id: "shared",
       worktree: "/local",
@@ -63,6 +85,7 @@ describe("new session project selection", () => {
   test("lists every server's projects in one list: used first, then the rest, each by recent activity", () => {
     const local = { key: "sidecar", name: "hailmary", kind: "current" as const }
     const apollo = { key: "http://apollo:4096", name: "apollo", kind: "remote" as const }
+
     const entry = (id: string, server: typeof local | typeof apollo, active: number, used: boolean) => ({
       id,
       worktree: `/${id}`,

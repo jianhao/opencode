@@ -3,16 +3,19 @@ import type { SessionInfo } from "@opencode/client/promise"
 import type { LocalProject } from "@/shell/state/layout"
 import { buildHomeSessionRecords, homeSessionLocation } from "./records"
 
-const session = (id: string, directory: string, projectID: string) =>
-  ({
+const session = (id: string, directory: string, projectID: string) => {
+  // SAFETY: 测试只读取记录构建所需的字段，未读取 SessionInfo 的其他运行时字段。
+  return {
     id,
     projectID,
     title: id,
     location: { directory },
     time: { created: 1, updated: 1 },
-  }) as SessionInfo
+  } as SessionInfo
+}
 
 describe("buildHomeSessionRecords", () => {
+  // SAFETY: 本用例只读取 id 和 worktree，未使用项目对象的其他界面字段。
   const opened = { id: "project-a", worktree: "/repo/a" } as LocalProject
   const sessions = [session("a", "/repo/a", "project-a"), session("b", "/repo/b", "project-b")]
 
@@ -49,6 +52,7 @@ describe("buildHomeSessionRecords", () => {
   })
 
   test("prefers the added project whose directory matches over a sibling entry with the same ID", () => {
+    // SAFETY: 本用例只比较项目 id 和 worktree，其余字段不参与计算。
     const nested = { id: "project-a", worktree: "/repo/a/packages/app" } as LocalProject
 
     const records = buildHomeSessionRecords({
@@ -58,6 +62,20 @@ describe("buildHomeSessionRecords", () => {
     })
 
     expect(records[0]?.project.worktree).toBe("/repo/a/packages/app")
+  })
+
+  test("names a global project after the session's own directory", () => {
+    // SAFETY: 本用例只验证 global 项目的 id 和 worktree。
+    const global = { id: "global", worktree: "/" } as LocalProject
+
+    const records = buildHomeSessionRecords({
+      sessions: () => [session("g", "/repo/pier", "global")],
+      projectDirectories: () => undefined,
+      projects: () => [global],
+    })
+
+    expect(records[0]?.project).toMatchObject({ id: "global", worktree: "/" })
+    expect(records[0]?.projectName).toBe("pier")
   })
 
   test("orders by update time and uses the id only to break equal timestamps", () => {

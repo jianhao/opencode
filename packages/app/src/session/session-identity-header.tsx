@@ -3,13 +3,7 @@ import type { MountedSession, SessionScreen } from "@opencode/plugin/gui"
 import { Icon } from "@opencode/ui/icon"
 import { Menu } from "@opencode/ui/menu"
 import { Tooltip } from "@opencode/ui/tooltip"
-import {
-  displayName,
-  getProjectAvatarGenerated,
-  getProjectAvatarSource,
-  getProjectAvatarVariant,
-  ProjectAvatar,
-} from "@opencode/ui/project-avatar"
+import { getProjectAvatarSource, getProjectAvatarVariant, ProjectAvatar } from "@opencode/ui/project-avatar"
 import { useNavigate } from "@solidjs/router"
 import {
   createContext,
@@ -30,7 +24,7 @@ import { ServerLabel } from "@/servers/registry/label"
 import { fileManagerApp } from "@/home/projects/file-manager"
 import { useLanguage } from "@/runtime/i18n/language"
 import { usePlatform } from "@/runtime/platform/platform"
-import { errorMessage } from "@/shell/layout/helpers"
+import { errorMessage, sessionProjectAvatarSeed, sessionProjectName } from "@/shell/layout/helpers"
 import { useLayout, type LocalProject } from "@/shell/state/layout"
 import { tabKey, useTabs } from "@/shell/tabs/tabs"
 import { useSettingsSurface } from "@/settings/surface"
@@ -116,7 +110,7 @@ export function SessionLocation(props: {
   const collapse = useContext(SessionHeaderCollapse)
   const [store, setStore] = createStore({ open: false })
 
-  const projectName = createMemo(() => displayName(props.project ?? { worktree: props.directory ?? "" }))
+  const projectName = createMemo(() => sessionProjectName(props.project, props.directory ?? ""))
 
   const worktree = createMemo(() => {
     const directory = props.directory
@@ -224,7 +218,7 @@ export function SessionLocation(props: {
               fallback={projectName()}
               src={getProjectAvatarSource(props.project?.id, props.project?.icon)}
               variant={getProjectAvatarVariant(props.project?.icon?.color)}
-              generated={getProjectAvatarGenerated(props.project)}
+              generated={sessionProjectAvatarSeed(props.project, props.directory ?? "")}
             />
             <bdi dir="auto" data-slot="session-location-project" class="session-location-label min-w-0 truncate">
               {projectName()}
@@ -258,7 +252,7 @@ export function SessionLocation(props: {
                 fallback={projectName()}
                 src={getProjectAvatarSource(props.project?.id, props.project?.icon)}
                 variant={getProjectAvatarVariant(props.project?.icon?.color)}
-                generated={getProjectAvatarGenerated(props.project)}
+                generated={sessionProjectAvatarSeed(props.project, props.directory ?? "")}
               />
               <bdi dir="auto" class="min-w-0 truncate font-[530]">
                 {projectName()}

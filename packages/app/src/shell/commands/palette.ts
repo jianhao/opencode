@@ -1,4 +1,3 @@
-import { getFilename } from "@opencode/util/path"
 import type { Project } from "@/runtime/server/types"
 import type { SessionInfo } from "@opencode/client/promise"
 import { useDialog } from "@opencode/ui/context/dialog"
@@ -13,8 +12,7 @@ import type { LocalProject } from "@/shell/state/layout"
 import { ServerConnection } from "@/runtime/server/registry"
 import { useServerSDK } from "@/runtime/server/client"
 import { useTabs } from "@/shell/tabs/tabs"
-import { displayName } from "@opencode/ui/project-avatar"
-import { projectForSession } from "@/shell/layout/helpers"
+import { projectForSession, sessionProjectName } from "@/shell/layout/helpers"
 import { usePluginHost } from "@/runtime/plugin/host"
 import { usePluginAttachment } from "@/runtime/plugin/host-apis"
 import { looksLikeSessionID } from "@/session/search"
@@ -396,7 +394,7 @@ export function createServerSessionEntries(props: {
           id: `session:${props.server}:${session.id}`,
           type: "session" as const,
           title: session.title || props.untitled(),
-          description: project ? displayName(project) : getFilename(session.location.directory),
+          description: sessionProjectName(project, session.location.directory),
           category,
           directory: session.location.directory,
           sessionID: session.id,
