@@ -3,6 +3,7 @@ import { constants, setPriority } from "node:os"
 import { join } from "node:path"
 import { fileURLToPath } from "node:url"
 import { prepareDevElectron } from "./dev-electron"
+import { reclaimDevServicePort } from "./dev-service"
 import { downloadCliToResources, windowsify } from "./utils"
 
 type ServerSource = { type: "build" } | { type: "download"; version: string }
@@ -13,13 +14,21 @@ async function main() {
   process.env.OPENCODE_CHANNEL = "local"
   process.env.OPENCODE_VERSION ??= `2.0.0-local-${Date.now()}`
   process.env.OPENCODE_DISABLE_CHANNEL_DB = "0"
+  const repositoryRoot = join(import.meta.dirname, "../../..")
+  await reclaimDevServicePort(repositoryRoot)
   const options = selectOptions()
 
   if (options.server.type === "build") process.env.OPENCODE_DESKTOP_SERVER_CHANNEL = "local"
   process.env.OPENCODE_DESKTOP_ISOLATED_SERVER ??= "1"
   await prepareDesktop()
   await prepareServer(options.server)
-  await startDesktop(options.electron)
+
+  try {
+    await startDesktop(options.electron)
+  } finally {
+    // 桌面端正常退出或启动失败后，清理本次 dev 服务，避免留下监听 3084 的孤儿进程。
+    await reclaimDevServicePort(repositoryRoot)
+  }
 }
 
 async function prepareDesktop() {

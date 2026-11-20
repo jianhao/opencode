@@ -14,6 +14,7 @@
     "typecheck:tsc": "tsc -b",
     "test": "bun test --timeout 30000",
     "dev": "bun run script/dev.ts",
+    "dev:stop": "bun run script/dev-stop.ts",
     "migration": "bun run script/migration.ts",
     "build": "bun run script/build.ts",
     "pack": "bun run script/pack.ts",
