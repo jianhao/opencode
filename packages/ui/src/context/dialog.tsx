@@ -15,6 +15,7 @@ import {
   type JSX,
   startTransition,
   For,
+  Show,
 } from "solid-js"
 import { Dialog as Kobalte } from "@kobalte/core/dialog"
 import { makeEventListener } from "@solid-primitives/event-listener"
@@ -24,6 +25,7 @@ import {
   selectLayerClosing,
   selectLayerIndex,
   selectLayerModal,
+  selectLayerOverlay,
   selectTopDialog,
   transitionDialogStack,
   type DialogStackEffect,
@@ -57,6 +59,7 @@ const LayerContext = createContext<{
   /** True from the moment this dialog starts closing, through its exit animation. */
   readonly closing: Accessor<boolean>
   setBackdropDismiss: (value: boolean) => void
+  setEscapeDismiss: (value: boolean) => void
   setExitDuration: (ms: number) => void
   container?: HTMLElement
 }>()
@@ -154,7 +157,7 @@ function init(container: () => HTMLElement | undefined) {
 
     // A control that cancels its own edit on Escape, such as an inline rename, keeps the dialog open.
     if (event.target instanceof Element && event.target.closest("[data-owns-escape]")) return
-    dispatch({ type: "dismiss" })
+    dispatch({ type: "escape" })
     event.preventDefault()
     event.stopPropagation()
   }
@@ -188,11 +191,13 @@ function init(container: () => HTMLElement | undefined) {
             }}
           >
             <Kobalte.Portal mount={container()}>
-              <Kobalte.Overlay
-                data-component="dialog-overlay"
-                style={{ "z-index": zIndex() }}
-                onClick={() => dispatch({ type: "backdrop.click", attempt })}
-              />
+              <Show when={selectLayerOverlay(machine(), attempt)}>
+                <Kobalte.Overlay
+                  data-component="dialog-overlay"
+                  style={{ "z-index": zIndex() }}
+                  onClick={() => dispatch({ type: "backdrop.click", attempt })}
+                />
+              </Show>
               <div
                 ref={ref}
                 data-dialog-layer={selectLayerIndex(machine(), attempt)}
@@ -212,6 +217,7 @@ function init(container: () => HTMLElement | undefined) {
                     attempt,
                     closing,
                     setBackdropDismiss: (enabled) => dispatch({ type: "layer.backdrop-dismiss", attempt, enabled }),
+                    setEscapeDismiss: (enabled) => dispatch({ type: "layer.escape-dismiss", attempt, enabled }),
                     setExitDuration: (exitMs) => dispatch({ type: "layer.exit-duration", attempt, exitMs }),
                     container: container(),
                   }}
@@ -243,8 +249,23 @@ function init(container: () => HTMLElement | undefined) {
     active: () => selectTopDialog(machine()),
     /** Stacked dialogs render under the owner of the dialog below, so they see the same context. */
     base: () => layers().at(-1)?.owner,
-    open: (mode: "show" | "push", request: DialogRequest, id: string | undefined, aborted: boolean) =>
-      dispatch({ type: "open", mode, id: id ?? uuid(), aborted, focus: captureFocus(), request }),
+    open: (
+      mode: "show" | "push",
+      request: DialogRequest,
+      id: string | undefined,
+      aborted: boolean,
+      options: { readonly modal: boolean; readonly overlay: boolean },
+    ) =>
+      dispatch({
+        type: "open",
+        mode,
+        id: id ?? uuid(),
+        aborted,
+        focus: captureFocus(),
+        modal: options.modal,
+        overlay: options.overlay,
+        request,
+      }),
     layers,
   }
 }
@@ -332,12 +353,33 @@ export function useDialog() {
     show(element: DialogElement, onClose?: () => void, id?: string, signal?: AbortSignal) {
       const base = ctx.base() ?? owner
 
-      return startTransition(() => ctx.open("show", { element, owner: base, onClose }, id, !!signal?.aborted))
+      return startTransition(() =>
+        ctx.open("show", { element, owner: base, onClose }, id, !!signal?.aborted, {
+          modal: true,
+          overlay: true,
+        }),
+      )
+    },
+    /** A floating dialog leaves the page interactive and renders without a scrim, but stays in the global stack. */
+    showFloating(element: DialogElement, onClose?: () => void, id?: string, signal?: AbortSignal) {
+      const base = ctx.base() ?? owner
+
+      return startTransition(() =>
+        ctx.open("show", { element, owner: base, onClose }, id, !!signal?.aborted, {
+          modal: false,
+          overlay: false,
+        }),
+      )
     },
     push(element: DialogElement, onClose?: () => void, id?: string, signal?: AbortSignal) {
       const base = ctx.base() ?? owner
 
-      return startTransition(() => ctx.open("push", { element, owner: base, onClose }, id, !!signal?.aborted))
+      return startTransition(() =>
+        ctx.open("push", { element, owner: base, onClose }, id, !!signal?.aborted, {
+          modal: true,
+          overlay: true,
+        }),
+      )
     },
     /**
      * Programmatic close. With an id it closes that dialog at once. Without one, called inside a dialog, it closes that

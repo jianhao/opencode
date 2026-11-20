@@ -11,8 +11,11 @@ export type DialogOpenEntry<F = unknown> = {
   readonly status: "open"
   readonly attempt: number
   readonly id: string
+  readonly modal: boolean
+  readonly overlay: boolean
   readonly exitMs: number
   readonly backdropDismiss: boolean
+  readonly escapeDismiss: boolean
   readonly focus: F | undefined
   readonly replaced: readonly number[]
 }
@@ -40,6 +43,8 @@ export type DialogStackEvent<F = unknown, R = unknown> =
       readonly id: string
       readonly aborted: boolean
       readonly focus: F | undefined
+      readonly modal: boolean
+      readonly overlay: boolean
       readonly request: R
     }
   /**
@@ -50,13 +55,16 @@ export type DialogStackEvent<F = unknown, R = unknown> =
    * a callback closing again) closes nothing below it.
    */
   | { readonly type: "close"; readonly id?: string; readonly layer?: number }
-  /** Escape, or a dismissal that applies only while `id` is the top open dialog. */
+  /** Escape, which closes only the top dialog when that layer allows it. */
+  | { readonly type: "escape" }
+  /** A programmatic dismissal that applies only while `id` is the top open dialog. */
   | { readonly type: "dismiss"; readonly id?: string }
   /** A click on one layer's backdrop. */
   | { readonly type: "backdrop.click"; readonly attempt: number }
   /** Kobalte asking one layer to close, as its close button does. */
   | { readonly type: "layer.dismiss"; readonly attempt: number }
   | { readonly type: "layer.backdrop-dismiss"; readonly attempt: number; readonly enabled: boolean }
+  | { readonly type: "layer.escape-dismiss"; readonly attempt: number; readonly enabled: boolean }
   | { readonly type: "layer.exit-duration"; readonly attempt: number; readonly exitMs: number }
   | { readonly type: "exit.completed"; readonly attempt: number }
   | { readonly type: "disposed" }
@@ -111,6 +119,12 @@ export function transitionDialogStack<F, R>(
     )
   }
 
+  if (event.type === "layer.escape-dismiss") {
+    return update(state, event.attempt, (entry) =>
+      entry.escapeDismiss === event.enabled ? entry : { ...entry, escapeDismiss: event.enabled },
+    )
+  }
+
   if (event.type === "layer.exit-duration") {
     const exitMs = Math.max(0, event.exitMs)
 
@@ -140,7 +154,18 @@ export function selectLayerClosing<F>(state: DialogStackState<F>, attempt: numbe
 
 /** Stacked dialogs render as sibling portals, so only the top open layer may own the focus trap. */
 export function selectLayerModal<F>(state: DialogStackState<F>, attempt: number, contained: boolean) {
-  return !contained && selectTopDialog(state)?.attempt === attempt
+  const top = selectTopDialog(state)
+
+  return !contained && top?.attempt === attempt && top.modal
+}
+
+/** Whether this layer renders its own scrim while it is open. */
+export function selectLayerOverlay<F>(state: DialogStackState<F>, attempt: number) {
+  if (state.status === "disposed") return false
+
+  const entry = state.entries.find((item) => item.attempt === attempt)
+
+  return entry?.status === "open" && entry.overlay
 }
 
 /** The layer's place in the stack, so a newer dialog always renders above. */
@@ -170,8 +195,11 @@ function open<F, R>(
     status: "open",
     attempt,
     id: event.id,
+    modal: event.modal,
+    overlay: event.overlay,
     exitMs: DIALOG_EXIT_MS,
     backdropDismiss: true,
+    escapeDismiss: true,
     // A replacement returns focus to where the dialogs it replaces would have, not to their now-removed content.
     focus: replace && first ? first.focus : event.focus,
     // A dialog that had already started closing was not replaced: a late close from inside it still closes nothing.
@@ -194,7 +222,11 @@ function closeTarget<F>(
   state: Extract<DialogStackState<F>, { status: "active" }>,
   event: Extract<
     DialogStackEvent<F>,
-    { type: "close" } | { type: "dismiss" } | { type: "backdrop.click" } | { type: "layer.dismiss" }
+    | { type: "close" }
+    | { type: "escape" }
+    | { type: "dismiss" }
+    | { type: "backdrop.click" }
+    | { type: "layer.dismiss" }
   >,
 ) {
   const top = selectTopDialog(state)
@@ -217,6 +249,8 @@ function closeTarget<F>(
   }
 
   if (event.type === "dismiss") return event.id === undefined || top?.id === event.id ? top : undefined
+
+  if (event.type === "escape") return top?.escapeDismiss ? top : undefined
 
   if (top?.attempt !== event.attempt) return undefined
 

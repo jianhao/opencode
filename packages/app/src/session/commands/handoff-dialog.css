@@ -1,8 +1,138 @@
 /* Wider/taller than the default 480x368 dialog so the brief has room to read and
    edit; clamped to the viewport. Matches the original fork's handoff layout. */
 [data-component="dialog-v2"] [data-slot="dialog-container"].handoff-dialog {
-  width: min(calc(100vw - 32px), 864px);
-  height: min(calc(100vh - 92px), 624px);
+  width: min(calc(100vw - 32px), 950px);
+  height: min(calc(100vh - 92px), 686px);
+}
+
+.handoff-drag-handle {
+  flex: 1;
+  min-width: 0;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.handoff-dialog.is-dragging .handoff-drag-handle {
+  cursor: grabbing;
+}
+
+.handoff-progress {
+  background: var(--v2-background-bg-layer-01);
+}
+
+.handoff-progress-spinner {
+  color: var(--v2-state-fg-info);
+}
+
+.handoff-progress-spinner > svg:nth-child(3n + 2) {
+  color: var(--v2-state-fg-warning);
+}
+
+.handoff-progress-spinner > svg:nth-child(3n) {
+  color: var(--v2-state-fg-success);
+}
+
+.handoff-progress-step {
+  display: grid;
+  grid-template-columns: 1.25rem minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.375rem;
+  min-height: 1.5rem;
+  padding: 0 0.375rem;
+  border-radius: 4px;
+  color: var(--v2-text-text-muted);
+  animation: handoff-progress-step-in 140ms ease-out both;
+}
+
+.handoff-progress-step[data-status="running"] {
+  color: var(--v2-state-fg-info);
+  background: var(--v2-state-bg-info);
+}
+
+.handoff-progress-step[data-status="failed"] {
+  color: var(--v2-state-fg-danger);
+  background: var(--v2-state-bg-danger);
+}
+
+.handoff-progress-emoji {
+  font-family: var(--v2-font-family-sans);
+  font-size: 13px;
+  line-height: 1;
+  text-align: center;
+}
+
+[data-component="button-v2"][data-variant="contrast"].handoff-start-button:not(:disabled) {
+  background-image: none;
+  background-color: var(--v2-purple-100);
+  color: var(--v2-purple-800);
+  text-shadow: none;
+  box-shadow: inset 0 0 0 1px var(--v2-purple-300);
+  transition: background-color 140ms ease-out;
+}
+
+[data-component="button-v2"][data-variant="contrast"].handoff-start-button:not(:disabled):hover {
+  background-color: var(--v2-purple-200);
+}
+
+[data-component="button-v2"][data-variant="contrast"].handoff-start-button:not(:disabled):active {
+  background-color: var(--v2-purple-300);
+}
+
+:root[data-color-scheme="dark"]
+  [data-component="button-v2"][data-variant="contrast"].handoff-start-button:not(:disabled) {
+  background-color: var(--v2-purple-1200);
+  color: var(--v2-purple-300);
+  box-shadow: inset 0 0 0 1px var(--v2-purple-900);
+}
+
+:root[data-color-scheme="dark"]
+  [data-component="button-v2"][data-variant="contrast"].handoff-start-button:not(:disabled):hover {
+  background-color: var(--v2-purple-1100);
+}
+
+:root[data-color-scheme="dark"]
+  [data-component="button-v2"][data-variant="contrast"].handoff-start-button:not(:disabled):active {
+  background-color: var(--v2-purple-1000);
+}
+
+[data-component="button-v2"][data-variant="contrast"].handoff-start-button:disabled {
+  background-image: none;
+  background-color: var(--v2-background-bg-button-neutral);
+  color: var(--v2-text-text-muted);
+  text-shadow: none;
+  box-shadow: var(--v2-elevation-button-neutral);
+}
+
+[data-component="dialog-v2"] [data-slot="dialog-container"].handoff-dialog [data-slot="dialog-content"] {
+  background: linear-gradient(
+    180deg,
+    color-mix(in oklab, var(--v2-state-bg-info) 55%, var(--v2-background-bg-layer-01)) 0%,
+    var(--v2-background-bg-layer-01) 20%,
+    var(--v2-background-bg-layer-01) 82%,
+    color-mix(in oklab, var(--v2-state-bg-success) 35%, var(--v2-background-bg-layer-01)) 100%
+  );
+}
+
+[data-component="dialog-v2"] [data-slot="dialog-container"].handoff-dialog [data-slot="dialog-body"] {
+  background: transparent;
+}
+
+@keyframes handoff-progress-step-in {
+  from {
+    opacity: 0;
+    transform: translateY(2px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .handoff-progress-step {
+    animation: none;
+  }
+}
+
+:root[data-motion="reduce"] .handoff-progress-step {
+  animation: none;
 }
 
 /* The shared Textarea is a fixed 280x80 box (flex: none). Inside the handoff dialog

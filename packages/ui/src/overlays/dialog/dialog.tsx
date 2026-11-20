@@ -1,6 +1,7 @@
 import { CloseButton, Content, Description, Title } from "@kobalte/core/dialog"
 import {
   type ComponentProps,
+  type JSX,
   type JSXElement,
   type ParentProps,
   Show,
@@ -24,10 +25,12 @@ export interface DialogProps extends ParentProps {
   variant?: "default" | "settings"
   class?: ComponentProps<"div">["class"]
   containerClass?: ComponentProps<"div">["class"]
+  containerStyle?: JSX.CSSProperties
   classList?: ComponentProps<"div">["classList"]
   fit?: boolean
   onCloseAutoFocus?: ComponentProps<typeof Content>["onCloseAutoFocus"]
   preventBackdropDismiss?: boolean
+  preventEscapeDismiss?: boolean
 }
 
 export interface DialogHeaderProps extends ParentProps {
@@ -106,16 +109,19 @@ export function Dialog(props: DialogProps) {
     "variant",
     "class",
     "containerClass",
+    "containerStyle",
     "classList",
     "fit",
     "children",
     "onCloseAutoFocus",
     "preventBackdropDismiss",
+    "preventEscapeDismiss",
   ])
 
   const layer = useDialogLayer()
   let focusTimer: ReturnType<typeof setTimeout> | undefined
   createEffect(() => layer?.setBackdropDismiss(!local.preventBackdropDismiss))
+  createEffect(() => layer?.setEscapeDismiss(!local.preventEscapeDismiss))
   onCleanup(() => clearTimeout(focusTimer))
 
   return (
@@ -125,7 +131,7 @@ export function Dialog(props: DialogProps) {
       data-fit={local.fit ? true : undefined}
       data-size={local.size || "normal"}
     >
-      <div data-slot="dialog-container" class={local.containerClass}>
+      <div data-slot="dialog-container" class={local.containerClass} style={local.containerStyle}>
         <Content
           data-slot="dialog-content"
           onCloseAutoFocus={local.onCloseAutoFocus}
@@ -136,6 +142,9 @@ export function Dialog(props: DialogProps) {
             const target = event.target
 
             if (layer?.container && target instanceof Node && !layer.container.contains(target)) event.preventDefault()
+          }}
+          onFocusOutside={(event) => {
+            if (local.preventBackdropDismiss) event.preventDefault()
           }}
           classList={{
             ...local.classList,

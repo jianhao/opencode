@@ -506,7 +506,7 @@ export const useSessionCommands = (actions: SessionCommandContext) => {
     if (!sessionID) return
     void openDialog(
       () => import("@/session/commands/handoff-dialog"),
-      (x) => dialog.show(() => <x.DialogHandoff sessionID={sessionID} />),
+      (x) => dialog.showFloating(() => <x.DialogHandoff sessionID={sessionID} />),
     )
   }
 

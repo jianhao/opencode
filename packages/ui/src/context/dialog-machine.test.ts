@@ -4,6 +4,7 @@ import {
   selectLayerClosing,
   selectLayerIndex,
   selectLayerModal,
+  selectLayerOverlay,
   selectTopDialog,
   transitionDialogStack,
   type DialogStackEffect,
@@ -20,6 +21,8 @@ const open = (mode: "show" | "push", id: string, aborted = false): Event => ({
   id,
   aborted,
   focus: `before ${id}`,
+  modal: true,
+  overlay: true,
   request: id,
 })
 
@@ -119,6 +122,24 @@ describe("while the top dialog plays its exit animation", () => {
   })
 })
 
+test("a floating dialog stays in the stack without a modal focus trap or backdrop", () => {
+  const opened = transitionDialogStack(createDialogStackState(), {
+    type: "open",
+    mode: "push",
+    id: "floating",
+    aborted: false,
+    focus: "before floating",
+    modal: false,
+    overlay: false,
+    request: "floating",
+  })
+
+  expect(selectTopDialog(opened.state)?.id).toBe("floating")
+  expect(selectLayerModal(opened.state, 1, false)).toBe(false)
+  expect(selectLayerOverlay(opened.state, 1)).toBe(false)
+  expect(selectLayerModal(opened.state, 1, true)).toBe(false)
+})
+
 describe("a close without an id from inside a dialog", () => {
   const stacked = run(createDialogStackState(), push("a"), push("b"))
 
@@ -216,6 +237,20 @@ describe("a dialog that opts out of backdrop dismissal", () => {
 
     expect(next.state).toBe(kept.state)
   })
+})
+
+test("a hidden dialog can opt out of Escape without disabling programmatic dismissal", () => {
+  const hidden = run(createDialogStackState(), push("a"), {
+    type: "layer.escape-dismiss",
+    attempt: 1,
+    enabled: false,
+  })
+
+  expect(transitionDialogStack(hidden.state, { type: "escape" })).toEqual({
+    state: hidden.state,
+    effects: [],
+  })
+  expect(transitionDialogStack(hidden.state, { type: "dismiss", id: "a" }).effects).toEqual(closed(1, 100, "before a"))
 })
 
 test("a replacing dialog returns focus to the origin and never notifies a closing dialog again", () => {
