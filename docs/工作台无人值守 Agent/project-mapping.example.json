@@ -1,0 +1,62 @@
+{
+  "_comment": "工作台配置示例。实际运行时由桌面端写入 SQLite（namespace=workbench, key=settings），此文件仅作为初始化/参考，不参与运行时读取。",
+  "frontendServerUrl": "http://127.0.0.1:9522",
+  "projectRoot": "/Users/user/Desktop/work/pier",
+  "toolsRoot": "/Users/user/Desktop/work/pier/tools",
+  "pollIntervalMs": 300000,
+  "maxItems": 300,
+  "includeWorktrees": true,
+  "debugRaw": false,
+  "projects": {
+    "crew-web-vue-3.0": {
+      "enabled": true,
+      "main": "crew-web-vue-3.0",
+      "worktrees": ["crew-web-vue-3.0-worktree", "crew-web-vue-3.0-worktree1"],
+      "verifyProfile": "web-vue"
+    },
+    "crew-portal": {
+      "enabled": true,
+      "main": "crew-portal",
+      "worktrees": ["crew-portal-worktree"],
+      "verifyProfile": "web-vue"
+    },
+    "crew-app-front-3.0": {
+      "enabled": true,
+      "main": "crew-app-front-3.0",
+      "worktrees": ["crew-app-front-3.0-worktree", "crew-app-front-3.0-worktree1"],
+      "verifyProfile": "uni-app"
+    },
+    "crew-client-3.0": {
+      "enabled": true,
+      "main": "crew-client-3.0",
+      "worktrees": [],
+      "verifyProfile": "client"
+    },
+    "crew-server-3.0": {
+      "enabled": true,
+      "main": "crew-server-3.0",
+      "worktrees": ["crew-server-3.0-worktree"],
+      "verifyProfile": "node-service"
+    },
+    "crew-personal-backend-3.0": {
+      "enabled": true,
+      "main": "crew-personal-backend-3.0",
+      "worktrees": [],
+      "verifyProfile": "node-service"
+    },
+    "crewrule": {
+      "enabled": true,
+      "main": "crewrule",
+      "worktrees": [],
+      "verifyProfile": "node-service"
+    }
+  },
+  "spaceBindings": {
+    "示例：云效空间 ID，先留空，首次打开工作台时在设置里确认": {
+      "projectKey": "crew-web-vue-3.0",
+      "airlineCode": "TG",
+      "confirmed": false,
+      "source": "auto"
+    }
+  }
+}

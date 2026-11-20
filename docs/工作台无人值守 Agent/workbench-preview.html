@@ -1,0 +1,1025 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Agent 工作台 · 设计预览</title>
+<style>
+  :root {
+    color-scheme: light;
+
+    --app-bg: #e6e8ee;
+    --nav-bg: #fbfcfd;
+    --content-bg: #f4f5f8;
+    --surface: #ffffff;
+
+    --ink: #111827;
+    --ink-2: #4b5563;
+    --ink-3: #6b7280;
+    --line: #e6e8ee;
+    --line-strong: #d6dae2;
+
+    --accent: #1677ff;
+    --accent-soft: #eaf3ff;
+
+    /* 与 yunxiao-web getWorkItemStatusColor 对齐 */
+    --s-todo: #1890ff;
+    --s-doing: #722ed1;
+    --s-review: #13c2c2;
+    --s-done: #52c41a;
+    --s-blocked: #ff7a45;
+
+    /* 与 WorkItemTable 的类型徽标对齐 */
+    --t-req: #1677ff;
+    --t-task: #52c41a;
+    --t-bug: #ff4d4f;
+
+    --card-shadow: 0 1px 2px rgba(16, 24, 40, .05);
+    --card-shadow-hover: 0 2px 4px rgba(16, 24, 40, .05), 0 14px 28px -18px rgba(16, 24, 40, .45);
+    --drawer-shadow: 0 0 0 1px rgba(16, 24, 40, .07), 0 32px 64px -32px rgba(16, 24, 40, .55);
+
+    --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    --mono: "SFMono-Regular", "JetBrains Mono", Menlo, Consolas, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      color-scheme: dark;
+
+      --app-bg: #07090d;
+      --nav-bg: #0d1117;
+      --content-bg: #0a0e14;
+      --surface: #151b24;
+
+      --ink: #eef2f8;
+      --ink-2: #a7b1c0;
+      --ink-3: #7f8a9a;
+      --line: rgba(255, 255, 255, .08);
+      --line-strong: rgba(255, 255, 255, .16);
+
+      --accent: #5ea9ff;
+      --accent-soft: rgba(94, 169, 255, .14);
+
+      --s-todo: #4aa8ff;
+      --s-doing: #a97cf5;
+      --s-review: #43d6d6;
+      --s-done: #8ada64;
+      --s-blocked: #ffa072;
+
+      --t-req: #5ea9ff;
+      --t-task: #8ada64;
+      --t-bug: #ff8b8b;
+
+      --card-shadow: 0 1px 2px rgba(0, 0, 0, .5);
+      --card-shadow-hover: 0 10px 26px -16px rgba(0, 0, 0, .9);
+      --drawer-shadow: 0 0 0 1px rgba(255, 255, 255, .09), 0 32px 64px -32px rgba(0, 0, 0, .95);
+    }
+  }
+
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    padding: 10px;
+    background: var(--app-bg);
+    color: var(--ink);
+    font: 13px/1.5 var(--font);
+    -webkit-font-smoothing: antialiased;
+    overflow: hidden;
+  }
+  button, input { font: inherit; color: inherit; }
+  button { cursor: pointer; border: 0; background: none; padding: 0; }
+  svg { display: block; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
+  ::selection { background: color-mix(in srgb, var(--accent) 24%, transparent); color: var(--ink); }
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb {
+    background: color-mix(in srgb, var(--ink-3) 26%, transparent);
+    border: 3px solid transparent; background-clip: padding-box; border-radius: 8px;
+  }
+  ::-webkit-scrollbar-thumb:hover { background: color-mix(in srgb, var(--ink-3) 42%, transparent); background-clip: padding-box; }
+
+  .app {
+    --nav-w: 208px;
+    height: calc(100vh - 20px);
+    display: grid;
+    grid-template-columns: var(--nav-w) minmax(0, 1fr) 360px;
+    background: var(--content-bg);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 0 0 1px rgba(16, 24, 40, .07), 0 24px 60px -40px rgba(16, 24, 40, .5);
+  }
+
+  /* ── 左侧菜单 ────────────────────────────── */
+  .nav {
+    display: flex; flex-direction: column; min-height: 0;
+    background: var(--nav-bg);
+    border-right: 1px solid var(--line);
+  }
+  .brand { display: flex; align-items: center; gap: 9px; height: 56px; padding: 0 14px; flex: 0 0 auto; }
+  .brand-icon { width: 20px; height: 20px; flex: 0 0 auto; color: var(--accent); }
+  .brand b { font-size: 13.5px; font-weight: 600; letter-spacing: -.01em; }
+
+  .nav-scroll { flex: 1; min-height: 0; overflow: auto; padding: 4px 8px 12px; }
+  .nav-label { padding: 14px 10px 6px; font-size: 11px; font-weight: 600; letter-spacing: .06em; color: var(--ink-3); }
+  .nav-item {
+    display: flex; align-items: center; gap: 10px;
+    width: 100%; height: 34px; padding: 0 10px; border-radius: 8px;
+    color: var(--ink-2); font-size: 13px; text-align: left;
+    transition: background .14s ease, color .14s ease;
+  }
+  .nav-item svg { width: 17px; height: 17px; flex: 0 0 auto; opacity: .8; }
+  .nav-item:hover { background: color-mix(in srgb, var(--ink) 4%, transparent); color: var(--ink); }
+  .nav-item[aria-current="page"] { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+  .nav-item[aria-current="page"] svg { opacity: 1; }
+  .nav-item .count {
+    margin-left: auto; font-size: 11px; font-family: var(--mono);
+    color: var(--ink-3); background: color-mix(in srgb, var(--ink) 6%, transparent);
+    padding: 1px 6px; border-radius: 999px;
+  }
+  .nav-item[aria-current="page"] .count { background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent); }
+
+  .nav-foot { padding: 10px 12px 12px; border-top: 1px solid var(--line); }
+  .me { display: flex; align-items: center; gap: 9px; padding: 6px 4px; border-radius: 8px; }
+  .me:hover { background: color-mix(in srgb, var(--ink) 4%, transparent); }
+  .avatar {
+    width: 28px; height: 28px; border-radius: 50%; flex: 0 0 auto;
+    display: grid; place-items: center; font-size: 12px; font-weight: 600;
+    color: #fff; background: linear-gradient(140deg, #2f6fe8, #1d4ed8);
+  }
+  .me-text { min-width: 0; flex: 1; }
+  .me-text b { display: block; font-size: 12.5px; font-weight: 600; }
+  .me-text span { display: flex; align-items: center; gap: 4px; font-size: 11.5px; color: var(--ink-3); }
+  .me-text i { width: 5px; height: 5px; border-radius: 50%; background: var(--s-done); flex: 0 0 auto; }
+
+  /* ── 主区 ───────────────────────────────── */
+  .content { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+
+  .topbar { display: flex; align-items: center; gap: 10px; height: 56px; padding: 0 20px; flex: 0 0 auto; }
+  .topbar h1 { margin: 0; font-size: 16.5px; font-weight: 600; letter-spacing: -.015em; }
+  .topbar .grow { flex: 1; }
+
+  .search {
+    display: flex; align-items: center; gap: 7px;
+    flex: 0 1 230px; min-width: 132px;
+    height: 32px; padding: 0 10px; border-radius: 8px;
+    background: var(--surface); color: var(--ink-3);
+    box-shadow: 0 0 0 1px var(--line);
+  }
+  .search:focus-within { box-shadow: 0 0 0 1px var(--accent), 0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent); }
+  .search svg { width: 14px; height: 14px; flex: 0 0 auto; }
+  .search input { flex: 1; min-width: 0; border: 0; outline: 0; background: none; font-size: 12.5px; color: var(--ink); }
+
+  .icon-btn {
+    display: grid; place-items: center;
+    width: 32px; height: 32px; border-radius: 8px;
+    color: var(--ink-2); background: var(--surface);
+    box-shadow: 0 0 0 1px var(--line);
+    transition: background .14s ease, color .14s ease;
+  }
+  .icon-btn svg { width: 15px; height: 15px; }
+  .icon-btn:hover { color: var(--ink); background: color-mix(in srgb, var(--accent) 5%, var(--surface)); }
+  .icon-btn[data-spin] svg { animation: spin .9s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .divider { width: 1px; height: 20px; background: var(--line); }
+
+  /* 状态标签栏 */
+  .statusbar { display: flex; align-items: center; gap: 4px; padding: 0 20px 10px; flex: 0 0 auto; flex-wrap: wrap; }
+  .tab {
+    display: inline-flex; align-items: center; gap: 7px;
+    height: 30px; padding: 0 10px; border-radius: 8px;
+    font-size: 12.5px; color: var(--ink-2);
+    transition: background .14s ease, color .14s ease;
+  }
+  .tab i { width: 7px; height: 7px; border-radius: 50%; background: var(--st); flex: 0 0 auto; }
+  .tab b { font-weight: 600; font-size: 12px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+  .tab:hover { background: color-mix(in srgb, var(--ink) 4%, transparent); color: var(--ink); }
+  .tab[aria-selected="true"] {
+    background: color-mix(in srgb, var(--st) 12%, var(--surface));
+    color: color-mix(in srgb, var(--st) 78%, var(--ink));
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--st) 26%, transparent);
+  }
+  .tab[aria-selected="true"] b { color: inherit; }
+  .statusbar .grow { flex: 1; }
+
+  .ghost-btn {
+    display: inline-flex; align-items: center; gap: 5px;
+    height: 30px; padding: 0 9px; border-radius: 8px;
+    font-size: 12.5px; color: var(--ink-3);
+  }
+  .ghost-btn:hover { background: color-mix(in srgb, var(--ink) 4%, transparent); color: var(--ink); }
+  .ghost-btn svg { width: 14px; height: 14px; }
+
+  /* 卡片网格：3 列 → 4 列（收起详情）→ 2 → 1 */
+  .grid {
+    flex: 1; min-height: 0; overflow: auto;
+    display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px; padding: 2px 20px 24px; align-content: start;
+  }
+
+  .card {
+    position: relative;
+    display: flex; flex-direction: column;
+    min-height: 150px; padding: 13px 13px 12px;
+    text-align: left; border-radius: 12px;
+    border: 1px solid color-mix(in srgb, var(--st) 17%, transparent);
+    background: color-mix(in srgb, var(--st) 7%, var(--surface));
+    box-shadow: var(--card-shadow);
+    transition: transform .16s cubic-bezier(.2, .7, .3, 1), box-shadow .16s ease, border-color .16s ease, background .16s ease;
+  }
+  .card:hover {
+    transform: translateY(-2px);
+    border-color: color-mix(in srgb, var(--st) 30%, transparent);
+    background: color-mix(in srgb, var(--st) 11%, var(--surface));
+    box-shadow: var(--card-shadow-hover);
+  }
+  .card[aria-current="true"] {
+    border-color: color-mix(in srgb, var(--st) 70%, var(--ink));
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--st) 70%, var(--ink)), 0 16px 32px -22px color-mix(in srgb, var(--st) 60%, transparent);
+  }
+
+  .card-top { display: flex; align-items: center; gap: 8px; }
+
+  /* 类型徽标：沿用 WorkItemTable 的渐变底 + 彩边 */
+  .type {
+    display: inline-flex; align-items: center; gap: 4px;
+    height: 21px; padding: 0 7px; border-radius: 6px;
+    font-size: 11px; font-weight: 600; letter-spacing: .01em;
+    color: color-mix(in srgb, var(--ty) 68%, var(--ink));
+    border: 1px solid color-mix(in srgb, var(--ty) 38%, transparent);
+    /* 徽标压在彩色卡片上，必须比卡片更“白”才不会同色消失 */
+    background: linear-gradient(135deg,
+      color-mix(in srgb, var(--surface) 90%, var(--ty)) 0%,
+      color-mix(in srgb, var(--surface) 96%, var(--ty)) 100%);
+    flex: 0 0 auto;
+  }
+  .type svg { width: 11px; height: 11px; }
+
+  /* 状态：点 + 文字，不再叠一层色块 */
+  .status {
+    display: inline-flex; align-items: center; gap: 5px;
+    margin-left: auto; flex: 0 0 auto;
+    font-size: 11.5px; font-weight: 600; white-space: nowrap;
+    color: color-mix(in srgb, var(--st) 72%, var(--ink));
+  }
+  .status i { width: 6px; height: 6px; border-radius: 50%; background: var(--st); box-shadow: 0 0 0 3px color-mix(in srgb, var(--st) 16%, transparent); }
+
+  .card-title {
+    margin: 10px 0 0; font-size: 13.5px; font-weight: 600; line-height: 1.5; letter-spacing: -.002em;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  }
+  .card-meta {
+    margin-top: 6px; display: flex; align-items: center; gap: 5px; min-width: 0;
+    font-size: 11.5px; color: var(--ink-3);
+  }
+  .card-meta .serial { font-family: var(--mono); font-size: 11px; color: var(--ink-2); }
+  .card-meta .sep { color: var(--line-strong); }
+  .card-meta .ell { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .card-foot {
+    margin-top: auto; padding-top: 10px;
+    display: flex; align-items: center; gap: 6px;
+    font-size: 11.5px; color: var(--ink-3);
+  }
+  .card-foot .grow { flex: 1; }
+
+  .pill {
+    display: inline-flex; align-items: center; height: 20px; padding: 0 6px;
+    border-radius: 5px; font-size: 11px; font-family: var(--mono);
+    background: color-mix(in srgb, var(--ink) 5%, transparent); color: var(--ink-2);
+    max-width: 112px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .prio { font-family: var(--mono); font-size: 11px; color: var(--ink-3); }
+  .prio[data-p="P0"] { color: #d4380d; font-weight: 600; }
+  .prio[data-p="P1"] { color: #d46b08; }
+  .cmt { display: inline-flex; align-items: center; gap: 3px; }
+  .cmt svg { width: 12px; height: 12px; }
+
+  /* ── 详情 ───────────────────────────────── */
+  .detail { display: flex; flex-direction: column; min-height: 0; background: var(--surface); border-left: 1px solid var(--line); }
+  .detail-head {
+    padding: 16px 18px 13px; flex: 0 0 auto;
+    background: color-mix(in srgb, var(--st) 6%, var(--surface));
+    border-bottom: 1px solid var(--line);
+  }
+  .detail-top { display: flex; align-items: center; gap: 8px; }
+  .detail-top .grow { flex: 1; }
+  .detail-head h2 { margin: 10px 0 0; font-size: 16px; font-weight: 600; line-height: 1.45; letter-spacing: -.015em; }
+  .detail-sub { margin-top: 7px; display: flex; align-items: center; gap: 5px; flex-wrap: wrap; font-size: 11.5px; color: var(--ink-3); }
+  .detail-sub .serial { font-family: var(--mono); color: var(--ink-2); }
+
+  .detail-body { flex: 1; min-height: 0; overflow: auto; padding: 2px 18px 18px; }
+  .section { margin-top: 16px; }
+  .section > h3 { margin: 0 0 8px; font-size: 11px; font-weight: 600; letter-spacing: .06em; color: var(--ink-3); }
+  .props { display: grid; grid-template-columns: 1fr 1fr; gap: 11px 12px; }
+  .prop span { display: block; font-size: 11px; color: var(--ink-3); margin-bottom: 2px; }
+  .prop b { display: block; font-size: 12.5px; font-weight: 500; overflow-wrap: anywhere; }
+  .prop b.mono { font-family: var(--mono); font-size: 12px; }
+
+  .prose { font-size: 12.5px; line-height: 1.72; color: var(--ink-2); }
+  .prose p { margin: 0; }
+
+  .reasons { display: grid; gap: 7px; }
+  .reason { display: flex; gap: 8px; align-items: flex-start; font-size: 12px; line-height: 1.55; color: var(--ink-2); }
+  .reason i { width: 6px; height: 6px; border-radius: 50%; margin-top: 6px; flex: 0 0 auto; background: var(--s-done); }
+  .reason[data-level="risk"] i { background: #faad14; }
+  .reason[data-level="block"] i { background: #ff4d4f; }
+
+  .chain { display: grid; }
+  .chain-row {
+    display: grid; grid-template-columns: 72px minmax(0, 1fr) auto; gap: 10px;
+    padding: 6px 0; font-size: 11.5px; border-bottom: 1px solid var(--line);
+  }
+  .chain-row:last-child { border-bottom: 0; }
+  .chain-row .k { color: var(--ink-3); }
+  .chain-row .v { color: var(--ink-2); overflow-wrap: anywhere; }
+  .chain-row .s { color: #389e0d; white-space: nowrap; font-size: 11px; }
+  .chain-row[data-state="warn"] .s { color: #d46b08; }
+  .chain-row[data-state="bad"] .s { color: #cf1322; }
+
+  .detail-foot { flex: 0 0 auto; display: flex; align-items: center; gap: 8px; padding: 11px 18px; border-top: 1px solid var(--line); }
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    height: 32px; padding: 0 12px; border-radius: 8px;
+    font-size: 12.5px; font-weight: 500; white-space: nowrap;
+    background: color-mix(in srgb, var(--ink) 5%, transparent); color: var(--ink);
+    transition: background .14s ease;
+  }
+  .btn:hover { background: color-mix(in srgb, var(--ink) 9%, transparent); }
+  .btn[data-variant="primary"] { background: var(--accent); color: #fff; box-shadow: 0 6px 14px -8px color-mix(in srgb, var(--accent) 80%, transparent); }
+  .btn[data-variant="primary"]:hover { background: color-mix(in srgb, var(--accent) 88%, #000); }
+  .btn[data-variant="quiet"] { background: transparent; color: var(--ink-3); }
+  .btn[data-variant="quiet"]:hover { background: color-mix(in srgb, var(--ink) 5%, transparent); color: var(--ink); }
+  .detail-foot .grow { flex: 1; }
+
+  /* 配置弹层 */
+  .pop {
+    position: fixed; z-index: 30; min-width: 184px; padding: 6px;
+    background: var(--surface); border-radius: 10px;
+    box-shadow: 0 0 0 1px rgba(16, 24, 40, .09), 0 18px 44px -18px rgba(16, 24, 40, .45);
+    display: none;
+  }
+  .pop[data-open] { display: block; }
+  .pop-title { padding: 6px 8px 8px; font-size: 11px; color: var(--ink-3); }
+  .pop-row {
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 8px; border-radius: 7px; font-size: 12.5px; color: var(--ink-2); width: 100%; text-align: left;
+  }
+  .pop-row:hover { background: color-mix(in srgb, var(--ink) 5%, transparent); }
+  .pop-row i { width: 7px; height: 7px; border-radius: 50%; background: var(--st); }
+  .pop-row .box {
+    margin-left: auto; width: 15px; height: 15px; border-radius: 4px;
+    box-shadow: inset 0 0 0 1.5px var(--line-strong);
+    display: grid; place-items: center; color: #fff;
+  }
+  .pop-row[aria-pressed="true"] .box { background: var(--accent); box-shadow: none; }
+  .pop-row[aria-pressed="true"] .box svg { width: 10px; height: 10px; }
+  .pop-row[data-locked] { opacity: .55; cursor: default; }
+
+  .empty {
+    grid-column: 1 / -1; min-height: 320px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+    text-align: center; color: var(--ink-3); font-size: 12.5px;
+  }
+  .empty b { font-size: 13px; font-weight: 600; color: var(--ink-2); }
+  .empty .btn { margin-top: 10px; }
+
+  /* ── 响应式 ─────────────────────────────── */
+  @media (max-width: 1439px) {
+    .app { --nav-w: 196px; grid-template-columns: var(--nav-w) minmax(0, 1fr) 340px; }
+  }
+  @media (max-width: 1279px) {
+    .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+  @media (max-width: 1099px) {
+    .app { --nav-w: 188px; grid-template-columns: var(--nav-w) minmax(0, 1fr); }
+    .detail {
+      position: fixed; top: 16px; right: 16px; bottom: 16px; width: 376px; z-index: 20;
+      border-left: 0; border-radius: 14px; box-shadow: var(--drawer-shadow);
+      transform: translateX(calc(100% + 24px));
+      transition: transform .22s cubic-bezier(.2, .7, .3, 1);
+    }
+    .app[data-detail="open"] .detail { transform: none; }
+  }
+  @media (max-width: 899px) {
+    body { padding: 0; }
+    .app { --nav-w: 68px; height: 100vh; border-radius: 0; }
+    .brand { padding: 0; justify-content: center; }
+    .brand b, .nav-label, .nav-item span, .nav-item .count, .me-text { display: none; }
+    .nav-item { justify-content: center; padding: 0; }
+    .nav-item svg { width: 19px; height: 19px; }
+    .me { justify-content: center; }
+    .topbar, .statusbar { padding-inline: 14px; }
+    .grid { padding-inline: 14px; }
+  }
+  @media (max-width: 759px) {
+    .grid { grid-template-columns: minmax(0, 1fr); }
+    .detail { width: auto; left: 16px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; }
+  }
+
+  /* 收起详情：桌面上让出整列，栅格补到 4 列 */
+  @media (min-width: 1100px) {
+    .app[data-detail="closed"] { grid-template-columns: var(--nav-w) minmax(0, 1fr); }
+    .app[data-detail="closed"] .detail { display: none; }
+    .app[data-detail="closed"] .grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  }
+  @media (min-width: 1100px) and (max-width: 1439px) {
+    .app[data-detail="closed"] { grid-template-columns: var(--nav-w) minmax(0, 1fr); }
+  }
+</style>
+</head>
+<body>
+
+<div class="app" id="app">
+  <aside class="nav">
+    <div class="brand">
+      <svg class="brand-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+        <rect x="3" y="3" width="8" height="8" rx="2.2"/>
+        <rect x="13" y="3" width="8" height="8" rx="2.2"/>
+        <rect x="3" y="13" width="8" height="8" rx="2.2"/>
+        <rect x="13" y="13" width="8" height="8" rx="2.2"/>
+      </svg>
+      <b>Agent 工作台</b>
+    </div>
+
+    <div class="nav-scroll">
+      <div class="nav-label">工作</div>
+      <button class="nav-item" type="button" aria-current="page">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10.6 12 4l8 6.6V19a1.5 1.5 0 0 1-1.5 1.5H15V14H9v6.5H5.5A1.5 1.5 0 0 1 4 19z"/></svg>
+        <span>首页</span>
+      </button>
+      <button class="nav-item" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v11a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 17.5z"/><path d="M8 9.5h8M8 13h8M8 16.5h5"/></svg>
+        <span>我的任务</span>
+        <em class="count">19</em>
+      </button>
+      <button class="nav-item" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 7.5A2 2 0 0 1 5.5 5.5h3.2l2 2.4h7.8a2 2 0 0 1 2 2v7.6a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z"/></svg>
+        <span>项目</span>
+        <em class="count">7</em>
+      </button>
+      <button class="nav-item" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5.5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M8 3.5v4M16 3.5v4"/></svg>
+        <span>日程</span>
+      </button>
+
+      <div class="nav-label">设置</div>
+      <button class="nav-item" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h6M14 7h6M4 17h4M12 17h8"/><circle cx="12" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>
+        <span>偏好设置</span>
+      </button>
+      <button class="nav-item" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5 19 6v5.5c0 4.2-2.8 7.6-7 9-4.2-1.4-7-4.8-7-9V6z"/><path d="m9.2 12 2 2 3.6-3.8"/></svg>
+        <span>云效连接</span>
+      </button>
+    </div>
+
+    <div class="nav-foot">
+      <div class="me">
+        <div class="avatar">潘</div>
+        <div class="me-text">
+          <b>潘学林</b>
+          <span><i></i>2 分钟前同步</span>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <main class="content">
+    <header class="topbar">
+      <h1>首页</h1>
+      <div class="grow"></div>
+      <label class="search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.6-3.6"/></svg>
+        <input id="q" type="search" placeholder="搜索标题、云效号、项目" autocomplete="off" />
+      </label>
+      <button class="icon-btn" id="refresh" type="button" title="刷新" aria-label="刷新">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8 8 0 1 0-2.4 5.8"/><path d="M20 4.5V11h-6.5"/></svg>
+      </button>
+      <span class="divider" aria-hidden="true"></span>
+      <button class="icon-btn" type="button" title="通知" aria-label="通知">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M18 15.5V11a6 6 0 1 0-12 0v4.5L4.5 18h15z"/><path d="M10 20.5a2.2 2.2 0 0 0 4 0"/></svg>
+      </button>
+    </header>
+
+    <div class="statusbar" id="statusbar"></div>
+    <div class="grid" id="grid"></div>
+  </main>
+
+  <aside class="detail" id="detail" aria-label="任务详情"></aside>
+</div>
+
+<div class="pop" id="pop" role="dialog" aria-label="配置显示的状态"></div>
+
+<script>
+  const STATUS = {
+    todo:    { label: "待处理", color: "var(--s-todo)" },
+    doing:   { label: "进行中", color: "var(--s-doing)" },
+    review:  { label: "待验证", color: "var(--s-review)" },
+    done:    { label: "已完成", color: "var(--s-done)" },
+    blocked: { label: "阻塞",   color: "var(--s-blocked)" }
+  };
+
+  const TYPE = {
+    req:  { label: "需求", color: "var(--t-req)" },
+    task: { label: "任务", color: "var(--t-task)" },
+    bug:  { label: "缺陷", color: "var(--t-bug)" }
+  };
+
+  const ICON = {
+    req:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4"/></svg>',
+    task: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="m8.5 12 2.5 2.5 4.5-4.5"/></svg>',
+    bug:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="7" y="7" width="10" height="12" rx="5"/><path d="M12 7V4M7 11H4M20 11h-3M7 16H4M20 16h-3"/></svg>'
+  };
+
+  const ITEMS = [
+    {
+      id: "TG-3223", type: "bug", status: "todo", prio: "P1",
+      title: "Flight Log 附件上传后预览空白",
+      project: "crew-web-vue-3.0", branch: "auto-test", airline: "TG",
+      updated: "3 天前", comments: 4,
+      space: "Crew Web 前端", owner: "潘学林",
+      desc: "Flight Log 详情页上传附件后，点缩略图预览是空白。PDF 和图片都能复现，刷新页面偶尔恢复。影响 TG 航司机组，目前只能先下载再看。",
+      reasons: [
+        ["pass", "项目、工作区、Git 远端均已解析"],
+        ["risk", "缺少验收标准：预览成功指图片和 PDF 都能打开？"],
+        ["risk", "复现步骤不完整：未说明浏览器与附件大小"]
+      ],
+      localBranch: "auto-test", envBranch: "auto-test", dirty: false
+    },
+    {
+      id: "TG-3218", type: "req", status: "todo", prio: "P2",
+      title: "机组排班导入支持 Excel 模板",
+      project: "crew-portal", branch: "auto-test", airline: "TG",
+      updated: "5 小时前", comments: 2,
+      space: "Crew Portal", owner: "潘学林",
+      desc: "机组排班导入目前只支持 CSV，运营希望支持 Excel 模板，字段与现有 CSV 一致。验收：用提供的模板导入 200 行，全部成功且排班结果正确。",
+      reasons: [
+        ["pass", "项目、工作区、Git 远端均已解析"],
+        ["pass", "分支一致，工作区干净"],
+        ["pass", "验收标准明确"]
+      ],
+      localBranch: "auto-test", envBranch: "auto-test", dirty: false
+    },
+    {
+      id: "QQ-2044", type: "bug", status: "todo", prio: "P0",
+      title: "多语言切换后日期格式错乱",
+      project: "crew-web-vue-3.0", branch: "auto-test", airline: "QQ",
+      updated: "2 小时前", comments: 5,
+      space: "Crew Web 前端", owner: "潘学林",
+      desc: "切到阿拉伯语后，列表里的日期仍按 en-US 渲染，出现 12/31/2026 这类格式。导出文件是否受影响还没确认。",
+      reasons: [
+        ["pass", "项目、工作区、分支均已解析"],
+        ["pass", "影响范围明确：日期格式化入口"],
+        ["risk", "未说明是否影响导出文件"]
+      ],
+      localBranch: "auto-test", envBranch: "auto-test", dirty: false
+    },
+    {
+      id: "TG-3199", type: "bug", status: "todo", prio: "P1",
+      title: "签到页定位权限偶发失败",
+      project: "crew-app-front-3.0", branch: "feat-ui-refactor", airline: "TG",
+      updated: "1 天前", comments: 6,
+      space: "Crew App", owner: "潘学林",
+      desc: "签到页首次授权定位后，偶发拿不到位置，重进页面才恢复。Android 12 上概率更高。",
+      reasons: [
+        ["pass", "项目与工作区已解析"],
+        ["risk", "本地分支与环境分支 tg-release 不一致"],
+        ["risk", "工作区有未提交改动"]
+      ],
+      localBranch: "feat-ui-refactor", envBranch: "tg-release", dirty: true
+    },
+    {
+      id: "QQ-2031", type: "req", status: "todo", prio: "P2",
+      title: "排班规则增加 QQ 航司例外",
+      project: "crew-portal", branch: "auto-test", airline: "QQ",
+      updated: "4 天前", comments: 3,
+      space: "Crew Portal", owner: "潘学林",
+      desc: "排班规则需要支持 QQ 航司的例外配置，优先于通用规则。需要明确优先级与冲突处理。",
+      reasons: [
+        ["pass", "项目与工作区已解析"],
+        ["risk", "缺少规则优先级与冲突处理说明"],
+        ["risk", "未说明例外规则的配置入口"]
+      ],
+      localBranch: "auto-test", envBranch: "auto-test", dirty: false
+    },
+    {
+      id: "CAO-118", type: "req", status: "todo", prio: "P1",
+      title: "货运单附件支持批量下载",
+      project: "crew-web-vue-3.0", branch: "cao-release", airline: "CAO",
+      updated: "3 天前", comments: 2,
+      space: "Crew Web 前端", owner: "潘学林",
+      desc: "货运单附件要支持勾选多个后打包下载。需要确认打包格式与大小上限。",
+      reasons: [
+        ["pass", "项目与工作区已解析"],
+        ["block", "环境分支 cao-release 在本地不存在"],
+        ["risk", "未说明打包格式与大小上限"]
+      ],
+      localBranch: "auto-test", envBranch: "cao-release", dirty: false
+    },
+    {
+      id: "CAO-096", type: "task", status: "todo", prio: "P3",
+      title: "报表导出字段顺序与模板对齐",
+      project: "crew-portal", branch: "auto-test", airline: "CAO",
+      updated: "6 天前", comments: 2,
+      space: "Crew Portal", owner: "潘学林",
+      desc: "报表导出的字段顺序和运营给的模板不一致，需要按模板重排，并补一列备注。",
+      reasons: [
+        ["pass", "项目、工作区、分支均已解析"],
+        ["risk", "模板版本未确认：以哪一版为准"]
+      ],
+      localBranch: "auto-test", envBranch: "auto-test", dirty: false
+    },
+    {
+      id: "TG-3260", type: "bug", status: "todo", prio: "P2",
+      title: "排班日历在 iOS 上滚动卡顿",
+      project: "crew-app-front-3.0", branch: "auto-test", airline: "TG",
+      updated: "2 天前", comments: 3,
+      space: "Crew App", owner: "潘学林",
+      desc: "排班日历横向滑动时掉帧，iPhone 12 以下明显。怀疑是每个单元格都重新计算日期。",
+      reasons: [
+        ["pass", "项目、工作区、分支均已解析"],
+        ["risk", "未提供性能火焰图"]
+      ],
+      localBranch: "auto-test", envBranch: "auto-test", dirty: false
+    },
+    {
+      id: "TG-3402", type: "task", status: "todo", prio: "P2",
+      title: "班表打印样式适配 A4 纸张",
+      project: "crew-portal", branch: "auto-test", airline: "TG",
+      updated: "8 小时前", comments: 1,
+      space: "Crew Portal", owner: "潘学林",
+      desc: "班表打印在 A4 上会截断最后一列，需要调整打印样式表。",
+      reasons: [
+        ["pass", "项目、工作区、分支均已解析"],
+        ["risk", "未确认是否需要支持横向打印"]
+      ],
+      localBranch: "auto-test", envBranch: "auto-test", dirty: false
+    },
+    {
+      id: "QQ-2050", type: "req", status: "todo", prio: "P3",
+      title: "规则命中日志增加追踪字段",
+      project: "crewrule", branch: "dev", airline: "QQ",
+      updated: "5 天前", comments: 2,
+      space: "Crew Rule", owner: "潘学林",
+      desc: "规则命中日志需要带上 requestId 与规则版本，方便排查线上问题。",
+      reasons: [
+        ["pass", "项目、工作区、分支均已解析"],
+        ["risk", "日志表结构变更需要评估兼容"]
+      ],
+      localBranch: "dev", envBranch: "dev", dirty: false
+    },
+    {
+      id: "TG-2988", type: "task", status: "todo", prio: "P3",
+      title: "导出任务队列增加重试按钮",
+      project: "crew-server-3.0", branch: "auto-test", airline: "TG",
+      updated: "11 天前", comments: 1,
+      space: "Crew Server", owner: "潘学林",
+      desc: "导出任务失败后只能重新提交整单，希望列表里直接给一个重试入口。",
+      reasons: [
+        ["pass", "项目、工作区、分支均已解析"],
+        ["risk", "重试是否幂等需要确认"]
+      ],
+      localBranch: "auto-test", envBranch: "auto-test", dirty: false
+    },
+    {
+      id: "QQ-1976", type: "bug", status: "todo", prio: "P2",
+      title: "语言包缺失阿拉伯语月份名",
+      project: "crew-web-vue-3.0", branch: "auto-test", airline: "QQ",
+      updated: "13 天前", comments: 2,
+      space: "Crew Web 前端", owner: "潘学林",
+      desc: "阿拉伯语下日历头部的月份仍是英文缩写，语言包缺对应 key。",
+      reasons: [
+        ["pass", "项目、工作区、分支均已解析"],
+        ["pass", "缺失 key 已定位"]
+      ],
+      localBranch: "auto-test", envBranch: "auto-test", dirty: false
+    },
+    {
+      id: "TG-3501", type: "bug", status: "blocked", prio: "P0",
+      title: "生产环境导出队列积压",
+      project: "crew-server-3.0", branch: "auto-test", airline: "TG",
+      updated: "30 分钟前", comments: 5,
+      space: "Crew Server", owner: "潘学林",
+      desc: "导出队列积压了 300+ 任务，怀疑消费者进程卡死。需要先恢复服务，再定位原因。",
+      reasons: [
+        ["block", "依赖运维重启消费者进程"],
+        ["risk", "缺少队列积压与消费速率的监控指标"]
+      ],
+      localBranch: "auto-test", envBranch: "auto-test", dirty: false
+    },
+    {
+      id: "TG-3301", type: "task", status: "doing", prio: "P1",
+      title: "Flight Log 列表增加批量导出",
+      project: "crew-web-vue-3.0", branch: "auto-test", airline: "TG",
+      updated: "12 分钟前", comments: 1,
+      space: "Crew Web 前端", owner: "潘学林",
+      desc: "列表需要支持勾选多条后导出为一个文件。当前已在做导出服务封装，UI 待接。",
+      reasons: [
+        ["pass", "项目、工作区、分支均已解析"],
+        ["pass", "已有导出接口，可直接复用"]
+      ],
+      localBranch: "auto-test", envBranch: "auto-test", dirty: true
+    },
+    {
+      id: "QQ-2088", type: "bug", status: "doing", prio: "P0",
+      title: "附件下载接口偶发 502",
+      project: "crew-server-3.0", branch: "auto-test", airline: "QQ",
+      updated: "48 分钟前", comments: 4,
+      space: "Crew Server", owner: "潘学林",
+      desc: "附件下载接口偶发 502，集中在大于 20MB 的文件，重试两次通常成功。怀疑是网关超时。",
+      reasons: [
+        ["pass", "项目与工作区已解析"],
+        ["risk", "尚未拿到网关超时配置"]
+      ],
+      localBranch: "auto-test", envBranch: "auto-test", dirty: false
+    },
+    {
+      id: "CAO-109", type: "bug", status: "review", prio: "P2",
+      title: "登录页验证码 60 秒后可重复提交",
+      project: "crew-client-3.0", branch: "tg-release", airline: "CAO",
+      updated: "2 小时前", comments: 3,
+      space: "Crew Client", owner: "潘学林",
+      desc: "登录页验证码倒计时结束后，按钮仍可重复点击提交。已改完，等待 QA 在预发验证。",
+      reasons: [
+        ["pass", "改动已完成并通过本地自测"],
+        ["pass", "已提交 MR，等待预发验证"]
+      ],
+      localBranch: "tg-release", envBranch: "tg-release", dirty: false
+    },
+    {
+      id: "TG-3340", type: "req", status: "review", prio: "P3",
+      title: "报表筛选条件记忆",
+      project: "crew-portal", branch: "auto-test", airline: "TG",
+      updated: "昨天", comments: 1,
+      space: "Crew Portal", owner: "潘学林",
+      desc: "报表页的筛选条件希望下次进入时保留。已实现，待产品确认交互细节。",
+      reasons: [
+        ["pass", "实现完成，行为可复现"],
+        ["risk", "产品尚未确认「保留多久」"]
+      ],
+      localBranch: "auto-test", envBranch: "auto-test", dirty: false
+    },
+    {
+      id: "TG-3102", type: "task", status: "done", prio: "P3",
+      title: "消息中心文案统一",
+      project: "crew-web-vue-3.0", branch: "auto-test", airline: "TG",
+      updated: "6 天前", comments: 1,
+      space: "Crew Web 前端", owner: "潘学林",
+      desc: "消息中心的几处文案与其他页面不一致，已按产品给的最新文案表统一。",
+      reasons: [["pass", "已合并到 auto-test"]],
+      localBranch: "auto-test", envBranch: "auto-test", dirty: false
+    },
+    {
+      id: "QQ-2011", type: "req", status: "done", prio: "P2",
+      title: "排班规则校验补充用例",
+      project: "crewrule", branch: "dev", airline: "QQ",
+      updated: "9 天前", comments: 2,
+      space: "Crew Rule", owner: "潘学林",
+      desc: "规则引擎的边界用例补齐，已覆盖跨航司冲突与空值场景。",
+      reasons: [["pass", "用例已合入 dev 分支"]],
+      localBranch: "dev", envBranch: "dev", dirty: false
+    }
+  ];
+
+  /* 默认显示的状态，其余可通过「配置状态」加入 */
+  const visible = { todo: true, doing: true, review: false, done: true, blocked: false };
+  let active = "todo";
+  let selected = "TG-3223";
+  let query = "";
+
+  const app = document.getElementById("app");
+  const grid = document.getElementById("grid");
+  const bar = document.getElementById("statusbar");
+  const detail = document.getElementById("detail");
+  const pop = document.getElementById("pop");
+
+  const esc = (value) => String(value).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const countOf = (status) => ITEMS.filter((item) => item.status === status).length;
+
+  // 切换状态时，若当前详情不在新列表里，就跟随到第一条，避免列表和详情说两件事
+  function followActive() {
+    const list = ITEMS.filter((item) => item.status === active);
+    if (!list.some((item) => item.id === selected) && list[0]) selected = list[0].id;
+  }
+
+  function renderTabs() {
+    bar.innerHTML = Object.entries(STATUS)
+      .filter(([key]) => visible[key])
+      .map(([key, meta]) => `
+        <button class="tab" type="button" role="tab" data-status="${key}"
+          aria-selected="${key === active}" style="--st:${meta.color}">
+          <i></i>${meta.label}<b>${countOf(key)}</b>
+        </button>`)
+      .join("") + `<span class="grow"></span>
+        <button class="ghost-btn" type="button" id="config">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M5 8h9M18 8h1M5 16h3M12 16h7"/><circle cx="16" cy="8" r="2"/><circle cx="10" cy="16" r="2"/></svg>
+          配置状态
+        </button>`;
+
+    bar.querySelectorAll("[data-status]").forEach((tab) => {
+      tab.addEventListener("click", () => {
+        active = tab.dataset.status;
+        followActive();
+        renderTabs();
+        renderGrid();
+        renderDetail();
+      });
+    });
+    document.getElementById("config").addEventListener("click", (event) => openPop(event.currentTarget));
+  }
+
+  function cardHtml(item) {
+    const st = STATUS[item.status];
+    const ty = TYPE[item.type];
+    return `
+      <button class="card" type="button" data-id="${item.id}"
+        aria-current="${item.id === selected}"
+        style="--st:${st.color};--ty:${ty.color}">
+        <div class="card-top">
+          <span class="type">${ICON[item.type]}${ty.label}</span>
+          <span class="status"><i></i>${st.label}</span>
+        </div>
+        <h2 class="card-title">${esc(item.title)}</h2>
+        <div class="card-meta">
+          <span class="serial">${item.id}</span><span class="sep">·</span>
+          <span>${item.airline}</span><span class="sep">·</span>
+          <span class="ell">${item.project}</span>
+        </div>
+        <div class="card-foot">
+          <span class="prio" data-p="${item.prio}">${item.prio}</span>
+          <span class="pill">${item.branch}</span>
+          <span class="grow"></span>
+          ${item.comments ? `<span class="cmt"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 12a7.5 7.5 0 0 1-11 6.6L4 20l1.4-4.4A7.5 7.5 0 1 1 20 12z"/></svg>${item.comments}</span>` : ""}
+          <span>${item.updated}</span>
+        </div>
+      </button>`;
+  }
+
+  function renderGrid() {
+    const text = query.trim().toLowerCase();
+    const list = ITEMS.filter((item) => item.status === active)
+      .filter((item) => !text || (item.title + item.id + item.project + item.airline).toLowerCase().includes(text));
+
+    grid.innerHTML = list.length
+      ? list.map(cardHtml).join("")
+      : `<div class="empty">
+           <b>没有匹配的任务</b>
+           <span>换个关键词，或清除当前的搜索条件</span>
+           <button class="btn" type="button" id="clearSearch">清除搜索</button>
+         </div>`;
+
+    const clear = grid.querySelector("#clearSearch");
+    if (clear) clear.addEventListener("click", () => {
+      query = "";
+      document.getElementById("q").value = "";
+      renderGrid();
+    });
+
+    grid.querySelectorAll(".card").forEach((card) => {
+      card.addEventListener("click", () => { selected = card.dataset.id; renderGrid(); renderDetail(); openDetail(); });
+    });
+  }
+
+  function renderDetail() {
+    const item = ITEMS.find((entry) => entry.id === selected);
+    if (!item) return;
+
+    const st = STATUS[item.status];
+    const ty = TYPE[item.type];
+    const drift = item.localBranch !== item.envBranch;
+
+    detail.style.setProperty("--st", st.color);
+
+    const chains = [
+      ["云效空间", item.space, "已确认", ""],
+      ["代码项目", item.project, "enabled", ""],
+      ["本地目录", `pier/${item.project}${item.workspaceSuffix || ""}`, "存在", ""],
+      ["环境分支", item.envBranch, "环境表", ""],
+      ["本地分支", item.localBranch, drift ? "不一致" : "一致", drift ? "warn" : ""],
+      ["工作区", item.dirty ? "dirty" : "clean", item.dirty ? "有改动" : "干净", item.dirty ? "warn" : ""]
+    ];
+
+    detail.innerHTML = `
+      <div class="detail-head">
+        <div class="detail-top">
+          <span class="type" style="--ty:${ty.color}">${ICON[item.type]}${ty.label}</span>
+          <span class="status"><i></i>${st.label}</span>
+          <span class="grow"></span>
+          <button class="icon-btn" type="button" id="closeDetail" title="收起详情" aria-label="收起详情" style="box-shadow:none;background:color-mix(in srgb, var(--ink) 5%, transparent)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="m14 6-6 6 6 6"/></svg>
+          </button>
+        </div>
+        <h2>${esc(item.title)}</h2>
+        <div class="detail-sub">
+          <span class="serial">${item.id}</span><span class="sep">·</span>
+          <span>${item.airline}</span><span class="sep">·</span>
+          <span>${item.updated}更新</span>
+        </div>
+      </div>
+
+      <div class="detail-body">
+        <div class="section">
+          <div class="props">
+            <div class="prop"><span>项目</span><b class="mono">${item.project}</b></div>
+            <div class="prop"><span>分支</span><b class="mono">${item.branch}</b></div>
+            <div class="prop"><span>负责人</span><b>${item.owner}</b></div>
+            <div class="prop"><span>优先级</span><b>${item.prio}</b></div>
+          </div>
+        </div>
+
+        <div class="section">
+          <h3>描述</h3>
+          <div class="prose"><p>${esc(item.desc)}</p></div>
+        </div>
+
+        <div class="section">
+          <h3>可做性</h3>
+          <div class="reasons">
+            ${item.reasons.map(([level, text]) => `<div class="reason" data-level="${level}"><i></i><span>${esc(text)}</span></div>`).join("")}
+          </div>
+        </div>
+
+        <div class="section">
+          <h3>映射</h3>
+          <div class="chain">
+            ${chains.map(([k, v, s, state]) => `<div class="chain-row" data-state="${state}"><span class="k">${k}</span><span class="v">${esc(v)}</span><span class="s">${s}</span></div>`).join("")}
+          </div>
+        </div>
+      </div>
+
+      <div class="detail-foot">
+        <button class="btn" type="button">打开云效</button>
+        <button class="btn" type="button" data-variant="quiet">复制编号</button>
+        <span class="grow"></span>
+        <button class="btn" type="button" data-variant="primary">开始处理</button>
+      </div>`;
+
+    detail.querySelector("#closeDetail").addEventListener("click", closeDetail);
+  }
+
+  function openDetail() { app.dataset.detail = "open"; }
+  function closeDetail() { app.dataset.detail = "closed"; }
+
+  function openPop(anchor) {
+    const box = anchor.getBoundingClientRect();
+    pop.innerHTML = `<div class="pop-title">显示在首页的状态</div>` +
+      Object.entries(STATUS).map(([key, meta]) => `
+        <button class="pop-row" type="button" data-key="${key}"
+          aria-pressed="${visible[key]}" ${key === "todo" ? "data-locked" : ""}
+          style="--st:${meta.color}">
+          <i></i>${meta.label}
+          <span class="box">${visible[key] ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 4.5 4.5L19 7"/></svg>' : ""}</span>
+        </button>`).join("");
+
+    pop.dataset.open = "1";
+    pop.style.top = box.bottom + 8 + "px";
+    pop.style.left = Math.max(12, box.right - pop.offsetWidth) + "px";
+
+    pop.querySelectorAll(".pop-row").forEach((row) => {
+      if (row.hasAttribute("data-locked")) return;
+      row.addEventListener("click", () => {
+        const key = row.dataset.key;
+        const remaining = Object.entries(visible).filter(([k, v]) => v && k !== key).length;
+        if (visible[key] && remaining === 0) return;
+        visible[key] = !visible[key];
+        if (!visible[active]) active = "todo";
+        followActive();
+        openPop(anchor);
+        renderTabs();
+        renderGrid();
+        renderDetail();
+      });
+    });
+  }
+
+  document.addEventListener("click", (event) => {
+    if (!pop.hasAttribute("data-open")) return;
+    if (pop.contains(event.target) || event.target.closest("#config")) return;
+    delete pop.dataset.open;
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") { delete pop.dataset.open; if (window.innerWidth < 1100) closeDetail(); }
+  });
+
+  document.getElementById("q").addEventListener("input", (event) => {
+    query = event.target.value;
+    renderGrid();
+  });
+
+  document.getElementById("refresh").addEventListener("click", (event) => {
+    const button = event.currentTarget;
+    if (button.hasAttribute("data-spin")) return;
+    button.setAttribute("data-spin", "");
+    window.setTimeout(() => button.removeAttribute("data-spin"), 900);
+  });
+
+  renderTabs();
+  renderGrid();
+  renderDetail();
+</script>
+</body>
+</html>

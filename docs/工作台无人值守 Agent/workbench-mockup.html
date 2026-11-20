@@ -1,0 +1,1134 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>云效工作台 · opencode 桌面端原型</title>
+<style>
+  :root {
+    color-scheme: light;
+    --bg-deep: #ececee;
+    --bg-base: #ffffff;
+    --bg-layer-01: #f4f5f6;
+    --bg-layer-02: #eaecEE;
+    --text-base: #17181a;
+    --text-muted: #5a6068;
+    --text-faint: #6f757d;
+    --text-accent: #1d4ed8;
+    --border-base: rgba(0, 0, 0, .08);
+    --border-strong: rgba(0, 0, 0, .16);
+    --hover: rgba(0, 0, 0, .035);
+    --pressed: rgba(0, 0, 0, .06);
+    --accent: #2563eb;
+    --accent-solid: #2563eb;
+    --accent-soft: rgba(37, 99, 235, .10);
+    --success-bg: #e7f5ec;
+    --success-fg: #146b3a;
+    --warning-bg: #fdf3e1;
+    --warning-fg: #7a4a00;
+    --danger-bg: #fdeceb;
+    --danger-fg: #9c1f16;
+    --shadow-raised: 0 0 0 .5px rgba(0, 0, 0, .10), 0 1px 2px -1px rgba(0, 0, 0, .10), 0 8px 24px -8px rgba(0, 0, 0, .12);
+    --shadow-floating: 0 8px 32px -8px rgba(0, 0, 0, .28), 0 0 0 .5px rgba(0, 0, 0, .12);
+    --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    --font-mono: "SFMono-Regular", "JetBrains Mono", Menlo, Consolas, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      color-scheme: dark;
+      --bg-deep: #0a0a0b;
+      --bg-base: #141416;
+      --bg-layer-01: #1c1c1f;
+      --bg-layer-02: #232327;
+      --text-base: #f1f1f3;
+      --text-muted: #a6abb2;
+      --text-faint: #8b9198;
+      --text-accent: #7aa7ff;
+      --border-base: rgba(255, 255, 255, .09);
+      --border-strong: rgba(255, 255, 255, .18);
+      --hover: rgba(255, 255, 255, .05);
+      --pressed: rgba(255, 255, 255, .08);
+      --accent: #4d8dff;
+      --accent-solid: #2f6fe0;
+      --accent-soft: rgba(77, 141, 255, .16);
+      --success-bg: #11301f;
+      --success-fg: #77d79f;
+      --warning-bg: #2f2513;
+      --warning-fg: #e7bd72;
+      --danger-bg: #311615;
+      --danger-fg: #f39890;
+      --shadow-raised: 0 0 0 .5px rgba(255, 255, 255, .10), 0 8px 24px -8px rgba(0, 0, 0, .6);
+      --shadow-floating: 0 8px 32px -8px rgba(0, 0, 0, .7), 0 0 0 .5px rgba(255, 255, 255, .12);
+    }
+  }
+
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    padding: 10px;
+    background: var(--bg-deep);
+    color: var(--text-base);
+    font: 12px/1.5 var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    overflow: hidden;
+  }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  button { cursor: pointer; background: none; border: 0; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; border-radius: 4px; }
+  ::selection { background: var(--accent); color: #fff; }
+
+  .panel {
+    height: calc(100vh - 20px);
+    display: grid;
+    grid-template-columns: 240px minmax(0, 1fr) 400px;
+    background: var(--bg-base);
+    border-radius: 10px;
+    box-shadow: var(--shadow-raised);
+    overflow: hidden;
+  }
+
+  /* ── 左栏：项目 ─────────────────────────────── */
+  .rail { display: flex; flex-direction: column; min-height: 0; border-right: 1px solid var(--border-base); }
+  .rail-head {
+    display: flex; align-items: center; gap: 6px;
+    height: 48px; padding: 0 8px 0 14px; flex: 0 0 auto;
+  }
+  .rail-head span { font-size: 12px; color: var(--text-faint); letter-spacing: .02em; }
+  .rail-head .spacer { flex: 1; }
+  .rail-list { flex: 1; overflow: auto; padding: 0 8px 12px; }
+  .rail-item {
+    display: flex; align-items: center; gap: 8px;
+    width: 100%; height: 30px; padding: 0 8px; border-radius: 6px;
+    color: var(--text-muted); text-align: left; position: relative;
+  }
+  .rail-item:hover { background: var(--hover); color: var(--text-base); }
+  .rail-item[aria-current="true"] { background: var(--bg-layer-01); color: var(--text-base); }
+  .rail-item[aria-current="true"]::before {
+    content: ""; position: absolute; left: -8px; top: 7px; bottom: 7px; width: 2px;
+    border-radius: 0 2px 2px 0; background: var(--accent);
+  }
+  .rail-item .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+  .rail-item .n { font-family: var(--font-mono); font-size: 12px; color: var(--text-faint); }
+  .rail-sep { height: 1px; margin: 8px; background: var(--border-base); }
+
+  /* ── 中栏 ─────────────────────────────────── */
+  .main { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+
+  .bar { display: flex; align-items: center; gap: 8px; height: 48px; padding: 0 12px; flex: 0 0 auto; }
+  .seg { display: inline-flex; gap: 2px; padding: 2px; background: var(--bg-layer-01); border-radius: 7px; }
+  .seg button {
+    display: inline-flex; align-items: center; gap: 6px;
+    height: 24px; padding: 0 10px; border-radius: 5px;
+    color: var(--text-muted); font-size: 12px;
+  }
+  .seg button:hover { color: var(--text-base); }
+  .seg button[aria-selected="true"] {
+    background: var(--bg-base); color: var(--text-base);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, .08);
+  }
+  .bar .spacer { flex: 1; }
+
+  .icon-btn {
+    display: inline-grid; place-items: center;
+    width: 26px; height: 26px; border-radius: 6px; color: var(--text-muted);
+  }
+  .icon-btn:hover { background: var(--hover); color: var(--text-base); }
+  .icon-btn svg { width: 14px; height: 14px; }
+  .icon-btn.spinning svg { animation: spin .9s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .sync { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted); white-space: nowrap; }
+  .sync i { width: 6px; height: 6px; border-radius: 50%; background: var(--success-fg); flex: 0 0 auto; }
+  .sync[data-state="stale"] i { background: var(--warning-fg); }
+  .sync[data-state="error"] i { background: var(--danger-fg); }
+
+  .auto { display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 8px; border-radius: 6px; color: var(--text-muted); font-size: 12px; }
+  .auto:hover { background: var(--hover); }
+  .switch { width: 28px; height: 16px; border-radius: 8px; background: var(--border-strong); padding: 2px; display: flex; flex: 0 0 auto; }
+  .switch::after { content: ""; width: 12px; height: 12px; border-radius: 50%; background: #fff; transition: transform .14s ease; }
+  .switch[aria-pressed="true"] { background: var(--accent); }
+  .switch[aria-pressed="true"]::after { transform: translateX(12px); }
+
+  /* ── 统计条 ───────────────────────────────── */
+  .stats { display: flex; align-items: flex-end; gap: 0; padding: 2px 12px 0; flex: 0 0 auto; }
+  .stat {
+    flex: 1; min-width: 0; display: flex; align-items: baseline; gap: 7px;
+    padding: 4px 10px 8px; border-left: 1px solid var(--border-base); text-align: left;
+  }
+  .stat:first-child { border-left: 0; padding-left: 0; }
+  .stat b { font-size: 20px; font-weight: 550; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+  .stat span { font-size: 12px; color: var(--text-muted); white-space: nowrap; }
+  .stat:hover b { color: var(--text-accent); }
+  .stat[aria-pressed="true"] b { color: var(--text-accent); }
+  .stat[aria-pressed="true"] span { color: var(--text-base); }
+  .stat b.zero { color: var(--text-faint); }
+
+  .dist { display: flex; height: 3px; margin: 0 12px; border-radius: 2px; overflow: hidden; background: var(--bg-layer-02); flex: 0 0 auto; }
+  .dist i { display: block; height: 100%; }
+  .dist i[data-tone="ready"] { background: var(--success-fg); }
+  .dist i[data-tone="partial"] { background: #d69a2a; }
+  .dist i[data-tone="blocked"] { background: var(--danger-fg); }
+
+  /* ── 筛选 ─────────────────────────────────── */
+  .filters {
+    display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+    padding: 10px 12px; border-bottom: 1px solid var(--border-base); flex: 0 0 auto;
+  }
+  [data-sort] { margin-left: auto; }
+  /* 左栏可见时，项目筛选由左栏承担，不再重复放一个 chip */
+  @media (min-width: 1024px) { .filters [data-chip="project"] { display: none; } }
+  .search {
+    flex: 1 1 180px; min-width: 0; max-width: 240px;
+    display: flex; align-items: center; gap: 6px;
+    height: 28px; padding: 0 8px; border-radius: 6px;
+    border: 1px solid var(--border-base); background: var(--bg-base); color: var(--text-faint);
+  }
+  .search:focus-within { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
+  .search svg { width: 13px; height: 13px; flex: 0 0 auto; }
+  .search input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; font-size: 12px; color: var(--text-base); }
+
+  .chip {
+    display: inline-flex; align-items: center; gap: 5px;
+    height: 28px; padding: 0 8px; border-radius: 6px;
+    border: 1px solid var(--border-base); color: var(--text-muted); font-size: 12px; white-space: nowrap;
+  }
+  .chip:hover { background: var(--hover); color: var(--text-base); }
+  .chip[aria-pressed="true"] { background: var(--accent-soft); border-color: transparent; color: var(--text-accent); }
+  .chip .n { font-family: var(--font-mono); font-size: 12px; opacity: .75; }
+  .chip svg { width: 12px; height: 12px; opacity: .7; }
+
+  .filters .spacer { flex: 1; }
+  .check { display: inline-flex; align-items: center; gap: 6px; color: var(--text-muted); font-size: 12px; white-space: nowrap; }
+  .check input { accent-color: var(--accent); margin: 0; }
+
+  /* ── 列表 ─────────────────────────────────── */
+  .list { flex: 1; min-height: 0; overflow: auto; }
+  .row {
+    display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: center;
+    width: 100%; height: 56px; padding: 0 12px; text-align: left;
+    border-bottom: 1px solid var(--border-base); background: transparent; position: relative;
+  }
+  .row:hover { background: var(--hover); }
+  .row[aria-current="true"] { background: var(--bg-layer-01); }
+  .row[aria-current="true"]::before {
+    content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 2px; background: var(--accent);
+  }
+  .row-main { min-width: 0; }
+  .row-line1 { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .serial { font-family: var(--font-mono); font-size: 12px; color: var(--text-muted); flex: 0 0 auto; }
+  .prio { font-family: var(--font-mono); font-size: 12px; color: var(--text-faint); flex: 0 0 auto; }
+  .prio[data-p="P0"] { color: var(--danger-fg); }
+  .title { font-size: 14px; line-height: 1.4; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .row-line2 { display: flex; align-items: center; gap: 6px; margin-top: 2px; font-size: 12px; color: var(--text-muted); min-width: 0; }
+  .row-line2 .sep { color: var(--border-strong); }
+  .row-line2 .ell { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  .tag {
+    display: inline-flex; align-items: center; height: 20px; padding: 0 6px;
+    border-radius: 4px; font-size: 12px; font-weight: 500; white-space: nowrap;
+  }
+  .tag[data-tone="ready"] { background: var(--success-bg); color: var(--success-fg); }
+  .tag[data-tone="partial"] { background: var(--warning-bg); color: var(--warning-fg); }
+  .tag[data-tone="blocked"] { background: var(--danger-bg); color: var(--danger-fg); }
+  .tag[data-tone="plain"] { background: var(--bg-layer-01); color: var(--text-muted); font-weight: 400; }
+  .tag[data-tone="manual"] { border: 1px dashed var(--border-strong); color: var(--text-faint); font-weight: 400; }
+
+  .empty { padding: 48px 16px; text-align: center; color: var(--text-muted); font-size: 12px; }
+
+  /* ── 详情 ─────────────────────────────────── */
+  .detail { display: flex; flex-direction: column; min-height: 0; border-left: 1px solid var(--border-base); }
+  .detail-head { padding: 14px 16px 12px; border-bottom: 1px solid var(--border-base); flex: 0 0 auto; }
+  .detail-top { display: flex; align-items: center; gap: 8px; }
+  .detail-top .spacer { flex: 1; }
+  .detail-head h2 { margin: 8px 0 0; font-size: 16px; font-weight: 500; line-height: 1.45; letter-spacing: -.01em; }
+  .detail-meta { margin-top: 6px; display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted); flex-wrap: wrap; }
+
+  .tabs { display: flex; padding: 0 10px; border-bottom: 1px solid var(--border-base); flex: 0 0 auto; }
+  .tabs button { position: relative; height: 36px; padding: 0 8px; font-size: 12px; color: var(--text-muted); }
+  .tabs button:hover { color: var(--text-base); }
+  .tabs button[aria-selected="true"] { color: var(--text-base); }
+  .tabs button[aria-selected="true"]::after {
+    content: ""; position: absolute; left: 6px; right: 6px; bottom: -1px; height: 2px;
+    border-radius: 2px; background: var(--accent);
+  }
+
+  .detail-body { flex: 1; min-height: 0; overflow: auto; padding: 14px 16px 20px; }
+  .detail-foot {
+    flex: 0 0 auto; display: flex; align-items: center; gap: 8px;
+    padding: 10px 16px; border-top: 1px solid var(--border-base);
+  }
+
+  .kv { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 6px 10px; }
+  .kv dt { color: var(--text-faint); font-size: 12px; }
+  .kv dd { margin: 0; font-size: 12px; min-width: 0; overflow-wrap: anywhere; }
+  .kv dd.mono { font-family: var(--font-mono); font-size: 12px; }
+
+  .section { margin-top: 16px; }
+  .label { font-size: 12px; color: var(--text-faint); margin-bottom: 6px; }
+  .desc { font-size: 13px; line-height: 1.7; overflow-wrap: anywhere; }
+  .desc p { margin: 0 0 6px; }
+  .desc p:last-child { margin: 0; }
+
+  .reasons { display: grid; gap: 2px; }
+  .reason { display: flex; gap: 8px; align-items: flex-start; font-size: 12px; line-height: 1.6; color: var(--text-muted); }
+  .reason i { width: 6px; height: 6px; border-radius: 50%; margin-top: 6px; flex: 0 0 auto; background: var(--text-faint); }
+  .reason[data-level="pass"] i { background: var(--success-fg); }
+  .reason[data-level="risk"] i { background: #d69a2a; }
+  .reason[data-level="block"] i { background: var(--danger-fg); }
+
+  .missing {
+    display: flex; gap: 8px; align-items: flex-start;
+    padding: 8px 10px; margin-bottom: 6px; border-radius: 6px;
+    background: var(--warning-bg); color: var(--warning-fg); font-size: 12px; line-height: 1.55;
+  }
+  .missing:last-child { margin-bottom: 0; }
+  .missing::before { content: "!"; font-weight: 700; flex: 0 0 auto; }
+
+  .chain { display: grid; }
+  .chain-row {
+    position: relative; display: grid; grid-template-columns: 72px minmax(0, 1fr) auto;
+    gap: 8px; padding: 7px 0 7px 16px; font-size: 12px; align-items: baseline;
+  }
+  .chain-row::before {
+    content: ""; position: absolute; left: 2px; top: 12px; width: 6px; height: 6px;
+    border-radius: 50%; background: var(--success-fg);
+  }
+  .chain-row::after {
+    content: ""; position: absolute; left: 4.5px; top: 21px; bottom: -2px; width: 1px; background: var(--border-base);
+  }
+  .chain-row:last-child::after { display: none; }
+  .chain-row[data-state="warn"]::before { background: #d69a2a; }
+  .chain-row[data-state="bad"]::before { background: var(--danger-fg); }
+  .chain-row .k { color: var(--text-faint); }
+  .chain-row .v { color: var(--text-base); overflow-wrap: anywhere; }
+  .chain-row .s { color: var(--text-muted); white-space: nowrap; }
+  .chain-row[data-state="warn"] .s { color: var(--warning-fg); }
+  .chain-row[data-state="bad"] .s { color: var(--danger-fg); }
+  .chain-row .v b { font-weight: 500; }
+
+  .comment { padding: 8px 0; border-bottom: 1px solid var(--border-base); }
+  .comment:last-child { border-bottom: 0; }
+  .comment-head { display: flex; gap: 8px; align-items: baseline; font-size: 12px; color: var(--text-faint); }
+  .comment-head b { font-size: 12px; font-weight: 500; color: var(--text-base); }
+  .comment p { margin: 4px 0 0; font-size: 13px; line-height: 1.65; color: var(--text-base); }
+
+  .files { display: grid; gap: 6px; }
+  .file { display: flex; align-items: center; gap: 8px; padding: 7px 9px; border: 1px solid var(--border-base); border-radius: 6px; font-size: 12px; }
+  .file .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .file .size { color: var(--text-faint); white-space: nowrap; }
+
+  .hint { margin-top: 12px; padding: 8px 10px; border-radius: 6px; background: var(--bg-layer-01); color: var(--text-muted); font-size: 12px; line-height: 1.55; }
+
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    height: 28px; padding: 0 10px; border-radius: 6px;
+    border: 1px solid var(--border-base); color: var(--text-base); font-size: 12px; white-space: nowrap;
+  }
+  .btn:hover { background: var(--hover); }
+  .btn[data-variant="primary"] { background: var(--accent-solid); border-color: transparent; color: #fff; }
+  .btn[data-variant="primary"]:hover { filter: brightness(1.06); }
+  .btn[data-variant="ghost"] { border-color: transparent; color: var(--text-muted); }
+  .btn:disabled { opacity: .5; cursor: not-allowed; }
+  .btn .tag { margin-left: 2px; }
+  .grow { flex: 1; }
+
+  /* ── 对话框 ───────────────────────────────── */
+  .mask {
+    position: fixed; inset: 0; z-index: 40; display: none;
+    place-items: center; background: rgba(0, 0, 0, .32);
+  }
+  .mask[data-open] { display: grid; }
+  .dialog {
+    width: 480px; max-width: calc(100vw - 32px); max-height: calc(100vh - 40px); overflow: auto;
+    background: var(--bg-base); border-radius: 12px; box-shadow: var(--shadow-floating);
+    border: 1px solid var(--border-base);
+  }
+  .dialog-head { padding: 16px 18px 10px; }
+  .dialog-head h3 { margin: 0; font-size: 14px; font-weight: 500; }
+  .dialog-head p { margin: 4px 0 0; font-size: 12px; color: var(--text-muted); }
+  .dialog-body { padding: 4px 18px 8px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .field { display: flex; flex-direction: column; gap: 4px; }
+  .field.full { grid-column: 1 / -1; }
+  .field label { font-size: 12px; color: var(--text-muted); }
+  .field input, .field select, .field textarea {
+    height: 30px; padding: 0 8px; border-radius: 6px;
+    border: 1px solid var(--border-base); background: var(--bg-base);
+    outline: 0; font-size: 12px; min-width: 0;
+  }
+  .field textarea { height: 60px; padding: 6px 8px; resize: vertical; line-height: 1.5; }
+  .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
+  .dialog-foot { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 18px 16px; }
+
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+  @media (max-width: 1279px) {
+    .panel { grid-template-columns: 208px minmax(0, 1fr) 360px; }
+  }
+  @media (max-width: 1023px) {
+    .panel { grid-template-columns: minmax(0, 1fr) 340px; }
+    .rail { display: none; }
+  }
+  @media (max-width: 899px) {
+    .panel { grid-template-columns: minmax(0, 1fr); }
+    .detail { display: none; }
+    body { padding: 0; }
+    .panel { height: 100vh; border-radius: 0; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<div class="panel">
+  <!-- 左栏：项目 -->
+  <aside class="rail" aria-label="项目">
+    <div class="rail-head">
+      <span>项目</span>
+      <div class="spacer"></div>
+      <button class="icon-btn" type="button" title="全部项目" aria-label="全部项目" data-rail="all">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+      </button>
+    </div>
+    <div class="rail-list" id="railList">
+      <button class="rail-item" type="button" aria-current="true" data-rail="all">
+        <span class="name">全部</span><span class="n" id="railAllCount">11</span>
+      </button>
+      <div class="rail-sep"></div>
+      <button class="rail-item" type="button" data-rail="crew-web-vue-3.0"><span class="name">crew-web-vue-3.0</span><span class="n">4</span></button>
+      <button class="rail-item" type="button" data-rail="crew-portal"><span class="name">crew-portal</span><span class="n">2</span></button>
+      <button class="rail-item" type="button" data-rail="crew-app-front-3.0"><span class="name">crew-app-front-3.0</span><span class="n">1</span></button>
+      <button class="rail-item" type="button" data-rail="crew-client-3.0"><span class="name">crew-client-3.0</span><span class="n">1</span></button>
+      <button class="rail-item" type="button" data-rail="crew-server-3.0"><span class="name">crew-server-3.0</span><span class="n">1</span></button>
+      <button class="rail-item" type="button" data-rail="crew-personal-backend-3.0"><span class="name">crew-personal-backend-3.0</span><span class="n">1</span></button>
+      <button class="rail-item" type="button" data-rail="crewrule"><span class="name">crewrule</span><span class="n">0</span></button>
+      <div class="rail-sep"></div>
+      <button class="rail-item" type="button" data-rail="unbound"><span class="name">未绑定</span><span class="n">1</span></button>
+    </div>
+  </aside>
+
+  <!-- 中栏 -->
+  <section class="main">
+    <div class="bar">
+      <div class="seg" role="tablist" aria-label="视图">
+        <button role="tab" aria-selected="true" type="button" data-view="workbench">工作台</button>
+        <button role="tab" aria-selected="false" type="button" data-view="sessions">最近会话</button>
+      </div>
+      <div class="spacer"></div>
+      <span class="sync" id="sync" data-state="ok"><i></i>2 分钟前</span>
+      <button class="icon-btn" id="refresh" type="button" title="立即刷新" aria-label="立即刷新">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg>
+      </button>
+      <button class="auto" id="auto" type="button" aria-pressed="true" title="自动刷新间隔">
+        <span class="switch" aria-hidden="true" data-switch></span>
+        <span id="autoText">5m</span>
+      </button>
+      <button class="icon-btn" id="add" type="button" title="手动添加工作项" aria-label="手动添加工作项">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M12 5v14M5 12h14"/></svg>
+      </button>
+    </div>
+
+    <div class="stats" id="stats">
+      <button class="stat" type="button" data-filter="all" aria-pressed="true"><b id="cAll">11</b><span>待处理</span></button>
+      <button class="stat" type="button" data-filter="ready" aria-pressed="false"><b id="cReady">5</b><span>可做</span></button>
+      <button class="stat" type="button" data-filter="partial" aria-pressed="false"><b id="cPartial">2</b><span>需澄清</span></button>
+      <button class="stat" type="button" data-filter="blocked" aria-pressed="false"><b id="cBlocked">4</b><span>阻塞</span></button>
+    </div>
+    <div class="dist" id="dist" aria-hidden="true">
+      <i data-tone="ready" style="width:45%"></i><i data-tone="partial" style="width:18%"></i><i data-tone="blocked" style="width:37%"></i>
+    </div>
+
+    <div class="filters">
+      <label class="search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input id="q" type="search" placeholder="搜索云效号、标题、项目" autocomplete="off" />
+      </label>
+      <button class="chip" type="button" data-chip="project">项目 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg></button>
+      <button class="chip" type="button" data-chip="airline">航司 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg></button>
+      <button class="chip" type="button" data-sort>优先级 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg></button>
+      <label class="check"><input type="checkbox" id="onlyUnbound" /> 只看未绑定</label>
+      <button class="icon-btn" type="button" title="按项目分组" aria-label="按项目分组" data-group-toggle>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M4 5h16M4 12h16M4 19h10"/></svg>
+      </button>
+    </div>
+
+    <div class="list" id="list">
+      <button class="row" type="button" data-serial="TG-3223" data-readiness="partial" data-project="crew-web-vue-3.0" data-airline="TG" aria-current="true">
+        <span class="row-main">
+          <span class="row-line1"><span class="serial">TG-3223</span><span class="prio" data-p="P1">P1</span><span class="title">Flight Log 附件上传后预览空白</span></span>
+          <span class="row-line2"><span class="ell">crew-web-vue-3.0 · auto-test · TG · 3 天前</span></span>
+        </span>
+        <span class="tag" data-tone="partial">需澄清</span>
+      </button>
+
+      <button class="row" type="button" data-serial="TG-3218" data-readiness="ready" data-project="crew-portal" data-airline="TG" aria-current="false">
+        <span class="row-main">
+          <span class="row-line1"><span class="serial">TG-3218</span><span class="prio" data-p="P2">P2</span><span class="title">机组排班导入支持 Excel 模板</span></span>
+          <span class="row-line2"><span class="ell">crew-portal · auto-test · TG · 5 小时前</span></span>
+        </span>
+        <span class="tag" data-tone="ready">可做</span>
+      </button>
+
+      <button class="row" type="button" data-serial="TG-3199" data-readiness="blocked" data-project="crew-app-front-3.0" data-airline="TG" aria-current="false">
+        <span class="row-main">
+          <span class="row-line1"><span class="serial">TG-3199</span><span class="prio" data-p="P1">P1</span><span class="title">签到页定位权限偶发失败</span></span>
+          <span class="row-line2"><span class="ell">crew-app-front-3.0 · feat-ui-refactor · TG · 1 天前</span></span>
+        </span>
+        <span class="tag" data-tone="blocked">阻塞</span>
+      </button>
+
+      <button class="row" type="button" data-serial="TG-3187" data-readiness="ready" data-project="crew-web-vue-3.0" data-airline="TG" aria-current="false">
+        <span class="row-main">
+          <span class="row-line1"><span class="serial">TG-3187</span><span class="prio" data-p="P3">P3</span><span class="title">消息中心文案统一</span></span>
+          <span class="row-line2"><span class="ell">crew-web-vue-3.0 · auto-test · TG · 6 天前</span></span>
+        </span>
+        <span class="tag" data-tone="ready">可做</span>
+      </button>
+
+      <button class="row" type="button" data-serial="TG-3175" data-readiness="blocked" data-project="unbound" data-airline="TG" aria-current="false">
+        <span class="row-main">
+          <span class="row-line1"><span class="serial">TG-3175</span><span class="prio" data-p="P2">P2</span><span class="title">Flight Log 导出 PDF 增加签章</span></span>
+          <span class="row-line2"><span class="ell">未绑定项目 · — · TG · 8 天前</span></span>
+        </span>
+        <span class="tag" data-tone="blocked">阻塞</span>
+      </button>
+
+      <button class="row" type="button" data-serial="QQ-2044" data-readiness="ready" data-project="crew-web-vue-3.0" data-airline="QQ" aria-current="false">
+        <span class="row-main">
+          <span class="row-line1"><span class="serial">QQ-2044</span><span class="prio" data-p="P0">P0</span><span class="title">多语言切换后日期格式错乱</span></span>
+          <span class="row-line2"><span class="ell">crew-web-vue-3.0 · auto-test · QQ · 2 小时前</span></span>
+        </span>
+        <span class="tag" data-tone="ready">可做</span>
+      </button>
+
+      <button class="row" type="button" data-serial="QQ-2031" data-readiness="partial" data-project="crew-portal" data-airline="QQ" aria-current="false">
+        <span class="row-main">
+          <span class="row-line1"><span class="serial">QQ-2031</span><span class="prio" data-p="P2">P2</span><span class="title">排班规则增加 QQ 航司例外</span></span>
+          <span class="row-line2"><span class="ell">crew-portal · auto-test · QQ · 4 天前</span></span>
+        </span>
+        <span class="tag" data-tone="partial">需澄清</span>
+      </button>
+
+      <button class="row" type="button" data-serial="QQ-2007" data-readiness="blocked" data-project="crew-server-3.0" data-airline="QQ" aria-current="false">
+        <span class="row-main">
+          <span class="row-line1"><span class="serial">QQ-2007</span><span class="prio" data-p="P1">P1</span><span class="title">附件下载接口偶发 502</span></span>
+          <span class="row-line2"><span class="ell">crew-server-3.0 · auto-test · QQ · 1 天前</span></span>
+        </span>
+        <span class="tag" data-tone="blocked">阻塞</span>
+      </button>
+
+      <button class="row" type="button" data-serial="CAO-118" data-readiness="blocked" data-project="crew-web-vue-3.0" data-airline="CAO" aria-current="false">
+        <span class="row-main">
+          <span class="row-line1"><span class="serial">CAO-118</span><span class="prio" data-p="P1">P1</span><span class="title">货运单附件支持批量下载</span></span>
+          <span class="row-line2"><span class="ell">crew-web-vue-3.0 · cao-release · CAO · 3 天前</span></span>
+        </span>
+        <span class="tag" data-tone="blocked">阻塞</span>
+      </button>
+
+      <button class="row" type="button" data-serial="CAO-109" data-readiness="ready" data-project="crew-client-3.0" data-airline="CAO" aria-current="false">
+        <span class="row-main">
+          <span class="row-line1"><span class="serial">CAO-109</span><span class="prio" data-p="P2">P2</span><span class="title">登录页验证码 60 秒后可重复提交</span></span>
+          <span class="row-line2"><span class="ell">crew-client-3.0 · tg-release · CAO · 12 天前</span></span>
+        </span>
+        <span class="tag" data-tone="ready">可做</span>
+      </button>
+
+      <button class="row" type="button" data-serial="MANUAL-1" data-readiness="ready" data-project="crew-personal-backend-3.0" data-airline="TG" aria-current="false" data-source="manual">
+        <span class="row-main">
+          <span class="row-line1"><span class="tag" data-tone="manual">手动</span><span class="prio" data-p="P2">P2</span><span class="title">清理旧版导出任务的残留队列</span></span>
+          <span class="row-line2"><span class="ell">crew-personal-backend-3.0 · auto-test · TG · 刚刚</span></span>
+        </span>
+        <span class="tag" data-tone="ready">可做</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- 右栏：详情 -->
+  <aside class="detail" aria-label="工作项详情">
+    <div class="detail-head">
+      <div class="detail-top">
+        <span class="serial" id="dSerial">TG-3223</span>
+        <span class="prio" id="dPrio" data-p="P1">P1</span>
+        <span class="tag" data-tone="plain" id="dCategory">缺陷</span>
+        <span class="spacer"></span>
+        <span class="tag" data-tone="partial" id="dReadiness">需澄清</span>
+      </div>
+      <h2 id="dTitle">Flight Log 附件上传后预览空白</h2>
+      <div class="detail-meta">
+        <span id="dAirline">TG · 泰国国际航空</span>
+        <span>·</span>
+        <span id="dStatus">待处理</span>
+        <span>·</span>
+        <span id="dUpdated">3 天前更新</span>
+      </div>
+    </div>
+
+    <div class="tabs" role="tablist" aria-label="详情">
+      <button role="tab" aria-selected="true" data-tab="overview" type="button">概览</button>
+      <button role="tab" aria-selected="false" data-tab="mapping" type="button">映射</button>
+      <button role="tab" aria-selected="false" data-tab="context" type="button">上下文</button>
+      <button role="tab" aria-selected="false" data-tab="comments" type="button" id="tabComments">评论 4</button>
+    </div>
+
+    <div class="detail-body">
+      <div data-panel="overview">
+        <dl class="kv">
+          <dt>航司</dt><dd id="kAirline">TG · 泰国国际航空</dd>
+          <dt>项目</dt><dd id="kProject">crew-web-vue-3.0</dd>
+          <dt>空间</dt><dd id="kSpace">Crew Web 前端</dd>
+          <dt>负责人</dt><dd>潘学林</dd>
+          <dt>创建</dt><dd id="kCreated">11-18 10:20</dd>
+          <dt>更新</dt><dd id="kUpdated">11-20 14:00</dd>
+        </dl>
+
+        <div class="section">
+          <div class="label">描述</div>
+          <div class="desc" id="dDesc"></div>
+        </div>
+
+        <div class="section">
+          <div class="label">可做性</div>
+          <div class="reasons" id="dReasons"></div>
+        </div>
+
+        <div class="section" id="dMissingWrap">
+          <div class="label">还缺什么</div>
+          <div id="dMissing"></div>
+        </div>
+      </div>
+
+      <div data-panel="mapping" hidden>
+        <div class="chain" id="dChain"></div>
+        <div class="hint" id="dChainHint">分支只从环境表与 code_projects 读取，解析不到就标阻塞，不猜。</div>
+        <div class="section" style="display:flex; gap:8px">
+          <button class="btn" type="button" data-hint="重新扫描本地目录与分支">重新扫描</button>
+          <button class="btn" type="button" data-hint="打开设置：项目路径绑定">去设置</button>
+        </div>
+      </div>
+
+      <div data-panel="context" hidden>
+        <div class="section">
+          <div class="label">关联工作项</div>
+          <div class="files" id="dLinks"></div>
+        </div>
+        <div class="section">
+          <div class="label">附件</div>
+          <div class="files" id="dFiles"></div>
+        </div>
+        <div class="hint">原始 JSON 只在设置打开「调试信息」时展示。</div>
+      </div>
+
+      <div data-panel="comments" hidden>
+        <div id="dComments"></div>
+      </div>
+    </div>
+
+    <div class="detail-foot">
+      <button class="btn" type="button" id="openYunxiao">打开云效</button>
+      <button class="btn" type="button" id="copySerial">复制云效号</button>
+      <span class="grow"></span>
+      <button class="btn" type="button" disabled title="V2 开放">开始处理</button>
+    </div>
+  </aside>
+</div>
+
+<!-- 手动添加 -->
+<div class="mask" id="mask" role="dialog" aria-modal="true" aria-labelledby="dlgTitle">
+  <form class="dialog" id="form">
+    <div class="dialog-head">
+      <h3 id="dlgTitle">手动添加工作项</h3>
+      <p>用于云效里还没有、或者只想自己记一条的工作。</p>
+    </div>
+    <div class="dialog-body">
+      <div class="field full">
+        <label for="fTitle">标题</label>
+        <input id="fTitle" required maxlength="200" placeholder="一句话说清要做什么" />
+      </div>
+      <div class="field">
+        <label for="fSerial">云效号</label>
+        <input id="fSerial" placeholder="可空，如 TG-3300" />
+      </div>
+      <div class="field">
+        <label for="fProject">项目</label>
+        <select id="fProject">
+          <option>crew-web-vue-3.0</option>
+          <option>crew-portal</option>
+          <option>crew-app-front-3.0</option>
+          <option>crew-client-3.0</option>
+          <option>crew-server-3.0</option>
+          <option>crew-personal-backend-3.0</option>
+          <option>crewrule</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="fWorkspace">工作区</label>
+        <select id="fWorkspace">
+          <option value="">main</option>
+          <option>-worktree</option>
+          <option>-worktree1</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="fBranch">分支</label>
+        <input id="fBranch" placeholder="空则用项目默认分支" />
+      </div>
+      <div class="field">
+        <label for="fAirline">航司</label>
+        <input id="fAirline" placeholder="如 TG" />
+      </div>
+      <div class="field">
+        <label for="fPrio">优先级</label>
+        <select id="fPrio"><option>P2</option><option>P0</option><option>P1</option><option>P3</option></select>
+      </div>
+      <div class="field full">
+        <label for="fUrl">链接</label>
+        <input id="fUrl" type="url" placeholder="https://" />
+      </div>
+      <div class="field full">
+        <label for="fNote">备注</label>
+        <textarea id="fNote" placeholder="可空"></textarea>
+      </div>
+    </div>
+    <div class="dialog-foot">
+      <button class="btn" type="button" id="cancel">取消</button>
+      <button class="btn" data-variant="primary" type="submit">添加</button>
+    </div>
+  </form>
+</div>
+
+<script>
+  const DATA = {
+    "TG-3223": {
+      category: "缺陷", airline: "TG · 泰国国际航空", status: "待处理", updated: "3 天前", created: "11-18 10:20", updatedAt: "11-20 14:00",
+      space: "Crew Web 前端", project: "crew-web-vue-3.0", branch: "auto-test", localBranch: "auto-test", dirty: false,
+      desc: "<p>Flight Log 详情页上传附件后，点缩略图预览是空白。PDF 和图片都能复现，刷新页面偶尔恢复。</p><p>影响 TG 航司机组，目前只能先下载再看。</p>",
+      reasons: [
+        ["pass", "项目、工作区、Git 远端均已解析"],
+        ["pass", "环境分支 auto-test 与本地分支一致"],
+        ["risk", "缺少验收标准：预览成功指图片和 PDF 都能打开？"],
+        ["risk", "复现步骤不完整：未说明浏览器与附件大小"]
+      ],
+      missing: ["补充验收标准：图片 / PDF 预览成功的判定", "补充复现环境：浏览器、附件类型、文件大小"],
+      links: [["TG-3150 附件预览组件重构", "父项"], ["TG-3240 预览失败增加兜底提示", "子项"]],
+      files: [["preview-blank.png", "284 KB"], ["附件预览操作.mp4", "3.1 MB"]],
+      comments: [["张三", "11-19 14:20", "已复现，TG 环境上传 2MB 图片后预览空白；PDF 也一样。"], ["李四", "11-19 16:05", "像是 blob URL 在组件卸载后被 revoke，排查一下预览组件的生命周期。"], ["潘学林", "11-20 09:12", "需要补充验收标准：图片和 PDF 的预览成功分别怎么判定。"], ["张三", "11-20 10:04", "补了，见附件里的两张截图。"]]
+    },
+    "TG-3218": {
+      category: "需求", airline: "TG · 泰国国际航空", status: "待处理", updated: "5 小时前", created: "11-17 09:12", updatedAt: "11-20 11:30",
+      space: "Crew Portal", project: "crew-portal", branch: "auto-test", localBranch: "auto-test", dirty: false,
+      desc: "<p>机组排班导入目前只支持 CSV，运营希望支持 Excel 模板，字段与现有 CSV 一致。</p><p>验收：用提供的模板导入 200 行，全部成功且排班结果正确。</p>",
+      reasons: [["pass", "项目、工作区、Git 远端均已解析"], ["pass", "分支一致，工作区干净"], ["pass", "验收标准明确"]],
+      missing: [],
+      links: [["TG-2901 排班导入 CSV 支持", "关联项"]],
+      files: [["排班导入模板.xlsx", "42 KB"]],
+      comments: [["王五", "11-20 09:40", "模板已上传，字段和 CSV 一样。"]]
+    },
+    "TG-3199": {
+      category: "缺陷", airline: "TG · 泰国国际航空", status: "待处理", updated: "1 天前", created: "11-16 15:02", updatedAt: "11-19 18:00",
+      space: "Crew App", project: "crew-app-front-3.0", branch: "tg-release", localBranch: "feat-ui-refactor", dirty: true,
+      desc: "<p>签到页首次授权定位后，偶发拿不到位置，重进页面才恢复。Android 12 上概率更高。</p>",
+      reasons: [["pass", "项目与工作区已解析"], ["risk", "本地分支 feat-ui-refactor 与环境分支 tg-release 不一致"], ["risk", "工作区有未提交改动"], ["risk", "缺少可复现的设备与系统版本"]],
+      missing: ["确认要在哪个分支修（本地在工作分支上）", "补充复现设备与系统版本"],
+      links: [],
+      files: [["logcat.txt", "18 KB"]],
+      comments: [["赵六", "11-19 10:20", "Android 12 必现，iOS 正常。"], ["潘学林", "11-19 18:00", "先确认改动应该落在 tg-release 还是工作分支。"]]
+    },
+    "TG-3187": {
+      category: "任务", airline: "TG · 泰国国际航空", status: "待处理", updated: "6 天前", created: "11-12 11:00", updatedAt: "11-14 09:00",
+      space: "Crew Web 前端", project: "crew-web-vue-3.0", branch: "auto-test", localBranch: "auto-test", dirty: false,
+      desc: "<p>消息中心的几处文案与其他页面不一致，统一成产品给的最新版本。</p>",
+      reasons: [["pass", "项目、工作区、分支均已解析"], ["pass", "改动范围明确"]],
+      missing: [],
+      links: [], files: [],
+      comments: [["产品-陈", "11-14 09:00", "文案表见附件，按表替换即可。"]]
+    },
+    "TG-3175": {
+      category: "需求", airline: "TG · 泰国国际航空", status: "待处理", updated: "8 天前", created: "11-10 14:30", updatedAt: "11-12 16:00",
+      space: "Crew Web 前端", project: "unbound", branch: "", localBranch: "", dirty: false,
+      desc: "<p>Flight Log 导出的 PDF 需要加公司签章，位置在最后一页右下角。</p>",
+      reasons: [["block", "云效空间「Crew Web 前端」尚未绑定项目"], ["risk", "缺少签章图片资源"]],
+      missing: ["绑定云效空间到项目", "补充签章图片与位置规范"],
+      links: [], files: [],
+      comments: [["潘学林", "11-12 16:00", "空间还没绑定，先在设置里配上。"]]
+    },
+    "QQ-2044": {
+      category: "缺陷", airline: "QQ · 卡塔尔航空", status: "待处理", updated: "2 小时前", created: "11-20 08:10", updatedAt: "11-20 15:10",
+      space: "Crew Web 前端", project: "crew-web-vue-3.0", branch: "auto-test", localBranch: "auto-test", dirty: false,
+      desc: "<p>切到阿拉伯语后，列表里的日期仍按 en-US 渲染，出现 12/31/2026 这类格式。</p>",
+      reasons: [["pass", "项目、工作区、分支均已解析"], ["pass", "影响范围明确：日期格式化入口"], ["risk", "未说明是否影响导出文件"]],
+      missing: ["确认导出文件里的日期是否也要跟随语言"],
+      links: [["QQ-1988 多语言资源补充", "关联项"]],
+      files: [["wrong-format.png", "96 KB"]],
+      comments: [["李四", "11-20 09:30", "应该是 dayjs locale 没跟着切。"], ["王五", "11-20 15:10", "导出先不动，先修页面。"]]
+    },
+    "QQ-2031": {
+      category: "需求", airline: "QQ · 卡塔尔航空", status: "待处理", updated: "4 天前", created: "11-15 10:00", updatedAt: "11-16 17:30",
+      space: "Crew Portal", project: "crew-portal", branch: "auto-test", localBranch: "auto-test", dirty: false,
+      desc: "<p>排班规则需要支持 QQ 航司的例外配置，优先于通用规则。</p>",
+      reasons: [["pass", "项目与工作区已解析"], ["risk", "缺少规则优先级与冲突处理说明"], ["risk", "未说明例外规则的配置入口"]],
+      missing: ["补充规则优先级与冲突处理说明", "确认配置入口在哪个页面"],
+      links: [], files: [["规则示例.xlsx", "28 KB"]],
+      comments: [["产品-陈", "11-16 17:30", "优先级：航司例外 > 通用规则，冲突时取例外。"]]
+    },
+    "QQ-2007": {
+      category: "缺陷", airline: "QQ · 卡塔尔航空", status: "待处理", updated: "1 天前", created: "11-14 09:00", updatedAt: "11-19 21:00",
+      space: "Crew Server", project: "crew-server-3.0", branch: "auto-test", localBranch: "auto-test", dirty: false,
+      desc: "<p>附件下载接口偶发 502，集中在大于 20MB 的文件，重试两次通常成功。</p>",
+      reasons: [["pass", "项目与工作区已解析"], ["block", "未定位到具体服务与网关配置"], ["risk", "缺少错误日志与发生时间"]],
+      missing: ["补充 502 发生时的网关日志", "确认是否有超时/大小限制配置"],
+      links: [["QQ-1962 附件服务拆分", "父项"]],
+      files: [["gateway-502.log", "1.2 MB"]],
+      comments: [["后端-周", "11-19 21:00", "看着像网关超时，先把 nginx 的 proxy_read_timeout 找出来。"]]
+    },
+    "CAO-118": {
+      category: "需求", airline: "CAO · 中国国际货运航空", status: "待处理", updated: "3 天前", created: "11-16 11:00", updatedAt: "11-17 15:00",
+      space: "Crew Web 前端", project: "crew-web-vue-3.0", branch: "cao-release", localBranch: "auto-test", dirty: false,
+      desc: "<p>货运单附件要支持勾选多个后打包下载。</p>",
+      reasons: [["pass", "项目与工作区已解析"], ["block", "环境分支 cao-release 在本地不存在"], ["risk", "未说明打包格式与大小上限"]],
+      missing: ["在本地拉取 cao-release 分支", "确认打包格式与大小上限"],
+      links: [], files: [],
+      comments: [["潘学林", "11-17 15:00", "cao-release 本地没有，得先 fetch。"]]
+    },
+    "CAO-109": {
+      category: "缺陷", airline: "CAO · 中国国际货运航空", status: "待处理", updated: "12 天前", created: "11-05 09:30", updatedAt: "11-08 10:00",
+      space: "Crew Client", project: "crew-client-3.0", branch: "tg-release", localBranch: "tg-release", dirty: false,
+      desc: "<p>登录页验证码倒计时结束后，按钮仍可重复点击提交。</p>",
+      reasons: [["pass", "项目、工作区、分支均已解析"], ["pass", "复现路径明确"]],
+      missing: [],
+      links: [], files: [],
+      comments: [["测试-孙", "11-08 10:00", "必现，倒计时 0 之后还能点。"]]
+    },
+    "MANUAL-1": {
+      category: "任务", airline: "TG", status: "手动", updated: "刚刚", created: "11-20 15:40", updatedAt: "11-20 15:40",
+      space: "手动添加", project: "crew-personal-backend-3.0", branch: "auto-test", localBranch: "auto-test", dirty: false,
+      desc: "<p>旧版导出任务在队列里留了十几条无主消息，需要一次性清理并加个过期策略。</p>",
+      reasons: [["pass", "手动项，项目与分支已按配置解析"], ["risk", "需要人工确认清理范围"]],
+      missing: ["确认清理范围与是否补过期策略"],
+      links: [], files: [],
+      comments: []
+    }
+  };
+
+  const q = (selector) => document.querySelector(selector);
+  const rows = () => Array.from(document.querySelectorAll(".row"));
+  const list = q("#list");
+
+  let selected = "TG-3223";
+  let filter = "all";
+  let rail = "all";
+
+  /* ── 详情渲染 ───────────────────────────── */
+  function renderDetail(serial) {
+    const d = DATA[serial];
+    if (!d) return;
+
+    q("#dSerial").textContent = serial;
+    const row = rows().find((item) => item.dataset.serial === serial);
+    const prio = row?.querySelector(".prio");
+    const readiness = row?.dataset.readiness ?? "ready";
+    const source = row?.dataset.source;
+
+    const prioEl = q("#dPrio");
+    prioEl.textContent = prio?.textContent ?? "";
+    prioEl.dataset.p = prio?.dataset.p ?? "";
+
+    q("#dCategory").textContent = d.category;
+    const readinessEl = q("#dReadiness");
+    readinessEl.textContent = readiness === "ready" ? "可做" : readiness === "partial" ? "需澄清" : "阻塞";
+    readinessEl.dataset.tone = readiness;
+
+    q("#dTitle").textContent = row?.querySelector(".title")?.textContent ?? "";
+    q("#dAirline").textContent = d.airline;
+    q("#dStatus").textContent = d.status;
+    q("#dUpdated").textContent = d.updated + "更新";
+
+    q("#kAirline").textContent = d.airline;
+    q("#kProject").textContent = d.project === "unbound" ? "未绑定" : d.project;
+    q("#kSpace").textContent = d.space;
+    q("#kCreated").textContent = d.created;
+    q("#kUpdated").textContent = d.updatedAt;
+    q("#dDesc").innerHTML = d.desc;
+
+    q("#dReasons").innerHTML = d.reasons
+      .map(([level, text]) => `<div class="reason" data-level="${level}"><i></i><span>${text}</span></div>`)
+      .join("");
+
+    const missingWrap = q("#dMissingWrap");
+    if (d.missing.length === 0) {
+      missingWrap.hidden = true;
+    } else {
+      missingWrap.hidden = false;
+      q("#dMissing").innerHTML = d.missing.map((text) => `<div class="missing">${text}</div>`).join("");
+    }
+
+    renderChain(d, serial);
+    q("#dChainHint").textContent = d.project === "unbound"
+      ? "空间未绑定项目：先在设置里建立空间到项目的映射。"
+      : d.localBranch !== d.branch
+        ? "分支不一致：V1 只标记，不自动切换。"
+        : "分支只从环境表与 code_projects 读取，解析不到就标阻塞，不猜。";
+
+    q("#dLinks").innerHTML = d.links.length
+      ? d.links.map(([name, rel]) => `<div class="file"><span class="name">${name}</span><span class="size">${rel}</span></div>`).join("")
+      : `<div class="file"><span class="name">无关联工作项</span></div>`;
+    q("#dFiles").innerHTML = d.files.length
+      ? d.files.map(([name, size]) => `<div class="file"><span class="name">${name}</span><span class="size">${size}</span></div>`).join("")
+      : `<div class="file"><span class="name">无附件</span></div>`;
+
+    q("#dComments").innerHTML = d.comments.length
+      ? d.comments.map(([who, when, text]) =>
+          `<div class="comment"><div class="comment-head"><b>${who}</b><span>${when}</span></div><p>${text}</p></div>`).join("")
+      : `<div class="empty">还没有评论</div>`;
+
+    q("#tabComments").textContent = "评论 " + d.comments.length;
+    q("#openYunxiao").hidden = source === "manual" || d.project === "unbound";
+    q("#copySerial").textContent = source === "manual" ? "复制标题" : "复制云效号";
+
+    document.querySelectorAll("[data-panel]").forEach((panel) => {
+      panel.hidden = panel.dataset.panel !== activeTab();
+    });
+  }
+
+  function renderChain(d, serial) {
+    const unbound = d.project === "unbound";
+    const drift = d.localBranch !== d.branch;
+    const workspace = unbound
+      ? "—"
+      : `/Users/user/Desktop/work/pier/${d.project}${d.workspaceSuffix ?? ""}`;
+
+    const rows = [
+      ["云效空间", d.space, unbound ? "未绑定" : "已确认", unbound ? "bad" : "ok"],
+      ["代码项目", unbound ? "—" : d.project, unbound ? "未绑定" : "enabled", unbound ? "bad" : "ok"],
+      ["本地目录", workspace, unbound ? "—" : "存在", unbound ? "bad" : "ok"],
+      ["工作区", d.workspaceSuffix ? "worktree" : "main", "可切换", "ok"],
+      ["环境分支", d.branch || "—", d.branch ? "环境表" : "缺失", d.branch ? "ok" : "bad"],
+      ["本地分支", d.localBranch || "—", drift ? "不一致" : "一致", drift ? "warn" : "ok"],
+      ["工作区状态", d.dirty ? "dirty" : "clean", d.dirty ? "有改动" : "干净", d.dirty ? "warn" : "ok"]
+    ];
+
+    q("#dChain").innerHTML = rows
+      .map(([k, v, s, state]) =>
+        `<div class="chain-row" data-state="${state}"><span class="k">${k}</span><span class="v">${v}</span><span class="s">${s}</span></div>`)
+      .join("");
+  }
+
+  /* ── tab ────────────────────────────────── */
+  let tab = "overview";
+  const activeTab = () => tab;
+
+  document.querySelectorAll(".tabs button").forEach((button) => {
+    button.addEventListener("click", () => {
+      tab = button.dataset.tab;
+      document.querySelectorAll(".tabs button").forEach((other) => {
+        other.setAttribute("aria-selected", String(other === button));
+      });
+      document.querySelectorAll("[data-panel]").forEach((panel) => {
+        panel.hidden = panel.dataset.panel !== tab;
+      });
+    });
+  });
+
+  /* ── 选中 ───────────────────────────────── */
+  function select(serial) {
+    selected = serial;
+    rows().forEach((row) => row.setAttribute("aria-current", String(row.dataset.serial === serial)));
+    renderDetail(serial);
+  }
+
+  rows().forEach((row) => row.addEventListener("click", () => select(row.dataset.serial)));
+
+  /* ── 筛选 ───────────────────────────────── */
+  function applyFilter() {
+    const text = q("#q").value.trim().toLowerCase();
+    const onlyUnbound = q("#onlyUnbound").checked;
+
+    rows().forEach((row) => {
+      const haystack = row.textContent.toLowerCase();
+      let ok = !text || haystack.includes(text);
+      if (onlyUnbound && row.dataset.project !== "unbound") ok = false;
+      if (rail !== "all" && row.dataset.project !== rail) ok = false;
+      if (filter !== "all" && row.dataset.readiness !== filter) ok = false;
+      row.hidden = !ok;
+    });
+
+    if (!rows().some((row) => !row.hidden)) {
+      list.dataset.empty = "1";
+    } else {
+      delete list.dataset.empty;
+    }
+  }
+
+  q("#q").addEventListener("input", applyFilter);
+  q("#onlyUnbound").addEventListener("change", applyFilter);
+
+  document.querySelectorAll(".stat").forEach((button) => {
+    button.addEventListener("click", () => {
+      filter = filter === button.dataset.filter ? "all" : button.dataset.filter;
+      document.querySelectorAll(".stat").forEach((other) => {
+        other.setAttribute("aria-pressed", String(other.dataset.filter === filter));
+      });
+      applyFilter();
+    });
+  });
+
+  document.querySelectorAll("[data-rail]").forEach((button) => {
+    button.addEventListener("click", () => {
+      rail = button.dataset.rail;
+      document.querySelectorAll(".rail-item").forEach((other) => {
+        other.setAttribute("aria-current", String(other === button));
+      });
+      applyFilter();
+    });
+  });
+
+  document.querySelectorAll("[data-chip]").forEach((chip) => {
+    chip.addEventListener("click", () => {
+      chip.setAttribute("aria-pressed", String(chip.getAttribute("aria-pressed") !== "true"));
+    });
+  });
+
+  /* ── 刷新 / 自动 ─────────────────────────── */
+  const sync = q("#sync");
+  q("#refresh").addEventListener("click", () => {
+    const button = q("#refresh");
+    if (button.classList.contains("spinning")) return;
+    button.classList.add("spinning");
+    sync.dataset.state = "ok";
+    sync.innerHTML = "<i></i>同步中…";
+    window.setTimeout(() => {
+      button.classList.remove("spinning");
+      sync.innerHTML = "<i></i>刚刚";
+    }, 900);
+  });
+
+  const auto = q("#auto");
+  auto.addEventListener("click", () => {
+    const on = auto.getAttribute("aria-pressed") !== "true";
+    auto.setAttribute("aria-pressed", String(on));
+    q("#autoText").textContent = on ? "5m" : "关";
+    sync.dataset.state = on ? "ok" : "stale";
+  });
+
+  /* ── 手动添加 ───────────────────────────── */
+  const mask = q("#mask");
+  q("#add").addEventListener("click", () => {
+    mask.dataset.open = "1";
+    q("#fTitle").focus();
+  });
+  const close = () => { delete mask.dataset.open; };
+  q("#cancel").addEventListener("click", close);
+  mask.addEventListener("click", (event) => { if (event.target === mask) close(); });
+  document.addEventListener("keydown", (event) => { if (event.key === "Escape") close(); });
+
+  let manualSeq = 1;
+  q("#form").addEventListener("submit", (event) => {
+    event.preventDefault();
+    const title = q("#fTitle").value.trim();
+    if (!title) return;
+
+    const project = q("#fProject").value;
+    const suffix = q("#fWorkspace").value;
+    const branch = q("#fBranch").value.trim() || "auto-test";
+    const airline = (q("#fAirline").value.trim() || "—").toUpperCase();
+    const prio = q("#fPrio").value;
+    const serial = "MANUAL-" + ++manualSeq;
+
+    DATA[serial] = {
+      category: "任务", airline, status: "手动", updated: "刚刚",
+      created: "刚刚", updatedAt: "刚刚",
+      space: "手动添加", project, branch, localBranch: branch, dirty: false, workspaceSuffix: suffix,
+      desc: "<p>" + (q("#fNote").value.trim() || title) + "</p>",
+      reasons: [["pass", "手动项，项目与分支按设置解析"], ["risk", "需要人工确认范围"]],
+      missing: [],
+      links: [], files: [], comments: []
+    };
+
+    const row = document.createElement("button");
+    row.className = "row";
+    row.type = "button";
+    row.dataset.serial = serial;
+    row.dataset.readiness = "ready";
+    row.dataset.project = project;
+    row.dataset.airline = airline;
+    row.dataset.source = "manual";
+    row.setAttribute("aria-selected", "false");
+    row.innerHTML = `<span class="row-main">
+        <span class="row-line1"><span class="tag" data-tone="manual">手动</span><span class="prio" data-p="${prio}">${prio}</span><span class="title"></span></span>
+        <span class="row-line2"><span class="ell">${project}${suffix} · ${branch} · ${airline} · 刚刚</span></span>
+      </span>
+      <span class="tag" data-tone="ready">可做</span>`;
+    row.querySelector(".title").textContent = title;
+    row.addEventListener("click", () => select(serial));
+    list.prepend(row);
+
+    recalc();
+    close();
+    q("#form").reset();
+    select(serial);
+  });
+
+  /* ── 计数与分布 ─────────────────────────── */
+  function recalc() {
+    const all = rows();
+    const count = (value) => all.filter((row) => row.dataset.readiness === value).length;
+    const total = all.length;
+    const ready = count("ready");
+    const partial = count("partial");
+    const blocked = count("blocked");
+
+    q("#cAll").textContent = total;
+    q("#cReady").textContent = ready;
+    q("#cPartial").textContent = partial;
+    q("#cBlocked").textContent = blocked;
+    q("#railAllCount").textContent = total;
+
+    [["#cReady", ready], ["#cPartial", partial], ["#cBlocked", blocked]].forEach(([selector, value]) => {
+      q(selector).classList.toggle("zero", value === 0);
+    });
+
+    const pct = (value) => (total ? (value / total) * 100 : 0);
+    q("#dist").innerHTML = `<i data-tone="ready" style="width:${pct(ready)}%"></i><i data-tone="partial" style="width:${pct(partial)}%"></i><i data-tone="blocked" style="width:${pct(blocked)}%"></i>`;
+  }
+
+  /* ── 视图切换（原型只提示） ───────────────── */
+  document.querySelectorAll('.seg button').forEach((button) => {
+    button.addEventListener("click", () => {
+      document.querySelectorAll('.seg button').forEach((other) => {
+        other.setAttribute("aria-selected", String(other === button));
+      });
+      if (button.dataset.view === "sessions") {
+        sync.innerHTML = "<i></i>切到最近会话（原型不实现）";
+        window.setTimeout(() => { sync.innerHTML = "<i></i>2 分钟前"; }, 1200);
+      }
+    });
+  });
+
+  document.querySelectorAll("[data-hint]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const hint = q("#dChainHint");
+      const original = hint.textContent;
+      hint.textContent = button.dataset.hint;
+      window.setTimeout(() => { hint.textContent = original; }, 1400);
+    });
+  });
+
+  q("#copySerial").addEventListener("click", () => {
+    const text = q("#dSerial").textContent;
+    if (navigator.clipboard) navigator.clipboard.writeText(text).catch(() => {});
+  });
+
+  q("#openYunxiao").addEventListener("click", () => {
+    const hint = q("#dChainHint");
+    const original = hint.textContent;
+    hint.textContent = "原型：将打开云效工作项";
+    window.setTimeout(() => { hint.textContent = original; }, 1400);
+  });
+
+  recalc();
+  renderDetail(selected);
+</script>
+</body>
+</html>
