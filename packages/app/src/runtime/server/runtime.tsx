@@ -22,6 +22,7 @@ import {
   type ServerControllersEvent,
 } from "./machine"
 import { pathKey } from "@/workspaces/path-key"
+import { projectDirectory } from "@/workspaces/paths"
 import { useServerHealth } from "@/runtime/server/health"
 import { selectServerHostname } from "@/runtime/server/health-machine"
 import { createServerSdkContext } from "./client"
@@ -263,7 +264,14 @@ function createServerController(
   function withLocalMeta(project: Project): Project {
     if (project.id !== "global") return project
 
-    return { ...project, ...sync.child(project.worktree)[0].projectMeta }
+    // 迁移可能把 global 的 canonical 写成文件系统根；它不是会话目录，还会把整个磁盘算作 global。
+    // 已加载的工作区清单里有真实目录时用它，让项目名、头像和新会话目标都落在真实位置。
+    const directory = projectDirectory(project)
+
+    if (!directory) return project
+    const root = directory === project.worktree ? project : { ...project, worktree: directory }
+
+    return { ...root, ...sync.child(root.worktree)[0].projectMeta }
   }
 
   const list = createMemo(() => sync.data.project.map(withLocalMeta))

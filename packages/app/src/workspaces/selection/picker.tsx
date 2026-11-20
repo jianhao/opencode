@@ -31,7 +31,14 @@ export function useDirectoryPicker() {
       directoryPickerKind(platform.platform, input.server, servers.ownUrl()) === "native" &&
       platform.platform === "desktop"
     ) {
-      void platform.openDirectoryPickerDialog({ title: input.title, multiple: input.multiple }).then(input.onSelect)
+      void platform
+        .openDirectoryPickerDialog({
+          title: input.title,
+          multiple: input.multiple,
+          // 没有起点时 macOS 会打开上次的位置，甚至文件系统根；会话目录才是用户想找的地方。
+          defaultPath: input.location?.directory,
+        })
+        .then(input.onSelect)
 
       return
     }

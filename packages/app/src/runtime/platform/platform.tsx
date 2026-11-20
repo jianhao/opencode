@@ -7,7 +7,7 @@ import type { Bridge } from "@opencode/plugin/gui/host"
 
 type PickerPaths = string | string[] | null
 
-type OpenDirectoryPickerOptions = { title?: string; multiple?: boolean }
+type OpenDirectoryPickerOptions = { title?: string; multiple?: boolean; defaultPath?: string }
 
 type OpenAttachmentPickerOptions = {
   title?: string

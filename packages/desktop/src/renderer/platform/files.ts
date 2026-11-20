@@ -30,6 +30,7 @@ export function createDesktopFiles(api: DesktopFileAPI, os: DesktopOS) {
     return api.openDirectoryPicker({
       multiple: options?.multiple ?? false,
       title: options?.title,
+      defaultPath: options?.defaultPath,
     })
   }
 

@@ -6,11 +6,10 @@ import { useServerSDK } from "@/runtime/server/client"
 import { ServerConnection, useServers } from "@/runtime/server/registry"
 import { isServerFailed } from "@/runtime/server/health-machine"
 import { useWorkspaceLocation } from "@/workspaces/location"
-import { workspaceSelectionDestination } from "@/workspaces/paths"
 import { useTabs } from "@/shell/tabs/tabs"
 import type { PromptProjectControls, PromptServer } from "./selector"
 
-export function createComposerProjectControls(props: { draftId: string; worktree: () => string }) {
+export function createComposerProjectControls(props: { draftId: string }) {
   const servers = useServers()
   const serverSDK = useServerSDK()
   const location = useWorkspaceLocation()
@@ -48,8 +47,7 @@ export function createComposerProjectControls(props: { draftId: string; worktree
   const ready = createMemo(() =>
     servers.list.filter(
       (connection) =>
-        !!ServerConnection.http(connection) &&
-        !isServerFailed(global.servers.health[ServerConnection.key(connection)]),
+        !!ServerConnection.http(connection) && !isServerFailed(global.servers.health[ServerConnection.key(connection)]),
     ),
   )
 
@@ -71,10 +69,12 @@ export function createComposerProjectControls(props: { draftId: string; worktree
     if (!connection) return
 
     global.serverCtx(ServerConnection.key(connection))?.projects.touch(directory)
+    // 换项目时不能继承上一个项目的“新建 worktree/已有 worktree”选择：它属于旧仓库，
+    // 提交时会在新项目里建出意外的 worktree。只有明确选了工作区才沿用它。
     tabs.updateDraft(props.draftId, {
       server: ServerConnection.key(connection),
       directory,
-      worktree: workspace ?? workspaceSelectionDestination(props.worktree(), directory),
+      worktree: workspace ?? "main",
       branch: undefined,
     })
   }

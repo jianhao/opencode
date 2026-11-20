@@ -73,6 +73,21 @@ git merge upstream/dev
 
 已验证：CLI 构建 ✅ 冒烟测试通过 ✅ 内嵌 Web UI 可访问（起 `serve` 后 `GET /` 返回前端资源）✅
 
+### 同版本重打包后必须替换后台服务
+
+桌面端把内置 CLI 复制到 `~/Library/Application Support/ai.opencode.desktop/cli/<version>-<arch>/`
+再以 `serve --service` 常驻（PPID 1），退出 App **不会**停掉它。重打包版本仍是 `2.2.5` 时，
+服务注册文件里的版本也匹配，旧进程会继续执行旧文件，于是界面更新了、服务端和数据库迁移却没更新。
+fork 已加自动处理：暂存副本被替换时写 `opencode-cli.restart` 标记，下次启动先 `service stop` 再拉起新进程；
+标记在停止失败时保留，下次启动重试。手动兜底：
+
+```sh
+# 完全退出 OpenCode 后
+/Applications/OpenCode.app/Contents/Resources/opencode-cli service stop
+```
+
+启动日志里应看到 `stopped the service running the previous build` / `v2 CLI background service starting`。
+
 ### UI 改动怎么验证（不用打包 Electron）
 
 ```sh

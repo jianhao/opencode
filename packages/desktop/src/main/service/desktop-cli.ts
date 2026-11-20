@@ -21,6 +21,8 @@ export interface Resolved {
   readonly version: string
   readonly command: readonly string[]
   readonly binary?: string
+  /** This build replaced a staged executable of the same version, so a running service still executes the old one. */
+  readonly replaced?: boolean
 }
 
 export interface Interface {
@@ -89,9 +91,11 @@ const resolveBundledCli = Effect.fn("DesktopCli.resolveBundled")(function* (isol
 
   yield* Effect.logInfo("v2 CLI executable resolved", { bundled, packaged: app.isPackaged })
   const version = yield* bundledVersion(bundled)
-  const binary = app.isPackaged || isolated ? yield* installCli(bundled, version) : bundled
 
-  return { version, binary, command: [binary] }
+  const installed =
+    app.isPackaged || isolated ? yield* installCli(bundled, version) : { binary: bundled, replaced: false }
+
+  return { version, binary: installed.binary, command: [installed.binary], replaced: installed.replaced }
 })
 
 // Spawning the bundled executable for `--version` costs ~400 ms of startup on a 200 MB binary (and
@@ -158,9 +162,12 @@ const installCli = Effect.fn("DesktopCli.install")(function* (source: string, ve
   if (identity !== undefined && staged !== undefined && recorded === identity) {
     yield* Effect.logInfo("v2 CLI staged executable reused", { path: destination, version })
 
-    return destination
+    return { binary: destination, replaced: false }
   }
 
+  // A same-version rebuild replaces the staged file, but a service process started from the old one keeps running it.
+  // Leave a marker next to the executable so the next ensure stops that service before it reuses it.
+  const replaced = recorded !== undefined && identity !== undefined && recorded !== identity
   const temp = destination + `.${process.pid}.tmp`
   yield* fs.makeDirectory(directory, { recursive: true })
   yield* fs.copyFile(source, temp)
@@ -169,11 +176,18 @@ const installCli = Effect.fn("DesktopCli.install")(function* (source: string, ve
   yield* fs
     .rename(temp, destination)
     .pipe(Effect.catch((error) => fs.remove(temp, { force: true }).pipe(Effect.andThen(Effect.fail(error)))))
-  if (identity !== undefined) yield* fs.writeFileString(marker, identity).pipe(Effect.orElseSucceed(() => undefined))
-  yield* Effect.logInfo("v2 CLI executable staged", { source, path: destination, version })
 
-  return destination
+  if (identity !== undefined) yield* fs.writeFileString(marker, identity).pipe(Effect.orElseSucceed(() => undefined))
+
+  if (replaced)
+    yield* fs.writeFileString(restartMarker(destination), identity ?? "").pipe(Effect.orElseSucceed(() => undefined))
+  yield* Effect.logInfo("v2 CLI executable staged", { source, path: destination, version, replaced })
+
+  return { binary: destination, replaced }
 })
+
+/** Marks a staged executable whose running service must stop before the next ensure reuses it. */
+export const restartMarker = (binary: string) => binary + ".restart"
 
 const fileIdentity = Effect.fnUntraced(function* (file: string) {
   const fs = yield* FileSystem.FileSystem

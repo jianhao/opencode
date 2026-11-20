@@ -478,6 +478,34 @@ describe("Project.resolve", () => {
     }),
   )
 
+  it.live("replaces the global project's legacy root worktree with the resolved directory", () =>
+    Effect.gen(function* () {
+      const tmp = yield* tmpdirScoped()
+      yield* Effect.promise(() => initRepo(tmp.path))
+      const db = (yield* Database.Service).db
+      // V1 imports recorded the filesystem root for the shared global project.
+      yield* db
+        .insert(ProjectTable)
+        .values({
+          id: Project.ID.global,
+          worktree: abs("/"),
+          vcs: "git",
+          sandboxes: [],
+          time_created: 1,
+          time_updated: 1,
+          time_active: 1,
+        })
+        .run()
+      const project = yield* Project.Service
+
+      yield* project.resolve(abs(tmp.path))
+
+      expect((yield* project.list()).find((item) => item.id === Project.ID.global)?.canonical).toBe(
+        yield* real(tmp.path),
+      )
+    }),
+  )
+
   it.live("falls back to root commit when origin is missing", () =>
     Effect.gen(function* () {
       const tmp = yield* tmpdirScoped()

@@ -15,6 +15,7 @@ import { Database } from "@opencode/core/database/database"
 import { tmpdir } from "./fixture/tmpdir"
 import legacyCredentialsMigration from "@opencode/core/database/migration/20260805200742_import_legacy_credentials"
 import worktreeMigration from "@opencode/core/database/migration/20260812213948_worktree"
+import repairGlobalProjectRootMigration from "@opencode/core/database/migration/20261120120000_repair_global_project_root"
 import previousV2Migration from "@opencode/core/database/migration/20260804233008_loose_psylocke"
 import workspaceMigration from "@opencode/core/database/migration/20260808023530_workspace_domain"
 import executionClaimsMigration from "@opencode/core/database/migration/20260811161259_execution_claim_attempts"
@@ -228,6 +229,62 @@ describe("DatabaseMigration", () => {
         yield* DatabaseMigration.applyOnly(db, [dropSessionPendingMigration])
 
         expect(yield* db.all(sql`SELECT name FROM sqlite_master WHERE name LIKE 'session_pending%'`)).toEqual([])
+      }),
+    )
+  })
+
+  test.each([["/"], ["C:/"]])(
+    "replaces the global project's root worktree %p with a registered directory",
+    async (root) => {
+      await run(
+        Effect.gen(function* () {
+          const db = yield* makeDb
+          yield* db.run(sql`CREATE TABLE project (id text PRIMARY KEY, worktree text NOT NULL)`)
+          yield* db.run(sql`
+          CREATE TABLE worktree (
+            project_id text NOT NULL,
+            directory text NOT NULL,
+            strategy text,
+            time_created integer NOT NULL,
+            PRIMARY KEY (project_id, directory)
+          )
+        `)
+          yield* db.run(sql`INSERT INTO project (id, worktree) VALUES ('global', ${root}), ('other', '/repo')`)
+          yield* db.run(sql`
+          INSERT INTO worktree (project_id, directory, time_created)
+          VALUES ('global', '/repo', 1), ('global', '/workspace/recent', 2), ('other', '/elsewhere', 3)
+        `)
+
+          yield* DatabaseMigration.applyOnly(db, [repairGlobalProjectRootMigration])
+
+          expect(yield* db.all(sql`SELECT id, worktree FROM project ORDER BY id`)).toEqual([
+            { id: "global", worktree: "/workspace/recent" },
+            { id: "other", worktree: "/repo" },
+          ])
+        }),
+      )
+    },
+  )
+
+  test("leaves a global project without registered directories unchanged", async () => {
+    await run(
+      Effect.gen(function* () {
+        const db = yield* makeDb
+        yield* db.run(sql`CREATE TABLE project (id text PRIMARY KEY, worktree text NOT NULL)`)
+        yield* db.run(sql`
+          CREATE TABLE worktree (
+            project_id text NOT NULL,
+            directory text NOT NULL,
+            strategy text,
+            time_created integer NOT NULL,
+            PRIMARY KEY (project_id, directory)
+          )
+        `)
+        yield* db.run(sql`INSERT INTO project (id, worktree) VALUES ('global', '/')`)
+
+        yield* DatabaseMigration.applyOnly(db, [repairGlobalProjectRootMigration])
+
+        expect(yield* db.all(sql`SELECT id, worktree FROM project`)).toEqual([{ id: "global", worktree: "/" }])
       }),
     )
   })

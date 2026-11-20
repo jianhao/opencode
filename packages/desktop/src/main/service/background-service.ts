@@ -58,6 +58,10 @@ const ensure = Effect.fn("BackgroundService.ensure")(function* (mode: Background
   const runFork = Effect.runForkWith(yield* Effect.context<FileSystem.FileSystem | Path.Path>())
   const setup = yield* prepare(mode)
 
+  // 同版本重建会替换暂存的 CLI，但已运行的服务进程仍在执行旧文件；ensure 又会按版本复用它。
+  // 启动时先停掉旧服务，新服务端（含数据库迁移）才会真正运行。
+  if (mode === "initial") yield* stopReplacedService(setup)
+
   const run = (version = setup.version) =>
     setup.client.Service.ensure({
       file: setup.file,
@@ -95,6 +99,32 @@ const ensure = Effect.fn("BackgroundService.ensure")(function* (mode: Background
     )
 
   return ready.credentials
+})
+
+// A replaced staged executable leaves a marker beside it until the service that ran the previous file is gone.
+// The marker survives a crash, so a failed stop is retried on the next launch.
+const stopReplacedService = Effect.fn("BackgroundService.stopReplaced")(function* (
+  setup: Effect.Success<ReturnType<typeof prepare>>,
+) {
+  const binary = setup.cli.binary
+
+  if (!binary) return
+  const fs = yield* FileSystem.FileSystem
+  const marker = DesktopCli.restartMarker(binary)
+  const pending = yield* fs.exists(marker).pipe(Effect.orElseSucceed(() => false))
+
+  if (!pending) return
+
+  const stopped = yield* Effect.tryPromise(() => setup.client.Service.stop({ file: setup.file, pty: "handoff" })).pipe(
+    Effect.as(true),
+    Effect.catch((error) =>
+      Effect.logWarning("failed to stop the service running the previous build", { error }).pipe(Effect.as(false)),
+    ),
+  )
+
+  if (!stopped) return
+  yield* Effect.logInfo("stopped the service running the previous build", { binary })
+  yield* fs.remove(marker).pipe(Effect.orElseSucceed(() => undefined))
 })
 
 const prepare = Effect.fn("BackgroundService.prepare")(function* (mode: BackgroundServiceMachine.ConnectMode) {

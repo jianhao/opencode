@@ -39,8 +39,11 @@ export function createHomeProjectsController(home: HomeController) {
   )
 
   function choose(conn: ServerConnection.Any) {
+    const directory = home.selection.value().directory
+
     pickDirectory({
       server: conn,
+      location: directory ? { directory } : undefined,
       title: language.t("command.project.open"),
       multiple: true,
       onSelect: (result) => home.project.add(conn, homeProjectDirectories(result)),

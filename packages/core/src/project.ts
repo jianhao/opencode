@@ -13,6 +13,7 @@ import { Git } from "./git.js"
 import { AppProcess } from "@opencode/util/process"
 import { makeGlobalNode } from "@opencode/util/effect/app-node"
 import { Hash } from "@opencode/util/hash"
+import { isRootDirectory } from "@opencode/util/path"
 import { ProjectSchema } from "./project/schema.js"
 import { ProjectTable, upsertProject } from "./project/sql.js"
 import { ProjectIcon } from "./project/icon.js"
@@ -153,11 +154,15 @@ const layer = Layer.effect(
         .returning()
         .get()
         .pipe(Effect.orDie)
-      // Clones share a project ID; only replace a canonical directory that is gone.
+      // Clones share a project ID; only replace a canonical directory that is gone or a placeholder root.
+      // global is shared by every repository without a remote or root commit, and V1 imports record the filesystem root
+      // for it. That root is no session's directory and makes path containment claim every path on the volume, so the
+      // first resolved directory replaces it.
+      const placeholder = project.id === ID.global && previous !== undefined && isRootDirectory(previous.canonical)
       const replaced =
         previous &&
         previous.canonical !== project.canonical &&
-        !(yield* fs.exists(previous.canonical).pipe(Effect.orElseSucceed(() => true)))
+        (placeholder || !(yield* fs.exists(previous.canonical).pipe(Effect.orElseSucceed(() => true))))
           ? yield* db
               .update(ProjectTable)
               .set({ worktree: project.canonical })

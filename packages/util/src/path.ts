@@ -56,6 +56,12 @@ export function comparablePath(path: string) {
   return trimmed
 }
 
+/** `/`, or a Windows drive such as `C:/`: a root is not a working directory and contains every path on its volume. */
+export function isRootDirectory(directory: string) {
+  const value = comparablePath(directory)
+  return value === "/" || /^[a-z]:\/$/i.test(value)
+}
+
 /** `child` is `parent` or inside it. Windows drive and UNC paths compare case-insensitively. */
 export function containsDirectory(parent: string, child: string) {
   const normalize = (value: string) => {

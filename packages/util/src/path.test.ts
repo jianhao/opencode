@@ -1,5 +1,12 @@
 import { describe, expect, test } from "bun:test"
-import { encodeFilePath, getDirectory, getFilename, getFilenameTruncated, truncateMiddle } from "./path.js"
+import {
+  encodeFilePath,
+  getDirectory,
+  getFilename,
+  getFilenameTruncated,
+  isRootDirectory,
+  truncateMiddle,
+} from "./path.js"
 
 describe("client paths", () => {
   test("reads POSIX and Windows paths with the same rules", () => {
@@ -36,6 +43,20 @@ describe("client paths", () => {
   test("keeps filename truncation stable", () => {
     expect(getFilenameTruncated("/repo/long-component-name.tsx", 16)).toBe("long-compon….tsx")
     expect(truncateMiddle("abcdefghijklmnop", 9)).toBe("abcd…mnop")
+  })
+
+  test.each([
+    ["/", true],
+    ["//", true],
+    ["C:/", true],
+    ["c:\\", true],
+    ["C:/repo", false],
+    ["/repo", false],
+    ["/repo/", false],
+    ["\\\\server\\share", false],
+    ["", false],
+  ])("recognizes a filesystem root in %p as %p", (path, expected) => {
+    expect(isRootDirectory(path)).toBe(expected)
   })
 
   test("truncates in the middle without overflowing small widths", () => {

@@ -52,4 +52,23 @@ describe("new session target", () => {
       }),
     ).toBeUndefined()
   })
+
+  test("never falls back to a filesystem root from a stored selection or recent tab", () => {
+    expect(
+      selectNewSessionDirectory({
+        selected: "/",
+        server: "local",
+        recent: { type: "draft", server: "local", directory: "/" },
+        project: { id: "project", worktree: "/projects/pier" },
+      }),
+    ).toBe("/projects/pier")
+
+    expect(
+      selectNewSessionDirectory({
+        server: "local",
+        recent: { type: "draft", server: "local", directory: "C:/" },
+        project: { id: "project", worktree: "C:/" },
+      }),
+    ).toBeUndefined()
+  })
 })

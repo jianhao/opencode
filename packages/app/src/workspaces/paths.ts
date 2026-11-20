@@ -1,4 +1,4 @@
-import { containsDirectory, sameDirectory } from "@opencode/util/path"
+import { containsDirectory, isRootDirectory, sameDirectory } from "@opencode/util/path"
 import type { WorkspaceDefaultDestination, WorkspaceLastUsed } from "@/settings/model"
 import type { SessionInfo, WorktreeDirectory } from "@opencode/client/promise"
 
@@ -6,6 +6,20 @@ type WorkspaceProject = {
   worktree: string
   sandboxes?: readonly string[]
   worktrees?: readonly WorktreeDirectory[]
+}
+
+/**
+ * The directory a project row stands for. The global project has no canonical directory of its own: V1 imports
+ * recorded the filesystem root, which is no session's directory. Its registered directories are the only real ones.
+ */
+export function projectDirectory(project: {
+  id?: string
+  worktree: string
+  worktrees?: readonly { directory: string }[]
+}) {
+  if (project.id !== "global" || !isRootDirectory(project.worktree)) return project.worktree
+
+  return project.worktrees?.map((item) => item.directory).find((directory) => !isRootDirectory(directory))
 }
 
 export function workspaceDirectories(project: WorkspaceProject) {

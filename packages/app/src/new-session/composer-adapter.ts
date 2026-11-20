@@ -241,7 +241,7 @@ export function createNewSessionComposerAdapter(props: {
 
   return {
     adapter,
-    project: createComposerProjectControls({ draftId: props.draftID, worktree: props.worktree }),
+    project: createComposerProjectControls({ draftId: props.draftID }),
     model,
     ready: prompt.ready,
   }

@@ -1,5 +1,6 @@
 import { startTransition } from "solid-js"
 import type { SessionInfo } from "@opencode/client/promise"
+import { isRootDirectory } from "@opencode/util/path"
 import { useGlobal } from "@/runtime/server/runtime"
 import { ServerConnection } from "@/runtime/server/registry"
 import { useTabs } from "./tabs"
@@ -11,6 +12,8 @@ export function createProjectSessionActions() {
 
   return {
     openProjectNewSession(conn: ServerConnection.Any, directory: string) {
+      // 文件系统根不是工作目录；数据修复前 global 的占位 worktree 仍可能是根，不能拿它新建会话。
+      if (isRootDirectory(directory)) return
       global.serverCtx(ServerConnection.key(conn))?.projects.touch(directory)
       void tabs.newDraft({ server: ServerConnection.key(conn), directory })
     },

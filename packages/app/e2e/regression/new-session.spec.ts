@@ -59,6 +59,35 @@ test("the new session screen does not show session details", async ({ page }) =>
   await expect(page.getByRole("button", { name: "Session details", exact: true })).toHaveCount(0)
 })
 
+test("a global project shows the draft's directory and follows a newly chosen project", async ({ page }) => {
+  const directory = "C:/OpenCode/LegacyRoot"
+  const other = project({ id: "proj_legacy_other", directory: "C:/OpenCode/LegacyOther", name: "LegacyOther" })
+  await openDraft(page, {
+    name: "LegacyRoot",
+    directory,
+    // The V1 import recorded the filesystem root as the shared global project's canonical directory.
+    project: { id: "global", canonical: "/" },
+    projects: [project({ id: "global", directory: "/", name: "" }), other],
+    // Both stay in the dialog's used group instead of behind "Other projects".
+    seed: { usedProjects: { local: ["global", "proj_legacy_other"] } },
+  })
+
+  const chip = newSessionLocation(page)
+  const path = page.locator('[data-slot="new-session-location-path"]')
+
+  // The placeholder root never replaces the directory the draft actually runs in.
+  await expect(chip.getByText("LegacyRoot", { exact: true })).toBeVisible()
+  await expect(chip.getByText("/", { exact: true })).toHaveCount(0)
+  await expect(path).toHaveText(directory)
+
+  await chip.click()
+  await page.getByRole("option", { name: /LegacyOther C:\/OpenCode\/LegacyOther/ }).click()
+
+  await expect(chip.getByText("LegacyOther", { exact: true })).toBeVisible()
+  await expect(chip.getByText("LegacyRoot", { exact: true })).toHaveCount(0)
+  await expect(path).toHaveText("C:/OpenCode/LegacyOther")
+})
+
 test("the location shortcuts choose worktrees from every state and keep cycling", async ({ page }) => {
   const existing = "C:/OpenCode/LocationShortcut/.worktrees/quiet-river"
 

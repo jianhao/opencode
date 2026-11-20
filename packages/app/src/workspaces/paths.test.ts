@@ -6,6 +6,7 @@ import {
   isWorkspaceDirectory,
   isWorkspaceSelection,
   mergeWorkspaceSessionInventory,
+  projectDirectory,
   sessionsForWorkspace,
   workspaceInventory,
   workspaceSelectionDestination,
@@ -68,6 +69,22 @@ test.each([
   ["C:///", "C:/"],
 ])("pathKey(%p) is %p", (input, expected) => {
   expect(String(pathKey(input))).toBe(expected)
+})
+
+describe("projectDirectory", () => {
+  test("uses a registered directory instead of the global project's placeholder root", () => {
+    expect(
+      projectDirectory({ id: "global", worktree: "/", worktrees: [{ directory: "/" }, { directory: "/repo" }] }),
+    ).toBe("/repo")
+    expect(projectDirectory({ id: "global", worktree: "C:/", worktrees: [{ directory: "C:/repo" }] })).toBe("C:/repo")
+  })
+
+  test("keeps a real canonical directory and reports when global has none", () => {
+    expect(projectDirectory({ id: "project", worktree: "/repo" })).toBe("/repo")
+    expect(projectDirectory({ id: "global", worktree: "/repo" })).toBe("/repo")
+    expect(projectDirectory({ id: "global", worktree: "/" })).toBeUndefined()
+    expect(projectDirectory({ id: "global", worktree: "/", worktrees: [{ directory: "/" }] })).toBeUndefined()
+  })
 })
 
 describe("isWorkspaceSelection", () => {
