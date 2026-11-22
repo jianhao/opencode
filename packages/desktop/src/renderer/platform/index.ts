@@ -8,6 +8,7 @@ import { createDesktopFiles } from "./files"
 import { createDesktopMenuAction } from "./menu"
 import { createDesktopNotify } from "./notifications"
 import { createDesktopStorage } from "./storage"
+import { createDesktopWorkbench } from "./workbench"
 
 export type DesktopWindowState = {
   id: string
@@ -55,6 +56,7 @@ export function createDesktopPlatform(api: ElectronAPI, windowState: DesktopWind
       return api.checkAppExists(appName)
     },
     plugins: createPluginBridge(),
+    workbench: createDesktopWorkbench(api),
   }
 }
 

@@ -7,6 +7,7 @@ import { DesktopRpcs } from "../shared/ipc-rpc"
 import { DragCancelEvent, IpcTransportPort } from "../shared/ipc-transport"
 import { Plugins } from "./plugin"
 import { DesktopFiles, openExternalURL } from "./files"
+import { Workbench } from "./workbench"
 import { appHandlers } from "./ipc-handlers/app"
 import { eventHandlers } from "./ipc-handlers/events"
 import { pluginHandlers } from "./ipc-handlers/plugins"
@@ -14,6 +15,7 @@ import { fileHandlers } from "./ipc-handlers/files"
 import { menuHandlers } from "./ipc-handlers/menu"
 import { storageHandlers } from "./ipc-handlers/storage"
 import { windowHandlers } from "./ipc-handlers/window"
+import { workbenchHandlers } from "./ipc-handlers/workbench"
 import { IpcPortHandoff, IpcServerProtocolLive } from "./ipc-transport"
 import { ApplicationLifecycle } from "./lifecycle"
 import { showCliInstaller } from "./native/install-cli"
@@ -24,7 +26,7 @@ import { setStorageSnapshotObserver } from "./storage/snapshot"
 import { getLastFocusedWindow } from "./windows"
 import { isRendererUrl } from "./windows/scheme"
 
-const services = Layer.mergeAll(DesktopFiles.layer, Plugins.layer)
+const services = Layer.mergeAll(DesktopFiles.layer, Plugins.layer, Workbench.layer)
 
 const handlers = Layer.mergeAll(
   appHandlers,
@@ -34,6 +36,7 @@ const handlers = Layer.mergeAll(
   menuHandlers,
   eventHandlers,
   pluginHandlers,
+  workbenchHandlers,
 )
 
 export const layer = RpcServer.layer(DesktopRpcs, { disableFatalDefects: true }).pipe(

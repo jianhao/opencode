@@ -12,7 +12,11 @@ import {
 
 const root = "/repo/opencode"
 
-const sidecar = (pid: number, ppid = 1, command = `/repo/opencode/packages/cli/src/index.ts serve --service --port 3084`) => ({
+const sidecar = (
+  pid: number,
+  ppid = 1,
+  command = `/repo/opencode/packages/cli/src/index.ts serve --service --port 3084`,
+) => ({
   pid,
   ppid,
   command,
@@ -20,7 +24,19 @@ const sidecar = (pid: number, ppid = 1, command = `/repo/opencode/packages/cli/s
 
 describe("desktop dev sidecar cleanup", () => {
   test("reclaims this repository's orphaned sidecars", () => {
-    expect(selectOrphanedSidecars([sidecar(42), sidecar(43)], root)).toEqual([42, 43])
+    expect(
+      selectOrphanedSidecars(
+        [
+          sidecar(42),
+          sidecar(
+            43,
+            1,
+            "/repo/opencode/packages/desktop/../cli/src/index.ts serve --service --hostname 0.0.0.0 --port 3084",
+          ),
+        ],
+        root,
+      ),
+    ).toEqual([42, 43])
   })
 
   test.each([
@@ -35,6 +51,10 @@ describe("desktop dev sidecar cleanup", () => {
     {
       name: "a repository with the same prefix",
       listener: sidecar(42, 1, "/repo/opencode-other/packages/cli/src/index.ts serve --service --port 3084"),
+    },
+    {
+      name: "a repository with the same prefix through a relative path",
+      listener: sidecar(42, 1, "/repo/opencode-other/packages/desktop/../cli/src/index.ts serve --service --port 3084"),
     },
     {
       name: "a different port",
@@ -57,7 +77,8 @@ describe("desktop dev sidecar cleanup", () => {
   })
 
   test("selects only the parent dev desktop app", () => {
-    const app = "/repo/opencode/packages/desktop/node_modules/.cache/opencode-dev/cache/OpenCode Dev.app/Contents/MacOS/Electron"
+    const app =
+      "/repo/opencode/packages/desktop/node_modules/.cache/opencode-dev/cache/OpenCode Dev.app/Contents/MacOS/Electron"
 
     expect(
       selectDevDesktopPids(
@@ -76,10 +97,7 @@ describe("desktop dev sidecar cleanup", () => {
     const file = join(directory, "service-local.json")
 
     try {
-      await Bun.write(
-        file,
-        JSON.stringify({ pid: 99_999_999, url: "http://0.0.0.0:3084" }),
-      )
+      await Bun.write(file, JSON.stringify({ pid: 99_999_999, url: "http://0.0.0.0:3084" }))
 
       expect(await removeStaleDevServiceRegistration(file)).toBe(true)
       expect(await Bun.file(file).exists()).toBe(false)
@@ -93,10 +111,7 @@ describe("desktop dev sidecar cleanup", () => {
     const file = join(directory, "service-local.json")
 
     try {
-      await Bun.write(
-        file,
-        JSON.stringify({ pid: process.pid, url: "http://127.0.0.1:3084" }),
-      )
+      await Bun.write(file, JSON.stringify({ pid: process.pid, url: "http://127.0.0.1:3084" }))
 
       expect(await removeStaleDevServiceRegistration(file)).toBe(false)
       expect(await Bun.file(file).exists()).toBe(true)

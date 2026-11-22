@@ -11,6 +11,7 @@ import type {
   ServerReadyData,
   TitlebarTheme,
 } from "../shared/ipc-contract"
+import type { Detail as WorkbenchDetail, Snapshot as WorkbenchSnapshot } from "../shared/ipc-rpc/workbench"
 
 export type ElectronAPI = {
   awaitInitialization(): Promise<ServerReadyData>
@@ -77,4 +78,8 @@ export type ElectronAPI = {
   setSpellcheckEnabled(enabled: boolean): Promise<void>
   recordFatalRendererError(error: FatalRendererError): Promise<void>
   setNativeTranslations(bundle: DesktopNativeBundle): Promise<void>
+  workbenchGetState(force?: boolean): Promise<WorkbenchSnapshot>
+  workbenchGetItem(id: string): Promise<WorkbenchDetail>
+  workbenchSetToken(token: string): Promise<WorkbenchSnapshot>
+  workbenchSetSettings(input: { frontendServerUrl: string; organizationId?: string }): Promise<WorkbenchSnapshot>
 }

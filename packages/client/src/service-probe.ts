@@ -47,12 +47,13 @@ export function same(left: Info, right: Info) {
 
 /** Ask a registered owner for its health and classify the answer. */
 export async function probeResult(info: Info, timeout = defaultEnsureTiming.requestTimeout) {
+  const url = localServiceURL(info.url)
   const endpoint = {
-    url: info.url,
+    url: url.toString(),
     auth: info.password === undefined ? undefined : { type: "basic", username: "opencode", password: info.password },
   } satisfies Endpoint
   const signal = AbortSignal.timeout(timeout)
-  const result = await fetch(new URL("/api/info", info.url), { headers: headers(endpoint), signal })
+  const result = await fetch(new URL("/api/info", url), { headers: headers(endpoint), signal })
     .then(async (response) => ({
       response,
       body: response.status === 404 ? undefined : ((await response.json()) as unknown),
@@ -87,6 +88,15 @@ export async function probeResult(info: Info, timeout = defaultEnsureTiming.requ
     } satisfies LocalService,
     timedOut: false,
   }
+}
+
+function localServiceURL(value: string) {
+  const url = new URL(value)
+
+  if (url.hostname === "0.0.0.0") url.hostname = "127.0.0.1"
+  if (url.hostname === "[::]" || url.hostname === "::") url.hostname = "[::1]"
+
+  return url
 }
 
 /** Create HTTP authentication headers for a service endpoint. */

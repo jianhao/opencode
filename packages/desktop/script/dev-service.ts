@@ -25,13 +25,18 @@ type DevServiceRegistration = {
 // 只认当前仓库的 dev CLI，路径边界用于排除同级前缀目录中的其他仓库。
 function isOwnedSidecar(listener: DevServiceListener, repositoryRoot: string) {
   const command = listener.command.replaceAll("\\", "/")
-  const cliDirectory = join(repositoryRoot, "packages/cli").replaceAll("\\", "/")
-  const cli = command.indexOf(cliDirectory)
-  const cliEnd = command[cli + cliDirectory.length]
+  const root = repositoryRoot.replaceAll("\\", "/")
+  const cliDirectories = [`${root}/packages/cli`, `${root}/packages/desktop/../cli`]
+
+  const ownsCli = cliDirectories.some((cliDirectory) => {
+    const cli = command.indexOf(cliDirectory)
+    const cliEnd = command[cli + cliDirectory.length]
+
+    return cli !== -1 && (cliEnd === undefined || /[\s/"']/.test(cliEnd))
+  })
 
   return (
-    cli !== -1 &&
-    (cliEnd === undefined || /[\s/"']/.test(cliEnd)) &&
+    ownsCli &&
     command.includes("serve --service") &&
     new RegExp(`(?:^|\\s)--port\\s+${DEV_SERVICE_PORT}(?:\\s|$)`).test(command)
   )
@@ -41,14 +46,10 @@ function isOwnedSidecar(listener: DevServiceListener, repositoryRoot: string) {
 export function selectOrphanedSidecars(listeners: readonly DevServiceListener[], repositoryRoot: string) {
   if (listeners.length === 0) return []
 
-  const blocked = listeners.filter(
-    (listener) => listener.ppid !== 1 || !isOwnedSidecar(listener, repositoryRoot),
-  )
+  const blocked = listeners.filter((listener) => listener.ppid !== 1 || !isOwnedSidecar(listener, repositoryRoot))
 
   if (blocked.length > 0) {
-    const owner = blocked
-      .map((listener) => `PID ${listener.pid}: ${listener.command.trim()}`)
-      .join("\n")
+    const owner = blocked.map((listener) => `PID ${listener.pid}: ${listener.command.trim()}`).join("\n")
 
     throw new Error(
       `Port ${DEV_SERVICE_PORT} is already in use. Close the owning process before starting the desktop dev app.\n${owner}`,
@@ -99,8 +100,7 @@ export async function reclaimDevServicePort(repositoryRoot: string) {
     if (!(await waitForExit(pid, 3_000))) {
       Bun.spawnSync(["kill", "-KILL", String(pid)], { stdout: "ignore", stderr: "ignore" })
 
-      if (!(await waitForExit(pid, 1_000)))
-        throw new Error(`Orphaned desktop dev sidecar PID ${pid} did not exit`)
+      if (!(await waitForExit(pid, 1_000))) throw new Error(`Orphaned desktop dev sidecar PID ${pid} did not exit`)
     }
 
     console.log(`Reclaimed orphaned desktop dev sidecar PID ${pid} on port ${DEV_SERVICE_PORT}`)
@@ -203,10 +203,10 @@ function appDataPath() {
 }
 
 function readDevServiceListeners() {
-  const result = Bun.spawnSync(
-    ["lsof", "-nP", `-iTCP:${DEV_SERVICE_PORT}`, "-sTCP:LISTEN", "-t"],
-    { stdout: "pipe", stderr: "ignore" },
-  )
+  const result = Bun.spawnSync(["lsof", "-nP", `-iTCP:${DEV_SERVICE_PORT}`, "-sTCP:LISTEN", "-t"], {
+    stdout: "pipe",
+    stderr: "ignore",
+  })
 
   const pids = [
     ...new Set(

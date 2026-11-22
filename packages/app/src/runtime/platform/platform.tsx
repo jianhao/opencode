@@ -4,6 +4,7 @@ import type { Accessor } from "solid-js"
 import type { DesktopMenuAction, DesktopZoomLevel } from "@/shell/commands/desktop-menu"
 import type { DraftStore } from "@/runtime/persistence/drafts"
 import type { Bridge } from "@opencode/plugin/gui/host"
+import type { WorkbenchBridge } from "@/workbench/types"
 
 type PickerPaths = string | string[] | null
 
@@ -137,6 +138,9 @@ type PlatformBase = {
 
   /** GUI plugin bridge to the main-process plugin host (desktop only). */
   plugins?: Bridge
+
+  /** Yunxiao workbench reads (desktop only; absent in the web build). */
+  workbench?: WorkbenchBridge
 }
 
 export type Platform = PlatformBase &

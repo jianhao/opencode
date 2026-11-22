@@ -243,6 +243,15 @@ export function createHomeSessionsController(home: HomeController) {
     }),
   )
 
+  const navigationRecords = createMemo(() =>
+    buildHomeSessionRecords({
+      sessions: indexedSessions,
+      projectDirectories: () => undefined,
+      projects: home.project.list,
+      resolveProject: (session) => home.server.focusedContext()?.projects.forSession(session),
+    }),
+  )
+
   const records = createMemo(() => allRecords().slice(0, HOME_SESSION_LIMIT))
   const groups = createMemo(() => groupSessions(records(), language))
   const prefetched = new Set<string>()
@@ -459,6 +468,8 @@ export function createHomeSessionsController(home: HomeController) {
     },
     data: {
       records,
+      allRecords,
+      navigationRecords,
       groups,
       listView: createMemo(() => selectHomeSessionsListView(load(), groups().length > 0)),
       loading: () => selectHomeSessionsSearchLoading(load()),
