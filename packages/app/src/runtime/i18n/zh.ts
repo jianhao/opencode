@@ -111,7 +111,6 @@ export const dict = {
 
   "command.input.focus": "聚焦输入框",
 
-
   "command.review.toggle": "切换审查",
 
   "command.message.previous": "上一条消息",
@@ -203,7 +202,6 @@ export const dict = {
   "provider.connect.toast.connected.title": "{{provider}} 已连接",
   "provider.connect.toast.connected.description": "现在可以使用 {{provider}} 模型了。",
 
-
   "provider.disconnect.toast.disconnected.title": "{{provider}} 已断开连接",
   "provider.disconnect.toast.disconnected.description": "{{provider}} 模型已不再可用。",
   "provider.disconnect.toast.noCredentials.description": "未找到 {{provider}} 的可移除凭据。",
@@ -267,7 +265,6 @@ export const dict = {
 
   "dialog.mcp.title": "MCP 服务器",
   "dialog.mcp.empty": "未配置 MCP 服务器",
-
 
   "dialog.fork.empty": "没有可用于创建新会话的消息",
   "dialog.handoff.title": "交接会话",
@@ -446,6 +443,11 @@ export const dict = {
   "settings.general.section.sounds": "音效",
   "settings.general.row.language.title": "语言",
   "settings.general.row.language.description": "更改 OpenCode 的显示语言",
+  "settings.general.row.interfaceMode.title": "界面布局",
+  "settings.general.row.interfaceMode.description": "选择会话切换和运行状态的呈现方式",
+  "settings.general.row.interfaceMode.top": "顶部标签页",
+  "settings.general.row.interfaceMode.side": "左侧标签页",
+  "settings.general.row.interfaceMode.inbox": "收件箱",
   "settings.general.row.shell.title": "终端 Shell",
   "settings.general.row.shell.description": "选择终端使用的 shell。兼容的 shell 也会用于智能体工具调用。",
   "settings.general.row.shell.autoDefault": "自动（默认）",
@@ -647,6 +649,11 @@ export const dict = {
   "settings.tab.extensions": "扩展",
   "settings.preferences.description": "自定义偏好、主题和默认行为",
   "settings.appearance.description": "自定义主题和字体",
+  "settings.appearance.row.iconStyle.title": "图标样式",
+  "settings.appearance.row.iconStyle.description": "选择界面图标的造型与强调方式",
+  "settings.appearance.row.iconStyle.linear": "线性",
+  "settings.appearance.row.iconStyle.duotone": "双色",
+  "settings.appearance.row.iconStyle.ink": "墨色",
   "settings.notifications.description": "选择接收通知和播放声音的时机",
   "settings.shortcuts.description": "自定义常用操作的快捷键",
   "settings.servers.description": "管理服务器连接",

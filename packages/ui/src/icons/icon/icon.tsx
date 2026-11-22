@@ -1,6 +1,7 @@
 import { createSignal, onMount, type ComponentProps, splitProps } from "solid-js"
 import { iconNames, isIconName, getIcon, type IconName } from "../catalog"
 import { getNewIcon, newIconViewBox } from "../new-icons"
+import { iconTone } from "./tones"
 import "./icon.css"
 
 const spriteID = "opencode-v2-icon-sprite"
@@ -11,15 +12,20 @@ const newSymbol = (name: IconName) => `opencode-v2-icon-new-${name}`
 
 let spriteInserted = false
 
-// The "New icons" experiment, set by the app from its settings.
-const [newIconsEnabled, setNewIconsEnabled] = createSignal(false)
+export type IconStyle = "linear" | "duotone" | "ink"
 
-export function setNewIcons(enabled: boolean) {
-  setNewIconsEnabled(enabled)
+// The app applies this from Settings > Appearance. The attribute lets CSS tune icon frames and stroke weight.
+const [currentIconStyle, setCurrentIconStyle] = createSignal<IconStyle>("duotone")
+
+export function setIconStyle(style: IconStyle) {
+  setCurrentIconStyle(style)
+
+  if (typeof document !== "undefined") document.documentElement.dataset.iconStyle = style
 }
 
-/** Whether the "New icons" experiment is on, for call sites that pick a different icon under it. */
-export const newIcons = newIconsEnabled
+export { currentIconStyle }
+
+if (typeof document !== "undefined") document.documentElement.dataset.iconStyle = currentIconStyle()
 
 function spriteContent() {
   return iconNames()
@@ -71,8 +77,8 @@ export function Icon(props: IconProps) {
   }
 
   const icon = () => getIcon(iconName())
-  // Names without new artwork keep today's under the experiment.
-  const next = () => newIconsEnabled() && getNewIcon(iconName()) !== undefined
+  // Names without redesigned artwork keep their current path until their replacement lands.
+  const next = () => getNewIcon(iconName()) !== undefined
   // New artwork is drawn on a 16px grid, so it stays at 16px where today's small icons shrink to 14px.
   const pixelSize = () => (split.size === "large" ? 20 : split.size === "small" && !next() ? 14 : 16)
   onMount(ensureSprite)
@@ -81,6 +87,8 @@ export function Icon(props: IconProps) {
     <svg
       {...rest}
       data-slot="icon-svg"
+      data-icon-style={currentIconStyle()}
+      data-icon-tone={iconTone(iconName())}
       data-directional={
         iconName() === "arrow-left" ||
         iconName() === "arrow-right" ||

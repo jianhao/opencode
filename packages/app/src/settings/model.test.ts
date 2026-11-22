@@ -36,6 +36,16 @@ describe("settings timeline detail migration", () => {
   })
 })
 
+describe("settings icon style migration", () => {
+  test("moves the retired new-icons experiment into the appearance style", () => {
+    const settings = decode({ general: { newIcons: true }, appearance: { fontSize: 14 } })
+
+    expect(settings.appearance.iconStyle).toBe("linear")
+    expect(settings.general).not.toHaveProperty("newIcons")
+    expect(decode(encode(settings))).toEqual(settings)
+  })
+})
+
 describe("settings schema", () => {
   test("keeps the values plugins copy out once and discards retired preferences", () => {
     const settings = decode({
@@ -95,7 +105,6 @@ describe("settings schema", () => {
         showTurnDiffs: false,
         backgroundActivity: "left",
         timelineWidth: "comfortable",
-        newIcons: false,
         foldUserMessages: false,
         newQuestionUI: false,
         sidebarOrganize: "list",
@@ -105,6 +114,7 @@ describe("settings schema", () => {
       },
       appearance: {
         fontSize: 14,
+        iconStyle: "duotone",
         mono: "",
         sans: "",
         terminal: "",
@@ -162,6 +172,7 @@ describe("settings schema", () => {
     })
     expect(settings.appearance).toEqual({
       fontSize: 14,
+      iconStyle: "duotone",
       mono: "Custom Mono",
       sans: "",
       terminal: "",

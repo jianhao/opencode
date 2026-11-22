@@ -10,6 +10,8 @@ import "@/settings/settings.css"
 
 const schemeOptions: ("system" | "light" | "dark")[] = ["system", "light", "dark"]
 
+const iconStyleOptions: ("linear" | "duotone" | "ink")[] = ["linear", "duotone", "ink"]
+
 const reduceMotionOptions = [
   { value: "system" as const, label: "settings.appearance.row.reduceMotion.system" as const },
   { value: "on" as const, label: "settings.appearance.row.reduceMotion.on" as const },
@@ -128,6 +130,21 @@ export const SettingsAppearance: Component = () => {
                 value={(option) => option.id}
                 label={(option) => option.name}
                 onSelect={appearance.theme.select}
+              />
+            </SettingsRow>
+
+            <SettingsRow
+              title={language.t("settings.appearance.row.iconStyle.title")}
+              description={language.t("settings.appearance.row.iconStyle.description")}
+            >
+              <Select
+                data-action="settings-icon-style"
+                options={iconStyleOptions}
+                current={appearance.iconStyle.current()}
+                placement="bottom-end"
+                gutter={6}
+                label={(style) => language.t(`settings.appearance.row.iconStyle.${style}`)}
+                onSelect={(style) => style && appearance.iconStyle.select(style)}
               />
             </SettingsRow>
 

@@ -3,7 +3,7 @@ import { createEffect, createMemo } from "solid-js"
 import { createMediaQuery } from "@solid-primitives/media"
 import { Effect, Option, Predicate, Schema, SchemaGetter } from "effect"
 import { createSimpleContext } from "@opencode/ui/context"
-import { setNewIcons } from "@opencode/ui/icon"
+import { setIconStyle, type IconStyle } from "@opencode/ui/icon"
 import { timelinePresets, type TimelineCategory, type TimelineDetail } from "@opencode/session-ui/timeline/detail"
 import { persisted } from "@/runtime/persistence/storage"
 import { Persistence } from "@/runtime/persistence/schema"
@@ -24,6 +24,8 @@ export type BackgroundActivity = Settings["general"]["backgroundActivity"]
 export type TimelineWidth = Settings["general"]["timelineWidth"]
 
 export type TabLayout = Settings["appearance"]["tabLayout"]
+
+export type { IconStyle }
 
 export type ReduceMotion = Settings["appearance"]["reduceMotion"]
 
@@ -129,8 +131,6 @@ const generalSchema = Persistence.struct({
   showTurnDiffs: Schema.Boolean,
   backgroundActivity: Schema.Literals(["off", "left", "center", "right"]),
   timelineWidth: Schema.Literals(["focused", "comfortable", "wide"]),
-  // The "New icons" design experiment, off until it ships.
-  newIcons: Schema.Boolean,
   // The "Fold long messages" experiment, off until it ships.
   foldUserMessages: Schema.Boolean,
   // The redesigned keyboard-first question dock, off until it ships.
@@ -145,6 +145,7 @@ const generalSchema = Persistence.struct({
 
 const appearanceSchema = Persistence.struct({
   fontSize: Schema.Number,
+  iconStyle: Schema.Literals(["linear", "duotone", "ink"]),
   mono: Schema.String,
   sans: Schema.String,
   terminal: Schema.String,
@@ -272,6 +273,8 @@ export const settingsPersistence = Persistence.migrate(
         showReasoningSummaries: Persistence.optional(Schema.Boolean),
         shellToolPartsExpanded: Persistence.optional(Schema.Boolean),
         editToolPartsExpanded: Persistence.optional(Schema.Boolean),
+        // Retired icon experiment; migrated to appearance.iconStyle below.
+        newIcons: Persistence.optional(Schema.Boolean),
       }),
     ),
   }).pipe(
@@ -279,19 +282,42 @@ export const settingsPersistence = Persistence.migrate(
       decode: SchemaGetter.transform((value) => {
         const general = value.general
 
-        if (!general || general.timelineDetail !== undefined) return value
+        if (!general) return value
 
-        return {
+        const { newIcons, ...currentGeneral } = general
+        const appearance = Predicate.isObject(value.appearance) ? value.appearance : {}
+
+        const existingIconStyle =
+          appearance.iconStyle === "linear" || appearance.iconStyle === "duotone" || appearance.iconStyle === "ink"
+            ? appearance.iconStyle
+            : undefined
+
+        const migratedTimeline =
+          general.timelineDetail === undefined
+            ? {
+                shell: legacyTimelineActivity(general.shellToolPartsExpanded),
+                edit: legacyTimelineActivity(general.editToolPartsExpanded),
+                thinking: legacyTimelineActivity(
+                  general.reasoningMode === undefined ? general.showReasoningSummaries : general.reasoningMode,
+                ),
+              }
+            : general.timelineDetail
+
+        const next = {
           ...value,
           general: {
-            ...general,
-            timelineDetail: {
-              shell: legacyTimelineActivity(general.shellToolPartsExpanded),
-              edit: legacyTimelineActivity(general.editToolPartsExpanded),
-              thinking: legacyTimelineActivity(
-                general.reasoningMode === undefined ? general.showReasoningSummaries : general.reasoningMode,
-              ),
-            },
+            ...currentGeneral,
+            timelineDetail: migratedTimeline,
+          },
+        }
+
+        if (newIcons === undefined) return next
+
+        return {
+          ...next,
+          appearance: {
+            ...appearance,
+            iconStyle: existingIconStyle ?? (newIcons ? "linear" : "duotone"),
           },
         }
       }),
@@ -307,7 +333,6 @@ export const defaultSettings: Settings = {
     showTurnDiffs: false,
     backgroundActivity: "left",
     timelineWidth: "comfortable",
-    newIcons: false,
     foldUserMessages: false,
     newQuestionUI: false,
     sidebarOrganize: "list",
@@ -315,7 +340,15 @@ export const defaultSettings: Settings = {
     followUpBehavior: "steer",
     outlineSide: "right",
   },
-  appearance: { fontSize: 14, mono: "", sans: "", terminal: "", tabLayout: "horizontal", reduceMotion: "system" },
+  appearance: {
+    fontSize: 14,
+    iconStyle: "duotone",
+    mono: "",
+    sans: "",
+    terminal: "",
+    tabLayout: "horizontal",
+    reduceMotion: "system",
+  },
   keybinds: {},
   permissions: { autoApprove: false, autoApproveProjects: {} },
   workspaces: { defaultDestination: "last-used", lastUsed: {} },
@@ -359,8 +392,8 @@ export const { use: useSettings, provider: SettingsProvider } = createSimpleCont
       void document.fonts?.load(`440 13px ${mono}`).catch(() => undefined)
     })
 
-    const newIcons = withFallback(() => store.general?.newIcons, defaultSettings.general.newIcons)
-    createEffect(() => setNewIcons(newIcons()))
+    const iconStyle = withFallback(() => store.appearance?.iconStyle, defaultSettings.appearance.iconStyle)
+    createEffect(() => setIconStyle(iconStyle()))
 
     const reduceMotion = withFallback(() => store.appearance?.reduceMotion, defaultSettings.appearance.reduceMotion)
     const systemReducedMotion = createMediaQuery("(prefers-reduced-motion: reduce)")
@@ -418,10 +451,6 @@ export const { use: useSettings, provider: SettingsProvider } = createSimpleCont
         setTimelineWidth(value: TimelineWidth) {
           setStore("general", "timelineWidth", value)
         },
-        newIcons,
-        setNewIcons(value: boolean) {
-          setStore("general", "newIcons", value)
-        },
         foldUserMessages: withFallback(() => store.general?.foldUserMessages, defaultSettings.general.foldUserMessages),
         setFoldUserMessages(value: boolean) {
           setStore("general", "foldUserMessages", value)
@@ -457,6 +486,10 @@ export const { use: useSettings, provider: SettingsProvider } = createSimpleCont
         fontSize: withFallback(() => store.appearance?.fontSize, defaultSettings.appearance.fontSize),
         setFontSize(value: number) {
           setStore("appearance", "fontSize", value)
+        },
+        iconStyle,
+        setIconStyle(value: IconStyle) {
+          setStore("appearance", "iconStyle", value)
         },
         font: withFallback(() => store.appearance?.mono, defaultSettings.appearance.mono),
         setFont(value: string) {

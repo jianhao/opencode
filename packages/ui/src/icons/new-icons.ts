@@ -1,7 +1,7 @@
 import type { IconName } from "./catalog"
 
-// Artwork for the "New icons" experiment. Each body is the inner markup of a 16×16 SVG drawn with `currentColor`,
-// such as `<path d="…" stroke="currentColor"/>`. An empty body keeps today's artwork for every name it replaces.
+// Artwork for the redesigned icon set. Each body is the inner markup of a 16×16 SVG drawn with `currentColor`,
+// such as `<path d="…" stroke="currentColor"/>`. An empty body keeps the base catalog artwork for that name.
 const newIcons = {
   checkmark: `<path d="M4.5 7.5L7 11.5L11.5 4.5" stroke-linecap="round" stroke-linejoin="round" stroke="currentColor"/>`,
   "circle-checkmark": `<path d="M5 8L7.5 11L11 5.5" stroke-linecap="round" stroke-linejoin="round" stroke="currentColor"/><path d="M14.5 8C14.5 11.5899 11.5899 14.5 8 14.5C4.41015 14.5 1.5 11.5899 1.5 8C1.5 4.41015 4.41015 1.5 8 1.5C11.5899 1.5 14.5 4.41015 14.5 8Z" stroke="currentColor"/>`,
@@ -45,6 +45,41 @@ const newIcons = {
   "globe-plus": `<path d="M9.5 11.5H12.5M12.5 11.5H15.5M12.5 11.5V8.5M12.5 11.5V14.5" stroke-linecap="round" stroke-linejoin="round" stroke="currentColor"/><path d="M8 1C11.866 1 15 4.13401 15 8C15 8.11231 14.9964 8.22395 14.9912 8.33496C14.9358 7.48617 14.4589 6.75503 13.7656 6.34668C13.1525 4.20296 11.3791 2.55021 9.16602 2.11426C10.0489 3.35264 10.6663 4.93158 10.8975 6.58105C10.3489 7.03965 10 7.72909 10 8.5H6.01465C6.13241 10.6267 6.98934 12.6854 8.20996 13.9941C8.44758 13.986 8.68133 13.9618 8.91113 13.9268C9.10021 13.9725 9.29688 14 9.5 14H10V14.5C10 14.5691 10.0043 14.6374 10.0098 14.7051C9.37302 14.8957 8.69876 15 8 15C4.13401 15 1 11.866 1 8C1 4.13401 4.13401 1 8 1ZM2.02246 8.5C2.24434 11.1886 4.23728 13.3729 6.83301 13.8848C5.78755 12.4178 5.11145 10.4737 5.0127 8.5H2.02246ZM6.83301 2.11426C4.23719 2.62603 2.24434 4.81135 2.02246 7.5H5.0127C5.11147 5.52603 5.78728 3.58126 6.83301 2.11426ZM8 2.24219C6.89188 3.55495 6.12676 5.49755 6.01562 7.5H9.98438C9.87324 5.49755 9.10812 3.55495 8 2.24219Z" fill="currentColor"/>`,
   diff: `<path d="M4.5 6.5H8M8 6.5H11.5M8 6.5V3M8 6.5V10" stroke-linecap="round" stroke-linejoin="round" stroke="currentColor"/><path d="M4.5 12.5H11.5" stroke-linecap="round" stroke-linejoin="round" stroke="currentColor"/>`,
   providers: `<path d="M13.5 4.5V2.5H11.5M13.5 4.5H15.5M13.5 4.5V8M13.5 8H15.5M13.5 8V8.5V11.5M13.5 11.5V13.5H11.5M13.5 11.5H15.5M2.5 8H0.5M2.5 8V4.5M2.5 8V11.5M2.5 4.5V2.5H4.5M2.5 4.5H0.5M2.5 11.5V13.5H4.5M2.5 11.5H0.5M4.5 13.5V15.5M4.5 13.5H8M8 13.5V15.5M8 13.5H11.5M11.5 13.5V15.5M11.5 2.5V0.5M11.5 2.5H8M8 2.5V0.5M8 2.5H4.5M4.5 2.5V0.5M5.5 10.5V5.5H10.5V10.5H5.5Z" stroke-linecap="round" stroke-linejoin="round" stroke="currentColor"/>`,
+  layout: `<rect x="2.5" y="2.5" width="11" height="11" rx="1.5" stroke="currentColor"/><path d="M6 2.5V13.5M6 6H13.5" stroke-linecap="round" stroke-linejoin="round" stroke="currentColor"/>`,
+  terminal: `<rect x="2.5" y="2.5" width="11" height="11" rx="2" stroke="currentColor"/><path d="M5 6L7 8L5 10M8.5 10H11" stroke-linecap="round" stroke-linejoin="round" stroke="currentColor"/>`,
+  mcp: `<circle cx="8" cy="8" r="2" stroke="currentColor"/><circle cx="8" cy="3" r="1.25" stroke="currentColor"/><circle cx="8" cy="13" r="1.25" stroke="currentColor"/><circle cx="3" cy="8" r="1.25" stroke="currentColor"/><circle cx="13" cy="8" r="1.25" stroke="currentColor"/><path d="M8 4.25V6M8 10V11.75M4.25 8H6M10 8H11.75" stroke-linecap="round" stroke="currentColor"/>`,
+  branch: `<circle cx="4.5" cy="3.5" r="1.5" stroke="currentColor"/><circle cx="4.5" cy="12.5" r="1.5" stroke="currentColor"/><circle cx="11.5" cy="6" r="1.5" stroke="currentColor"/><path d="M4.5 5V11M4.5 8H7.5C9.7 8 11.5 7.2 11.5 7.5" stroke-linecap="round" stroke-linejoin="round" stroke="currentColor"/>`,
+  models: `<path d="M8 1.5L9.25 6.75L14.5 8L9.25 9.25L8 14.5L6.75 9.25L1.5 8L6.75 6.75L8 1.5Z" stroke-linecap="round" stroke-linejoin="round" stroke="currentColor"/>`,
+  shield: `<path d="M8 1.5L13.5 3.5V8.25C13.5 11.3 11.25 13.15 8 14.5C4.75 13.15 2.5 11.3 2.5 8.25V3.5L8 1.5Z" stroke-linejoin="round" stroke="currentColor"/><path d="M5.5 8L7.25 9.75L10.75 6.25" stroke-linecap="round" stroke-linejoin="round" stroke="currentColor"/>`,
+  file: `<path d="M3 1.5H9L13 5.5V14.5H3V1.5Z" stroke-linejoin="round" stroke="currentColor"/><path d="M9 1.5V5.5H13M5.5 8H10.5M5.5 10.5H10.5" stroke-linecap="round" stroke-linejoin="round" stroke="currentColor"/>`,
+  link: `<path d="M6.25 9.75L9.75 6.25M5.25 11.75L4.25 12.75C3.15 13.85 1.7 13.85 1.25 12.75C0.8 11.65 1.4 10.85 2.25 10L3.75 8.5M10.25 7.5L11.75 6C12.6 5.15 13.2 4.35 12.75 3.25C12.3 2.15 10.85 2.15 9.75 3.25L8.75 4.25" stroke-linecap="round" stroke-linejoin="round" stroke="currentColor"/>`,
+  share: `<path d="M8 10.5V1.5M4.5 5L8 1.5L11.5 5M2.5 8V14.5H13.5V8" stroke-linecap="round" stroke-linejoin="round" stroke="currentColor"/>`,
+  brain: `<path d="M7.5 3.25C6.5 2.25 5 2.5 4.5 3.75C3.25 3.75 2.5 4.75 2.75 5.75C1.75 6.5 2 8 3 8.5C2.75 9.75 3.75 10.75 5 10.5C5 11.75 6.5 12.25 7.5 11.25M7.5 3.25V11.25M8.5 3.25C9.5 2.25 11 2.5 11.5 3.75C12.75 3.75 13.5 4.75 13.25 5.75C14.25 6.5 14 8 13 8.5C13.25 9.75 12.25 10.75 11 10.5C11 11.75 9.5 12.25 8.5 11.25M8.5 3.25V11.25" stroke-linecap="round" stroke-linejoin="round" stroke="currentColor"/>`,
+  warning: `<path d="M8 1.5L14.5 13.5H1.5L8 1.5Z" stroke-linejoin="round" stroke="currentColor"/><path d="M8 5.5V9M8 11.25V11.5" stroke-linecap="round" stroke="currentColor"/>`,
+  help: `<circle cx="8" cy="8" r="6.5" stroke="currentColor"/><path d="M6 6C6 4.75 6.75 4 8 4C9.25 4 10 4.75 10 5.75C10 7.25 8 7 8 9M8 11.25V11.5" stroke-linecap="round" stroke="currentColor"/>`,
+  info: `<circle cx="8" cy="8" r="6.5" stroke="currentColor"/><path d="M8 7V11M8 4.5V4.75" stroke-linecap="round" stroke="currentColor"/>`,
+  status: `<rect x="2.5" y="3.5" width="11" height="9" rx="1.5" stroke="currentColor"/><path d="M5 6.5H7M5 9.5H11M9 6.5H11" stroke-linecap="round" stroke="currentColor"/>`,
+  menu: `<path d="M2.5 4.5H13.5M2.5 8H13.5M2.5 11.5H13.5" stroke-linecap="round" stroke="currentColor"/>`,
+  expand: `<path d="M6 2.5H2.5V6M10 2.5H13.5V6M2.5 10V13.5H6M13.5 10V13.5H10M6.5 6.5L2.5 2.5M9.5 6.5L13.5 2.5M6.5 9.5L2.5 13.5M9.5 9.5L13.5 13.5" stroke-linecap="round" stroke-linejoin="round" stroke="currentColor"/>`,
+  collapse: `<path d="M2.5 6H6V2.5M10 2.5V6H13.5M2.5 10H6V13.5M13.5 10H10V13.5M6 6L2.5 2.5M10 6L13.5 2.5M6 10L2.5 13.5M10 10L13.5 13.5" stroke-linecap="round" stroke-linejoin="round" stroke="currentColor"/>`,
+  split: `<rect x="2.5" y="2.5" width="11" height="11" rx="1.5" stroke="currentColor"/><path d="M8 2.5V13.5" stroke-linecap="round" stroke="currentColor"/>`,
+  unified: `<rect x="2.5" y="2.5" width="11" height="11" rx="1.5" stroke="currentColor"/><path d="M5 6H11M5 8H11M5 10H11" stroke-linecap="round" stroke="currentColor"/>`,
+  "dot-grid": `<circle cx="4" cy="4" r="1" fill="currentColor"/><circle cx="8" cy="4" r="1" fill="currentColor"/><circle cx="12" cy="4" r="1" fill="currentColor"/><circle cx="4" cy="8" r="1" fill="currentColor"/><circle cx="8" cy="8" r="1" fill="currentColor"/><circle cx="12" cy="8" r="1" fill="currentColor"/><circle cx="4" cy="12" r="1" fill="currentColor"/><circle cx="8" cy="12" r="1" fill="currentColor"/><circle cx="12" cy="12" r="1" fill="currentColor"/>`,
+  "grid-plus": `<path d="M2.5 2.5H6.5V6.5H2.5V2.5ZM9.5 2.5H13.5V6.5H9.5V2.5ZM2.5 9.5H6.5V13.5H2.5V9.5ZM11.5 8.5V14M8.5 11.25H14.5" stroke-linecap="round" stroke-linejoin="round" stroke="currentColor"/>`,
+  refresh: `<path d="M13 8C13 10.75 10.75 13 8 13C5.25 13 3 10.75 3 8C3 5.25 5.25 3 8 3C9.75 3 11.25 3.9 12.1 5.25M12.25 2.5V5.5H9.25" stroke-linecap="round" stroke-linejoin="round" stroke="currentColor"/>`,
+  "arrow-up-right": `<path d="M3.5 12.5L12.5 3.5M6 3.5H12.5V10" stroke-linecap="round" stroke-linejoin="round" stroke="currentColor"/>`,
+  "arrow-down-to-line": `<path d="M8 2.5V10.5M4.5 7L8 10.5L11.5 7M2.5 13.5H13.5" stroke-linecap="round" stroke-linejoin="round" stroke="currentColor"/>`,
+  "arrow-undo-down": `<path d="M2.5 5.5H9.5C11.5 5.5 13 7 13 9V11M5.5 2.5L2.5 5.5L5.5 8.5" stroke-linecap="round" stroke-linejoin="round" stroke="currentColor"/>`,
+  "circle-x": `<circle cx="8" cy="8" r="6.5" stroke="currentColor"/><path d="M5.5 5.5L10.5 10.5M10.5 5.5L5.5 10.5" stroke-linecap="round" stroke="currentColor"/>`,
+  stop: `<rect x="4" y="4" width="8" height="8" rx="1.5" fill="currentColor"/>`,
+  sidebar: `<rect x="2.5" y="2.5" width="11" height="11" rx="1.5" stroke="currentColor"/><path d="M6 2.5V13.5" stroke-linecap="round" stroke="currentColor"/>`,
+  quote: `<path d="M4 5H7V8H4V11H1.5V7.5C1.5 6.1 2.5 5 4 5ZM12 5H15V8H12V11H9.5V7.5C9.5 6.1 10.5 5 12 5Z" stroke-linejoin="round" stroke="currentColor"/>`,
+  cookie: `<circle cx="8" cy="8" r="6.5" stroke="currentColor"/><circle cx="5.5" cy="6" r=".75" fill="currentColor"/><circle cx="9.5" cy="5.5" r=".75" fill="currentColor"/><circle cx="6" cy="10" r=".75" fill="currentColor"/><circle cx="10" cy="9" r=".75" fill="currentColor"/>`,
+  steer: `<circle cx="8" cy="8" r="6" stroke="currentColor"/><path d="M8 2.5V5M8 11V13.5M2.5 8H5M11 8H13.5M8 8L10.5 10.5" stroke-linecap="round" stroke="currentColor"/>`,
+  waveform: `<path d="M2.5 8H4L5.5 4.5L7.5 12L9.5 6L11 9H13.5" stroke-linecap="round" stroke-linejoin="round" stroke="currentColor"/>`,
+  grabber: `<circle cx="6" cy="4" r=".8" fill="currentColor"/><circle cx="10" cy="4" r=".8" fill="currentColor"/><circle cx="6" cy="8" r=".8" fill="currentColor"/><circle cx="10" cy="8" r=".8" fill="currentColor"/><circle cx="6" cy="12" r=".8" fill="currentColor"/><circle cx="10" cy="12" r=".8" fill="currentColor"/>`,
+  "triangle-down": `<path d="M4 5.5H12L8 11L4 5.5Z" fill="currentColor"/>`,
+  filetree: `<path d="M3 2V13M3 5H6.5M3 9H6.5" stroke-linecap="round" stroke="currentColor"/><rect x="7.5" y="3.5" width="6" height="3" rx=".75" stroke="currentColor"/><rect x="7.5" y="9.5" width="6" height="3" rx=".75" stroke="currentColor"/>`,
 }
 
 type NewIconName = keyof typeof newIcons
@@ -124,26 +159,68 @@ const replacements: Partial<Record<IconName, { name: NewIconName; rotate?: numbe
   providers: { name: "providers" },
   review: { name: "diff" },
   "outline-globe-plus": { name: "globe-plus" },
+  "layout-left": { name: "layout" },
+  "layout-left-partial": { name: "layout" },
+  "layout-left-full": { name: "layout" },
+  "layout-right": { name: "layout" },
+  "layout-right-partial": { name: "layout" },
+  "layout-right-full": { name: "layout" },
+  terminal: { name: "terminal" },
+  "terminal-active": { name: "terminal" },
+  console: { name: "terminal" },
+  "outline-console": { name: "terminal" },
+  mcp: { name: "mcp" },
+  branch: { name: "branch" },
+  models: { name: "models" },
+  shield: { name: "shield" },
+  "file-document": { name: "file" },
+  "open-file": { name: "file" },
+  link: { name: "link" },
+  share: { name: "share" },
+  "outline-share": { name: "share" },
+  brain: { name: "brain" },
+  "outline-brain": { name: "brain" },
+  warning: { name: "warning" },
+  "outline-hexagonal-warning": { name: "warning" },
+  "circle-exclamation": { name: "warning" },
+  help: { name: "help" },
+  info: { name: "info" },
+  status: { name: "status" },
+  "status-active": { name: "status" },
+  menu: { name: "menu" },
+  expand: { name: "expand" },
+  "outline-expand": { name: "expand" },
+  collapse: { name: "collapse" },
+  split: { name: "split" },
+  unified: { name: "unified" },
+  "dot-grid": { name: "dot-grid" },
+  "grid-plus": { name: "grid-plus" },
+  refresh: { name: "refresh" },
+  "outline-rotate-clockwise": { name: "refresh" },
+  "arrow-up-right": { name: "arrow-up-right" },
+  "outline-arrow-up-right": { name: "arrow-up-right" },
+  "outline-arrow-to-corner-top-right": { name: "arrow-up-right" },
+  "arrow-down-to-line": { name: "arrow-down-to-line" },
+  "arrow-undo-down": { name: "arrow-undo-down" },
+  "circle-x": { name: "circle-x" },
+  "circle-xmark": { name: "circle-x" },
+  stop: { name: "stop" },
+  sidebar: { name: "sidebar" },
+  "sidebar-active": { name: "sidebar" },
+  "outline-quote": { name: "quote" },
+  "outline-cookie": { name: "cookie" },
+  "outline-steer": { name: "steer" },
+  "outline-wave-audio": { name: "waveform" },
+  waveform: { name: "waveform" },
+  "chevron-grabber-vertical": { name: "grabber" },
+  "fill-triangle-down": { name: "triangle-down" },
+  filetree: { name: "filetree" },
 }
 
-// Still drawn with today's artwork under the experiment, awaiting a new design. Uses in the desktop app in brackets.
-// Pairs on one line likely share a design.
-//
-// Status:   circle-xmark (10) / circle-x (1), outline-hexagonal-warning (7) / warning (6), status / status-active (4),
-//           help (3), info (2)
-// Features: terminal (6), mcp (5), branch (5, held back), console / outline-console (2), stop, models,
-//           link, share, brain / outline-brain, shield
-// Arrows:   arrow-up-right (5) / outline-arrow-up-right (3), arrow-down-to-line (2), arrow-undo-down
-// Layout:   layout-left / layout-left-full (4), layout-right / layout-right-full (2), chevron-grabber-vertical (4),
-//           fill-triangle-down (3), menu (2), expand / collapse, split / unified, dot-grid
-// Files:    grid-plus (4), filetree, file-document (3), open-file (2),
-//           outline-quote (3), outline-cookie, outline-steer, outline-wave-audio,
-//           refresh / outline-rotate-clockwise
-// Brand:    discord
-// Search:   magnifying-glass-menu (only passed to BasicTool, which draws no icon)
+// Icons without a replacement keep the base catalog artwork. Brand marks and magnifying-glass-menu are intentional.
 
 /**
- * The new artwork a current name draws under the experiment, or undefined while it has none.
+ * The redesigned artwork for a current name, or undefined while the base catalog artwork still applies.
  * @param name - A current catalog name.
  */
 export function getNewIcon(name: IconName) {

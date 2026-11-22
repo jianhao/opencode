@@ -1,0 +1,93 @@
+{
+  "$schema": "https://opencode.ai/desktop-theme.json",
+  "name": "拿铁紫",
+  "id": "latte-violet",
+  "light": {
+    "palette": {
+      "neutral": "#eff1f5",
+      "ink": "#4c4f69",
+      "primary": "#8839ef",
+      "accent": "#1e66f5",
+      "success": "#40a02b",
+      "warning": "#df8e1d",
+      "error": "#d20f39",
+      "info": "#04a5e5",
+      "diffAdd": "#40a02b",
+      "diffDelete": "#d20f39"
+    },
+    "overrides": {
+      "background-base": "#eff1f5",
+      "text-base": "#4c4f69",
+      "text-weak": "#8b8da1",
+      "text-weaker": "#a5a7b7",
+      "icon-base": "#6c6f83",
+      "icon-weak-base": "#a5a7b7",
+      "syntax-comment": "#6c7086",
+      "syntax-keyword": "#8839ef",
+      "syntax-string": "#40a02b",
+      "syntax-primitive": "#1e66f5",
+      "syntax-type": "#df8e1d",
+      "syntax-constant": "#fe640b"
+    },
+    "v2Overrides": {
+      "v2-background-bg-base": "#eff1f5",
+      "v2-background-bg-deep": "#eceef2",
+      "v2-background-bg-layer-01": "#e9ecf0",
+      "v2-background-bg-layer-02": "#e5e7eb",
+      "v2-background-bg-button-neutral": "#eff1f5",
+      "v2-text-text-base": "#4c4f69",
+      "v2-text-text-muted": "#8b8da1",
+      "v2-text-text-faint": "#a5a7b7",
+      "v2-icon-icon-base": "#6c6f83",
+      "v2-icon-icon-muted": "#8b8da1",
+      "v2-icon-icon-faint": "#a5a7b7",
+      "v2-icon-icon-accent": "#8839ef",
+      "v2-border-border-base": "rgba(76, 79, 105, 0.1)",
+      "v2-border-border-strong": "rgba(76, 79, 105, 0.18)"
+    }
+  },
+  "dark": {
+    "palette": {
+      "neutral": "#1e1e2e",
+      "ink": "#cdd6f4",
+      "primary": "#cba6f7",
+      "accent": "#89b4fa",
+      "success": "#a6e3a1",
+      "warning": "#f9e2af",
+      "error": "#f38ba8",
+      "info": "#89dceb",
+      "diffAdd": "#a6e3a1",
+      "diffDelete": "#f38ba8"
+    },
+    "overrides": {
+      "background-base": "#1e1e2e",
+      "text-base": "#cdd6f4",
+      "text-weak": "#a6adc8",
+      "text-weaker": "#7f849c",
+      "icon-base": "#a6adc8",
+      "icon-weak-base": "#7f849c",
+      "syntax-comment": "#6c7086",
+      "syntax-keyword": "#cba6f7",
+      "syntax-string": "#a6e3a1",
+      "syntax-primitive": "#89b4fa",
+      "syntax-type": "#f9e2af",
+      "syntax-constant": "#fab387"
+    },
+    "v2Overrides": {
+      "v2-background-bg-base": "#1e1e2e",
+      "v2-background-bg-deep": "#181825",
+      "v2-background-bg-layer-01": "#313244",
+      "v2-background-bg-layer-02": "#45475a",
+      "v2-background-bg-button-neutral": "#313244",
+      "v2-text-text-base": "#cdd6f4",
+      "v2-text-text-muted": "#a6adc8",
+      "v2-text-text-faint": "#7f849c",
+      "v2-icon-icon-base": "#a6adc8",
+      "v2-icon-icon-muted": "#7f849c",
+      "v2-icon-icon-faint": "#6c7086",
+      "v2-icon-icon-accent": "#cba6f7",
+      "v2-border-border-base": "rgba(205, 214, 244, 0.12)",
+      "v2-border-border-strong": "rgba(205, 214, 244, 0.22)"
+    }
+  }
+}

@@ -112,13 +112,6 @@ export const clientSettings: Entry<SettingsRootTab>[] = [
   },
   {
     tab: "experimental",
-    label: "settings.experimental.row.newIcons.title",
-    target: "settings-new-icons",
-    description: "settings.experimental.row.newIcons.description",
-    keywords: "icons iconography glyphs redesign",
-  },
-  {
-    tab: "experimental",
     label: "settings.experimental.row.foldUserMessages.title",
     target: "settings-fold-user-messages",
     description: "settings.experimental.row.foldUserMessages.description",
@@ -145,6 +138,13 @@ export const clientSettings: Entry<SettingsRootTab>[] = [
     keywords: "dark mode light mode system",
   },
   { tab: "appearance", label: "settings.general.row.theme.title", target: "settings-theme" },
+  {
+    tab: "appearance",
+    label: "settings.appearance.row.iconStyle.title",
+    target: "settings-icon-style",
+    description: "settings.appearance.row.iconStyle.description",
+    keywords: "icons iconography glyphs linear duotone ink",
+  },
   {
     tab: "appearance",
     label: "settings.general.row.uiFont.title",

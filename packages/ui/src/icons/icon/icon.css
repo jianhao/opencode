@@ -1,3 +1,76 @@
 :dir(rtl) [data-slot="icon-svg"][data-directional] {
   transform: scaleX(-1);
 }
+
+[data-slot="icon-svg"][data-icon-tone="brand"] {
+  --object-icon-tone: light-dark(#7d3fd4, #c59cff);
+}
+
+[data-slot="icon-svg"][data-icon-tone="blue"] {
+  --object-icon-tone: light-dark(#5275b4, #88a8e5);
+}
+
+[data-slot="icon-svg"][data-icon-tone="green"] {
+  --object-icon-tone: light-dark(#258554, #69c394);
+}
+
+[data-slot="icon-svg"][data-icon-tone="olive"] {
+  --object-icon-tone: light-dark(#7b8f42, #a8bd6a);
+}
+
+[data-slot="icon-svg"][data-icon-tone="warm"] {
+  --object-icon-tone: light-dark(#d85c45, #f08a73);
+}
+
+[data-slot="icon-svg"][data-icon-tone="neutral"] {
+  --object-icon-tone: var(--v2-icon-icon-muted);
+}
+
+:is([data-slot="titlebar-v2"], [data-slot="vertical-tabs-sidebar"], .home-navigation, .settings-nav)
+  [data-slot="icon-svg"],
+:is(
+    [data-component="icon-button-v2"]:not(
+      [data-variant="submit"],
+      [data-variant="contrast"],
+      [data-variant="danger"],
+      [data-variant="warning"]
+    ),
+    [data-component="button-v2"][data-icon]:not(
+        [data-variant="submit"],
+        [data-variant="contrast"],
+        [data-variant="danger"],
+        [data-variant="warning"]
+      )
+  )
+  [data-slot="icon-svg"] {
+  color: var(--object-icon-tone);
+}
+
+:root[data-icon-style="linear"] [data-slot="icon-svg"] {
+  stroke-width: 1.15;
+}
+
+:root[data-icon-style="duotone"]
+  :is(
+    [data-component="icon-button-v2"]:not(
+      [data-variant="submit"],
+      [data-variant="contrast"],
+      [data-variant="danger"],
+      [data-variant="warning"]
+    ),
+    [data-component="button-v2"][data-icon]:not(
+        [data-variant="submit"],
+        [data-variant="contrast"],
+        [data-variant="danger"],
+        [data-variant="warning"]
+      )
+  )
+  [data-slot="icon-svg"] {
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--object-icon-tone) 10%, transparent);
+  box-shadow: inset 0 0 0 0.5px color-mix(in srgb, var(--object-icon-tone) 22%, transparent);
+}
+
+:root[data-icon-style="ink"] [data-slot="icon-svg"] {
+  stroke-width: 1.65;
+}

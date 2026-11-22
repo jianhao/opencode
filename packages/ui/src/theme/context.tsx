@@ -79,10 +79,13 @@ const names = new Map(
     everforest: "Everforest",
     flexoki: "Flexoki",
     github: "GitHub",
+    "glacier-mist": "冰川蓝",
     gruvbox: "Gruvbox",
     kanagawa: "Kanagawa",
     "lucent-orng": "Lucent Orng",
+    "latte-violet": "拿铁紫",
     material: "Material",
+    "matcha-air": "抹茶雾",
     matrix: "Matrix",
     mercury: "Mercury",
     monokai: "Monokai",
@@ -93,7 +96,9 @@ const names = new Map(
     orng: "Orng",
     "osaka-jade": "Osaka Jade",
     palenight: "Palenight",
+    "porcelain-blue": "瓷釉蓝",
     rosepine: "Rose Pine",
+    "sea-glass": "海玻璃",
     shadesofpurple: "Shades of Purple",
     solarized: "Solarized",
     synthwave84: "Synthwave '84",
@@ -107,6 +112,12 @@ const names = new Map(
 // SAFETY: oc-2.json follows desktop-theme.schema.json; JSON modules only widen its colors to `string`, and
 // v2/resolve.test.ts resolves the same file as a DesktopTheme.
 const oc2Theme = oc2ThemeJson as DesktopTheme
+
+function resolveThemeID(id: string | null | undefined) {
+  if (!id) return undefined
+
+  return id === "purple-vibe" ? "latte-violet" : id
+}
 
 // Storage access throws where localStorage is missing or blocked; every caller treats that as no stored value.
 function read(key: string) {
@@ -195,7 +206,7 @@ export const { use: useTheme, provider: ThemeProvider } = createSimpleContext({
   }) => {
     // An id no theme has yet stays selected until `settle`: a registered theme can arrive after startup.
     const initial = createThemeState({
-      themeId: read(STORAGE_KEYS.THEME_ID) || props.defaultTheme || DEFAULT_THEME_ID,
+      themeId: resolveThemeID(read(STORAGE_KEYS.THEME_ID)) || props.defaultTheme || DEFAULT_THEME_ID,
       scheme: parseColorScheme(read(STORAGE_KEYS.COLOR_SCHEME)),
       systemMode: getSystemMode(),
       defaultTheme: oc2Theme,
@@ -297,7 +308,8 @@ export const { use: useTheme, provider: ThemeProvider } = createSimpleContext({
 
     onMount(() => {
       makeEventListener(window, "storage", (e: StorageEvent) => {
-        if (e.key === STORAGE_KEYS.THEME_ID && e.newValue) dispatch({ type: "storage.theme.changed", id: e.newValue })
+        if (e.key === STORAGE_KEYS.THEME_ID && e.newValue)
+          dispatch({ type: "storage.theme.changed", id: resolveThemeID(e.newValue) ?? e.newValue })
 
         if (e.key === STORAGE_KEYS.COLOR_SCHEME && e.newValue)
           dispatch({ type: "storage.scheme.changed", scheme: parseColorScheme(e.newValue) })
@@ -337,7 +349,7 @@ export const { use: useTheme, provider: ThemeProvider } = createSimpleContext({
         )
       },
       themes: () => state().themes,
-      setTheme: (id: string) => dispatch({ type: "theme.selected", id }),
+      setTheme: (id: string) => dispatch({ type: "theme.selected", id: resolveThemeID(id) ?? id }),
       setColorScheme: (scheme: ColorScheme) => dispatch({ type: "scheme.selected", scheme }),
       /** Lists a theme beside the bundled ones until the returned function withdraws it. */
       registerTheme: (theme: DesktopTheme) => {

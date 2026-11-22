@@ -1,0 +1,3374 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="light dark">
+    <title>OpenCode Theme Lab</title>
+    <style>
+      @font-face {
+        font-family: "OC Inter";
+        src: url("../../packages/app/public/assets/Inter.ttf") format("truetype");
+        font-display: swap;
+      }
+
+      @font-face {
+        font-family: "OC Mono";
+        src: url("../../packages/app/public/assets/JetBrainsMonoNerdFontMono-Regular.woff2") format("woff2");
+        font-display: swap;
+      }
+
+      :root {
+        --lab-bg: #eff1f5;
+        --lab-surface: #f7f8fa;
+        --lab-ink: #4c4f69;
+        --lab-muted: #8b8da1;
+        --lab-faint: #a5a7b7;
+        --lab-line: rgba(76, 79, 105, 0.078);
+        --lab-accent: #8839ef;
+        --lab-accent-ink: #ffffff;
+        --lab-display: "Avenir Next", "PingFang SC", sans-serif;
+        --lab-sans: "OC Inter", "PingFang SC", sans-serif;
+        --lab-mono: "OC Mono", "SFMono-Regular", monospace;
+        --shadow-soft: 0 22px 70px rgba(38, 41, 51, 0.09);
+        --shadow-window: 0 34px 110px rgba(38, 41, 51, 0.14), 0 2px 8px rgba(38, 41, 51, 0.06);
+        --radius-sm: 7px;
+        --radius-md: 12px;
+        --radius-lg: 18px;
+        --radius-xl: 28px;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html {
+        min-width: 320px;
+        background: var(--lab-bg);
+      }
+
+      body {
+        position: relative;
+        margin: 0;
+        min-height: 100vh;
+        color: var(--lab-ink);
+        font-family: var(--lab-sans);
+        font-size: 14px;
+        font-weight: 440;
+        line-height: 1.45;
+        background:
+          radial-gradient(circle at 9% -4%, rgba(255, 255, 255, 0.98), transparent 30%),
+          radial-gradient(circle at 84% 8%, rgba(136, 57, 239, 0.035), transparent 27%),
+          radial-gradient(circle at 62% 42%, rgba(64, 160, 43, 0.016), transparent 25%),
+          linear-gradient(90deg, rgba(76, 79, 105, 0.018) 1px, transparent 1px) 0 0 / 40px 40px,
+          linear-gradient(rgba(76, 79, 105, 0.018) 1px, transparent 1px) 0 0 / 40px 40px,
+          #eff1f5;
+      }
+
+      body::before {
+        position: fixed;
+        inset: 0;
+        z-index: 0;
+        pointer-events: none;
+        background:
+          linear-gradient(125deg, transparent 12%, rgba(255, 255, 255, 0.34) 35%, transparent 56%),
+          radial-gradient(ellipse at 50% 100%, rgba(65, 70, 88, 0.04), transparent 58%);
+        content: "";
+      }
+
+      body::after {
+        position: fixed;
+        inset: 0;
+        z-index: 0;
+        pointer-events: none;
+        opacity: 0.1;
+        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.34'/%3E%3C/svg%3E");
+        mix-blend-mode: multiply;
+        content: "";
+      }
+
+      button,
+      input,
+      textarea {
+        font: inherit;
+      }
+
+      button {
+        color: inherit;
+      }
+
+      button:focus-visible,
+      [tabindex]:focus-visible {
+        outline: 2px solid var(--lab-accent);
+        outline-offset: 3px;
+      }
+
+      svg {
+        display: block;
+      }
+
+      .sprite-defs {
+        position: absolute;
+        width: 0;
+        height: 0;
+        overflow: hidden;
+      }
+
+      .lab {
+        position: relative;
+        z-index: 1;
+        width: min(1660px, calc(100% - 48px));
+        margin: 0 auto;
+        padding: 30px 0 92px;
+      }
+
+      .topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 24px;
+        min-height: 48px;
+        padding-bottom: 20px;
+        border-bottom: 1px solid var(--lab-line);
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        min-width: 0;
+      }
+
+      .brand-mark {
+        position: relative;
+        display: grid;
+        width: 38px;
+        height: 38px;
+        place-items: center;
+        overflow: hidden;
+        border: 1px solid rgba(255, 255, 255, 0.28);
+        border-radius: 11px;
+        color: white;
+        background: #182126;
+        box-shadow: 0 7px 20px rgba(20, 30, 34, 0.22);
+      }
+
+      .brand-mark::after {
+        position: absolute;
+        right: -11px;
+        bottom: -15px;
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        background: var(--lab-accent);
+        content: "";
+        opacity: 0.85;
+      }
+
+      .brand-mark svg {
+        position: relative;
+        z-index: 1;
+        width: 21px;
+        height: 21px;
+      }
+
+      .brand-name {
+        display: block;
+        font-family: var(--lab-display);
+        font-size: 15px;
+        font-weight: 670;
+        letter-spacing: -0.02em;
+      }
+
+      .brand-subtitle {
+        display: block;
+        margin-top: 1px;
+        color: var(--lab-muted);
+        font-family: var(--lab-mono);
+        font-size: 10px;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+      }
+
+      .top-meta {
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        color: var(--lab-muted);
+        font-family: var(--lab-mono);
+        font-size: 10px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .top-meta strong {
+        color: var(--lab-ink);
+        font-weight: 600;
+      }
+
+      .top-meta .dot {
+        width: 5px;
+        height: 5px;
+        border-radius: 50%;
+        background: #1c9b61;
+        box-shadow: 0 0 0 4px rgba(28, 155, 97, 0.11);
+      }
+
+      .hero {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(280px, 400px);
+        gap: 60px;
+        align-items: end;
+        padding: 68px 0 44px;
+      }
+
+      .eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 9px;
+        margin-bottom: 17px;
+        color: var(--lab-muted);
+        font-family: var(--lab-mono);
+        font-size: 10px;
+        font-weight: 600;
+        letter-spacing: 0.13em;
+        text-transform: uppercase;
+      }
+
+      .eyebrow::before {
+        width: 28px;
+        height: 1px;
+        background: currentColor;
+        content: "";
+      }
+
+      h1 {
+        max-width: 1020px;
+        margin: 0;
+        font-family: var(--lab-display);
+        font-size: clamp(50px, 6.4vw, 102px);
+        font-weight: 650;
+        letter-spacing: -0.065em;
+        line-height: 0.94;
+      }
+
+      h1 .accent {
+        color: var(--lab-accent);
+      }
+
+      h1 .title-second {
+        display: block;
+      }
+
+      .hero-copy {
+        max-width: 390px;
+        padding: 0 0 3px 22px;
+        border-left: 1px solid var(--lab-line);
+      }
+
+      .hero-copy p {
+        margin: 0;
+        color: #4f5a60;
+        font-size: 15px;
+        line-height: 1.65;
+      }
+
+      .hero-copy p + p {
+        margin-top: 15px;
+      }
+
+      .hero-copy code {
+        padding: 2px 5px;
+        border: 1px solid rgba(24, 33, 38, 0.1);
+        border-radius: 5px;
+        color: var(--lab-ink);
+        font-family: var(--lab-mono);
+        font-size: 11px;
+        background: rgba(255, 255, 255, 0.58);
+      }
+
+      .lab-controls {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 20px;
+        margin-bottom: 26px;
+        padding: 13px 14px;
+        border: 1px solid var(--lab-line);
+        border-radius: 15px;
+        background:
+          linear-gradient(112deg, rgba(255, 255, 255, 0.9), rgba(246, 248, 250, 0.68)),
+          rgba(248, 250, 252, 0.82);
+        box-shadow:
+          0 1px 0 rgba(255, 255, 255, 0.92) inset,
+          0 12px 30px rgba(30, 39, 42, 0.06);
+        backdrop-filter: blur(22px) saturate(1.15);
+      }
+
+      .control-label {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        color: var(--lab-muted);
+        font-family: var(--lab-mono);
+        font-size: 10px;
+        font-weight: 600;
+        letter-spacing: 0.09em;
+        text-transform: uppercase;
+      }
+
+      .control-label svg {
+        width: 15px;
+        height: 15px;
+        color: var(--lab-ink);
+      }
+
+      .control-groups {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .segmented {
+        display: inline-flex;
+        gap: 2px;
+        padding: 3px;
+        border: 1px solid var(--lab-line);
+        border-radius: 10px;
+        background: rgba(24, 33, 38, 0.035);
+      }
+
+      .segmented button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        min-height: 29px;
+        padding: 0 11px;
+        border: 0;
+        border-radius: 7px;
+        color: var(--lab-muted);
+        font-size: 11px;
+        font-weight: 570;
+        background: transparent;
+        cursor: pointer;
+        transition:
+          color 160ms ease,
+          background 160ms ease,
+          box-shadow 160ms ease;
+      }
+
+      .segmented button:hover {
+        color: var(--lab-ink);
+      }
+
+      .segmented button[aria-pressed="true"] {
+        color: var(--lab-ink);
+        background: var(--lab-surface);
+        box-shadow: 0 1px 4px rgba(24, 33, 38, 0.12);
+      }
+
+      .segmented svg {
+        width: 14px;
+        height: 14px;
+      }
+
+      .copy-button {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        min-height: 35px;
+        padding: 0 13px;
+        border: 1px solid var(--lab-line);
+        border-radius: 9px;
+        color: var(--lab-ink);
+        font-size: 11px;
+        font-weight: 570;
+        background: var(--lab-surface);
+        box-shadow: 0 1px 3px rgba(24, 33, 38, 0.08);
+        cursor: pointer;
+      }
+
+      .copy-button:hover {
+        border-color: rgba(24, 33, 38, 0.24);
+        transform: translateY(-1px);
+      }
+
+      .copy-button svg {
+        width: 15px;
+        height: 15px;
+      }
+
+      .theme-grid {
+        display: grid;
+        grid-template-columns: repeat(6, minmax(0, 1fr));
+        gap: 14px;
+        margin-bottom: 20px;
+      }
+
+      .theme-card {
+        position: relative;
+        display: flex;
+        min-width: 0;
+        min-height: 190px;
+        flex-direction: column;
+        align-items: stretch;
+        overflow: hidden;
+        padding: 18px;
+        border: 1px solid color-mix(in srgb, var(--card-ink) 12%, transparent);
+        border-radius: 18px;
+        text-align: left;
+        background:
+          radial-gradient(circle at 78% -5%, var(--card-ambient-1) 0%, transparent 42%),
+          radial-gradient(circle at 100% 96%, var(--card-ambient-2) 0%, transparent 38%),
+          linear-gradient(145deg, var(--card-surface) 0%, var(--card-bg) 62%, var(--card-bg-deep) 100%);
+        color: var(--card-ink);
+        box-shadow:
+          0 1px 0 rgba(255, 255, 255, 0.74) inset,
+          0 -1px 0 color-mix(in srgb, var(--card-ink) 5%, transparent) inset,
+          0 18px 38px color-mix(in srgb, var(--card-ink) 7%, transparent);
+        cursor: pointer;
+        isolation: isolate;
+        grid-column: span 2;
+        transition:
+          transform 240ms cubic-bezier(0.2, 0.8, 0.2, 1),
+          box-shadow 240ms ease,
+          border-color 240ms ease;
+      }
+
+      .theme-card:nth-child(4),
+      .theme-card:nth-child(5) {
+        grid-column: span 3;
+      }
+
+      .theme-card::before {
+        position: absolute;
+        top: -88px;
+        right: -54px;
+        z-index: -1;
+        width: 248px;
+        height: 248px;
+        border-radius: 45% 55% 58% 42%;
+        background:
+          conic-gradient(
+            from 215deg,
+            transparent 0deg,
+            color-mix(in srgb, var(--card-bright) 24%, transparent) 54deg,
+            color-mix(in srgb, var(--card-accent) 16%, transparent) 118deg,
+            transparent 210deg
+          ),
+          radial-gradient(circle at 40% 42%, color-mix(in srgb, var(--card-metal) 66%, transparent), transparent 68%);
+        box-shadow:
+          0 0 70px color-mix(in srgb, var(--card-accent) 10%, transparent),
+          inset 0 1px 5px rgba(255, 255, 255, 0.55);
+        content: "";
+        opacity: 0.4;
+        filter: blur(9px) saturate(0.7);
+        transform: rotate(-8deg);
+        transition:
+          transform 420ms cubic-bezier(0.16, 1, 0.3, 1),
+          opacity 240ms ease;
+      }
+
+      .theme-card::after {
+        position: absolute;
+        right: 18px;
+        bottom: 17px;
+        width: 106px;
+        height: 38px;
+        border-radius: 50%;
+        background: radial-gradient(ellipse, color-mix(in srgb, var(--card-accent) 8%, transparent), transparent 70%);
+        content: "";
+        filter: blur(12px);
+        pointer-events: none;
+      }
+
+      .theme-card:hover {
+        z-index: 1;
+        border-color: color-mix(in srgb, var(--card-accent) 62%, transparent);
+        box-shadow:
+          0 1px 0 rgba(255, 255, 255, 0.8) inset,
+          0 22px 46px color-mix(in srgb, var(--card-ink) 11%, transparent),
+          0 0 0 1px color-mix(in srgb, var(--card-accent) 15%, transparent);
+        transform: translateY(-5px);
+      }
+
+      .theme-card:hover::before {
+        opacity: 0.92;
+        transform: rotate(-3deg) scale(1.09);
+      }
+
+      .theme-card[aria-pressed="true"] {
+        border-color: color-mix(in srgb, var(--card-accent) 75%, transparent);
+        box-shadow:
+          0 0 0 1px color-mix(in srgb, var(--card-accent) 72%, transparent),
+          0 1px 0 rgba(255, 255, 255, 0.82) inset,
+          0 22px 52px color-mix(in srgb, var(--card-accent) 15%, transparent);
+      }
+
+      .theme-card[aria-pressed="true"] .theme-index::after {
+        display: grid;
+        width: 19px;
+        height: 19px;
+        place-items: center;
+        margin-left: auto;
+        border-radius: 50%;
+        color: var(--card-accent-ink);
+        font-size: 11px;
+        font-weight: 700;
+        background: linear-gradient(145deg, var(--card-bright), var(--card-accent) 56%, var(--card-deep));
+        box-shadow:
+          0 5px 14px color-mix(in srgb, var(--card-accent) 30%, transparent),
+          0 1px 0 rgba(255, 255, 255, 0.5) inset;
+        content: "✓";
+      }
+
+      .theme-index {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--card-muted);
+        font-family: var(--lab-mono);
+        font-size: 9px;
+        letter-spacing: 0.1em;
+      }
+
+      .theme-name {
+        margin-top: auto;
+        font-family: var(--lab-display);
+        font-size: 26px;
+        font-weight: 630;
+        letter-spacing: -0.05em;
+      }
+
+      .theme-en {
+        margin-top: 3px;
+        color: var(--card-muted);
+        font-family: var(--lab-mono);
+        font-size: 9px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .theme-specimen {
+        position: absolute;
+        top: 49px;
+        right: 18px;
+        display: grid;
+        width: 176px;
+        height: 74px;
+        grid-template-columns: 34px minmax(0, 1fr);
+        overflow: hidden;
+        border: 1px solid color-mix(in srgb, var(--card-ink) 13%, transparent);
+        border-radius: 12px;
+        background: linear-gradient(145deg, var(--card-surface), var(--card-bg));
+        box-shadow:
+          0 14px 30px color-mix(in srgb, var(--card-ink) 12%, transparent),
+          0 1px 0 rgba(255, 255, 255, 0.42) inset;
+        pointer-events: none;
+        transform: rotate(2.5deg);
+      }
+
+      .specimen-rail {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 6px;
+        padding-top: 10px;
+        border-right: 1px solid var(--card-line);
+        background: color-mix(in srgb, var(--card-bg-deep) 80%, transparent);
+      }
+
+      .specimen-rail::before {
+        width: 14px;
+        height: 14px;
+        border-radius: 5px;
+        background: linear-gradient(145deg, var(--card-bright), var(--card-accent) 55%, var(--card-deep));
+        box-shadow: 0 4px 10px color-mix(in srgb, var(--card-accent) 22%, transparent);
+        content: "";
+      }
+
+      .specimen-rail::after {
+        width: 12px;
+        height: 12px;
+        border: 1px solid var(--card-line);
+        border-radius: 4px;
+        background: color-mix(in srgb, var(--card-accent-soft, var(--card-accent)) 26%, transparent);
+        box-shadow:
+          0 20px 0 color-mix(in srgb, var(--card-ink) 8%, transparent),
+          0 36px 0 color-mix(in srgb, var(--card-ink) 5%, transparent);
+        content: "";
+      }
+
+      .specimen-main {
+        display: grid;
+        grid-template-rows: auto 1fr;
+        gap: 7px;
+        padding: 9px 10px 8px;
+        background:
+          radial-gradient(circle at 82% 0%, var(--card-ambient-1), transparent 46%),
+          color-mix(in srgb, var(--card-surface) 92%, transparent);
+      }
+
+      .specimen-head {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+      }
+
+      .specimen-head::before {
+        width: 5px;
+        height: 5px;
+        border-radius: 50%;
+        background: var(--card-accent);
+        box-shadow: 0 0 0 3px color-mix(in srgb, var(--card-accent) 12%, transparent);
+        content: "";
+      }
+
+      .specimen-head::after {
+        width: 44px;
+        height: 4px;
+        border-radius: 999px;
+        background: color-mix(in srgb, var(--card-ink) 25%, transparent);
+        content: "";
+      }
+
+      .specimen-lines {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+        padding: 8px;
+        border: 1px solid var(--card-line);
+        border-radius: 7px;
+        background: color-mix(in srgb, var(--card-surface) 82%, transparent);
+      }
+
+      .specimen-lines::before,
+      .specimen-lines::after {
+        height: 4px;
+        border-radius: 999px;
+        background: color-mix(in srgb, var(--card-ink) 12%, transparent);
+        content: "";
+      }
+
+      .specimen-lines::before {
+        width: 74%;
+      }
+
+      .specimen-lines::after {
+        width: 48%;
+        background: color-mix(in srgb, var(--card-accent) 30%, transparent);
+      }
+
+      .theme-rule {
+        width: 100%;
+        height: 1px;
+        margin: 16px 0 12px;
+        background: linear-gradient(90deg, var(--card-line), transparent);
+      }
+
+      .swatches {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+      }
+
+      .swatches > span:not(.theme-purpose) {
+        width: 26px;
+        height: 8px;
+        border: 1px solid color-mix(in srgb, var(--card-ink) 9%, transparent);
+        border-radius: 999px;
+        box-shadow: 0 1px 0 rgba(255, 255, 255, 0.38) inset;
+      }
+
+      .swatches > .wide {
+        width: 58px;
+      }
+
+      .theme-purpose {
+        margin-left: auto;
+        color: var(--card-muted);
+        font-family: var(--lab-mono);
+        font-size: 10px;
+        white-space: nowrap;
+      }
+
+      .preview-section {
+        position: relative;
+        overflow: hidden;
+        padding: 28px;
+        border: 1px solid var(--lab-line);
+        border-radius: var(--radius-xl);
+        background:
+          linear-gradient(120deg, rgba(255, 255, 255, 0.92), rgba(247, 249, 251, 0.76) 44%, rgba(238, 241, 244, 0.82)),
+          rgba(248, 250, 252, 0.86);
+        box-shadow:
+          var(--shadow-window),
+          0 1px 0 rgba(255, 255, 255, 0.92) inset;
+      }
+
+      .preview-section::after {
+        position: absolute;
+        top: -260px;
+        right: -170px;
+        width: 620px;
+        height: 620px;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(136, 57, 239, 0.028), transparent 66%);
+        content: "";
+        pointer-events: none;
+      }
+
+      .preview-section::before {
+        position: absolute;
+        top: 12px;
+        left: 28px;
+        color: var(--lab-faint);
+        font-family: var(--lab-mono);
+        font-size: 9px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        content: "Live application preview";
+      }
+
+      .preview-caption {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 20px;
+        margin: 18px 0 17px;
+      }
+
+      .preview-caption h2 {
+        margin: 0;
+        font-family: var(--lab-display);
+        font-size: 24px;
+        font-weight: 620;
+        letter-spacing: -0.035em;
+      }
+
+      .preview-caption p {
+        margin: 4px 0 0;
+        color: var(--lab-muted);
+        font-size: 12px;
+      }
+
+      .preview-caption .keyboard {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        color: var(--lab-muted);
+        font-family: var(--lab-mono);
+        font-size: 9px;
+        letter-spacing: 0.05em;
+      }
+
+      .keyboard kbd {
+        min-width: 22px;
+        padding: 4px 6px;
+        border: 1px solid var(--lab-line);
+        border-bottom-color: rgba(24, 33, 38, 0.26);
+        border-radius: 5px;
+        color: var(--lab-ink);
+        font: inherit;
+        text-align: center;
+        background: var(--lab-surface);
+        box-shadow: 0 1px 0 rgba(255, 255, 255, 0.8) inset;
+      }
+
+      .app-preview {
+        --bg: #f5f4f1;
+        --bg-deep: #f1f0ed;
+        --surface: #fbfaf8;
+        --raised: #ffffff;
+        --inset: #f2f1ee;
+        --text: #242628;
+        --muted: #686d70;
+        --faint: #979b9e;
+        --line: rgba(36, 38, 40, 0.095);
+        --line-strong: rgba(36, 38, 40, 0.16);
+        --accent: #315cf4;
+        --accent-bright: #7890ff;
+        --accent-deep: #1838bd;
+        --accent-hover: #234bdd;
+        --accent-ink: #ffffff;
+        --accent-soft: #e8edff;
+        --brand-2: #b6d47a;
+        --brand-2-soft: #edf4dc;
+        --warm: #e66f4d;
+        --warm-soft: #fcebe5;
+        --success: #177d58;
+        --warning: #b77912;
+        --danger: #c7463b;
+        --info: #5574ad;
+        --metal: #d7d2c7;
+        --ambient-1: rgba(72, 101, 255, 0.055);
+        --ambient-2: rgba(208, 225, 166, 0.07);
+        --glass-highlight: rgba(255, 255, 255, 0.68);
+        --shadow: 0 32px 90px rgba(25, 35, 38, 0.13), 0 2px 8px rgba(25, 35, 38, 0.06);
+        position: relative;
+        display: grid;
+        min-height: 760px;
+        overflow: hidden;
+        border: 1px solid color-mix(in srgb, var(--text) 22%, transparent);
+        border-radius: 16px;
+        color: var(--text);
+        background:
+          radial-gradient(circle at 82% -10%, var(--ambient-1), transparent 31%),
+          radial-gradient(circle at 8% 82%, var(--ambient-2), transparent 30%),
+          linear-gradient(145deg, var(--surface) 0%, var(--bg) 54%, var(--bg-deep) 100%);
+        box-shadow: var(--shadow);
+        isolation: isolate;
+        transition:
+          color 260ms ease,
+          background 260ms ease;
+      }
+
+      .app-preview::after {
+        position: absolute;
+        inset: 0;
+        z-index: 20;
+        pointer-events: none;
+        border: 1px solid rgba(255, 255, 255, 0.11);
+        border-radius: inherit;
+        content: "";
+      }
+
+      .window-bar {
+        display: grid;
+        grid-template-columns: 86px minmax(0, 1fr) auto;
+        align-items: stretch;
+        height: 43px;
+        border-bottom: 1px solid color-mix(in srgb, var(--line-strong) 80%, transparent);
+        background:
+          linear-gradient(180deg, color-mix(in srgb, var(--surface) 52%, var(--bg-deep)), var(--bg-deep)),
+          var(--bg-deep);
+        box-shadow:
+          0 1px 0 var(--glass-highlight) inset,
+          0 8px 22px color-mix(in srgb, var(--text) 5%, transparent);
+      }
+
+      .traffic {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        padding-left: 16px;
+      }
+
+      .traffic span {
+        width: 10px;
+        height: 10px;
+        border: 1px solid rgba(0, 0, 0, 0.12);
+        border-radius: 50%;
+      }
+
+      .traffic span:nth-child(1) {
+        background: #ff6159;
+      }
+
+      .traffic span:nth-child(2) {
+        background: #ffbd2e;
+      }
+
+      .traffic span:nth-child(3) {
+        background: #28c941;
+      }
+
+      .tabs {
+        display: flex;
+        min-width: 0;
+        align-items: end;
+        gap: 3px;
+        padding: 7px 4px 0;
+        overflow: hidden;
+      }
+
+      .app-tab {
+        position: relative;
+        display: flex;
+        min-width: 0;
+        max-width: 220px;
+        height: 35px;
+        flex: 0 1 190px;
+        align-items: center;
+        gap: 8px;
+        padding: 0 11px;
+        overflow: hidden;
+        border: 1px solid transparent;
+        border-bottom: 0;
+        border-radius: 8px 8px 0 0;
+        color: var(--muted);
+        font-size: 11px;
+        cursor: default;
+      }
+
+      .app-tab[data-active="true"] {
+        border-color: color-mix(in srgb, var(--accent) 13%, var(--line));
+        color: var(--text);
+        background:
+          linear-gradient(180deg, color-mix(in srgb, var(--raised) 92%, var(--accent-soft)), var(--surface)),
+          var(--surface);
+        box-shadow: 0 1px 0 var(--glass-highlight) inset;
+      }
+
+      .app-tab[data-active="true"]::after {
+        position: absolute;
+        right: 10px;
+        bottom: 0;
+        left: 10px;
+        height: 2px;
+        border-radius: 2px 2px 0 0;
+        background: linear-gradient(90deg, transparent, var(--accent-bright), var(--accent), transparent);
+        box-shadow: 0 -2px 12px color-mix(in srgb, var(--accent) 28%, transparent);
+        content: "";
+      }
+
+      .app-tab .label {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .mini-avatar {
+        display: grid;
+        width: 18px;
+        height: 18px;
+        flex: 0 0 auto;
+        place-items: center;
+        border: 1px solid color-mix(in srgb, var(--avatar-tone) 24%, transparent);
+        border-radius: 5px;
+        color: var(--avatar-tone);
+        font-family: var(--lab-mono);
+        font-size: 8px;
+        font-weight: 700;
+        background: color-mix(in srgb, var(--avatar-tone) 12%, transparent);
+      }
+
+      .tone-accent {
+        --avatar-tone: var(--accent);
+      }
+
+      .tone-warm {
+        --avatar-tone: var(--warm);
+      }
+
+      .tone-success {
+        --avatar-tone: var(--success);
+      }
+
+      .tone-info {
+        --avatar-tone: var(--info);
+      }
+
+      .window-tools {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        padding: 0 11px;
+      }
+
+      .icon-button {
+        display: inline-grid;
+        width: 28px;
+        height: 28px;
+        place-items: center;
+        padding: 0;
+        border: 1px solid transparent;
+        border-radius: 7px;
+        color: var(--muted);
+        background: transparent;
+        cursor: default;
+        transition:
+          color 160ms ease,
+          background 160ms ease,
+          border-color 160ms ease,
+          transform 160ms ease;
+      }
+
+      .icon-button:hover {
+        border-color: var(--line);
+        color: var(--text);
+        background: color-mix(in srgb, var(--text) 5%, transparent);
+        transform: translateY(-1px);
+      }
+
+      .icon-button svg {
+        width: 16px;
+        height: 16px;
+      }
+
+      .workspace {
+        display: grid;
+        min-height: 0;
+        grid-template-columns: 58px 226px minmax(0, 1fr);
+      }
+
+      .rail {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 7px;
+        padding: 13px 0;
+        border-right: 1px solid color-mix(in srgb, var(--line-strong) 74%, transparent);
+        background:
+          linear-gradient(180deg, color-mix(in srgb, var(--surface) 38%, var(--bg-deep)), var(--bg-deep)),
+          var(--bg-deep);
+        box-shadow: -1px 0 0 var(--glass-highlight) inset;
+      }
+
+      .rail-logo {
+        display: grid;
+        width: 32px;
+        height: 32px;
+        margin-bottom: 9px;
+        place-items: center;
+        border-radius: 9px;
+        color: var(--accent-ink);
+        background: linear-gradient(145deg, var(--accent-bright), var(--accent) 55%, var(--accent-deep));
+        box-shadow:
+          0 8px 22px color-mix(in srgb, var(--accent) 30%, transparent),
+          0 1px 0 rgba(255, 255, 255, 0.5) inset,
+          0 -1px 0 color-mix(in srgb, var(--accent-deep) 68%, transparent) inset;
+      }
+
+      .rail-logo svg {
+        width: 19px;
+        height: 19px;
+      }
+
+      .rail-item {
+        position: relative;
+        display: grid;
+        width: 34px;
+        height: 34px;
+        place-items: center;
+        border: 1px solid transparent;
+        border-radius: 9px;
+        color: var(--muted);
+        background: transparent;
+      }
+
+      .rail-item svg {
+        width: 17px;
+        height: 17px;
+      }
+
+      .rail-item[data-active="true"] {
+        border-color: color-mix(in srgb, var(--accent) 24%, transparent);
+        color: var(--accent);
+        background:
+          linear-gradient(145deg, color-mix(in srgb, var(--raised) 72%, var(--accent-soft)), var(--accent-soft)),
+          var(--accent-soft);
+        box-shadow:
+          0 1px 0 var(--glass-highlight) inset,
+          0 6px 14px color-mix(in srgb, var(--accent) 12%, transparent);
+      }
+
+      .rail-item[data-active="true"]::before {
+        position: absolute;
+        left: -13px;
+        width: 3px;
+        height: 16px;
+        border-radius: 0 3px 3px 0;
+        background: linear-gradient(180deg, var(--accent-bright), var(--accent-deep));
+        box-shadow: 3px 0 12px color-mix(in srgb, var(--accent) 22%, transparent);
+        content: "";
+      }
+
+      .rail-spacer {
+        flex: 1;
+      }
+
+      .sidebar {
+        min-width: 0;
+        padding: 13px 11px;
+        overflow: hidden;
+        border-right: 1px solid color-mix(in srgb, var(--line-strong) 65%, transparent);
+        background:
+          linear-gradient(165deg, color-mix(in srgb, var(--raised) 84%, transparent), var(--surface) 46%, var(--bg)),
+          var(--surface);
+      }
+
+      .sidebar-heading {
+        display: flex;
+        height: 31px;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 0 7px;
+        color: var(--muted);
+        font-size: 10px;
+        font-weight: 620;
+        letter-spacing: 0.075em;
+        text-transform: uppercase;
+      }
+
+      .sidebar-heading svg {
+        width: 15px;
+        height: 15px;
+      }
+
+      .project-row {
+        display: flex;
+        height: 35px;
+        align-items: center;
+        gap: 9px;
+        margin-top: 3px;
+        padding: 0 8px;
+        border: 1px solid transparent;
+        border-radius: 7px;
+        color: var(--muted);
+        font-size: 12px;
+        transition:
+          color 160ms ease,
+          background 160ms ease;
+      }
+
+      .project-row[data-active="true"] {
+        border-color: color-mix(in srgb, var(--accent) 16%, var(--line));
+        color: var(--text);
+        background:
+          linear-gradient(110deg, var(--raised), color-mix(in srgb, var(--accent-soft) 56%, transparent)),
+          var(--raised);
+        box-shadow:
+          0 1px 0 var(--glass-highlight) inset,
+          0 7px 16px color-mix(in srgb, var(--text) 6%, transparent);
+      }
+
+      .project-row .project-avatar {
+        display: grid;
+        width: 22px;
+        height: 22px;
+        flex: 0 0 auto;
+        place-items: center;
+        border: 1px solid color-mix(in srgb, var(--avatar-tone) 28%, transparent);
+        border-radius: 6px;
+        color: var(--avatar-tone);
+        font-family: var(--lab-mono);
+        font-size: 9px;
+        font-weight: 700;
+        background: color-mix(in srgb, var(--avatar-tone) 11%, transparent);
+      }
+
+      .project-row .project-name {
+        min-width: 0;
+        flex: 1;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .project-row .count {
+        min-width: 19px;
+        padding: 1px 5px;
+        border-radius: 8px;
+        color: var(--muted);
+        font-family: var(--lab-mono);
+        font-size: 8px;
+        text-align: center;
+        background: var(--inset);
+      }
+
+      .project-row[data-active="true"] .count {
+        color: var(--accent);
+        background: var(--accent-soft);
+      }
+
+      .sidebar-section {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        margin: 22px 8px 8px;
+        color: var(--faint);
+        font-size: 9px;
+        font-weight: 620;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .sidebar-section::after {
+        height: 1px;
+        flex: 1;
+        background: var(--line);
+        content: "";
+      }
+
+      .session-row {
+        display: flex;
+        min-height: 34px;
+        align-items: center;
+        gap: 8px;
+        padding: 5px 8px;
+        border-radius: 7px;
+        color: var(--muted);
+        font-size: 11px;
+      }
+
+      .session-row[data-unread="true"] {
+        color: var(--text);
+        font-weight: 520;
+      }
+
+      .session-row svg {
+        width: 14px;
+        height: 14px;
+        flex: 0 0 auto;
+      }
+
+      .session-row[data-unread="true"] svg {
+        color: var(--accent);
+      }
+
+      .session-text {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .session-time {
+        margin-left: auto;
+        color: var(--faint);
+        font-family: var(--lab-mono);
+        font-size: 8px;
+      }
+
+      .main-panel {
+        display: flex;
+        min-width: 0;
+        min-height: 0;
+        flex-direction: column;
+        background:
+          radial-gradient(circle at 70% -10%, var(--ambient-1), transparent 24%),
+          linear-gradient(180deg, color-mix(in srgb, var(--surface) 98%, var(--accent-soft)), var(--surface));
+      }
+
+      .session-header {
+        display: flex;
+        min-height: 60px;
+        align-items: center;
+        justify-content: space-between;
+        gap: 20px;
+        padding: 0 21px;
+        border-bottom: 1px solid color-mix(in srgb, var(--line-strong) 68%, transparent);
+        background:
+          linear-gradient(180deg, color-mix(in srgb, var(--raised) 58%, transparent), color-mix(in srgb, var(--surface) 94%, transparent)),
+          var(--surface);
+        box-shadow:
+          0 1px 0 var(--glass-highlight) inset,
+          0 8px 22px color-mix(in srgb, var(--text) 3%, transparent);
+      }
+
+      .session-location {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 0;
+      }
+
+      .session-location .mini-avatar {
+        width: 23px;
+        height: 23px;
+        border-radius: 6px;
+        font-size: 9px;
+      }
+
+      .session-title {
+        min-width: 0;
+      }
+
+      .session-title strong {
+        display: block;
+        overflow: hidden;
+        color: var(--text);
+        font-size: 13px;
+        font-weight: 570;
+        letter-spacing: -0.02em;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .session-title span {
+        display: block;
+        margin-top: 1px;
+        color: var(--faint);
+        font-family: var(--lab-mono);
+        font-size: 8px;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+
+      .header-actions {
+        display: flex;
+        align-items: center;
+        gap: 3px;
+      }
+
+      .header-actions .status-chip {
+        display: inline-flex;
+        height: 25px;
+        align-items: center;
+        gap: 6px;
+        margin-right: 5px;
+        padding: 0 9px;
+        border: 1px solid color-mix(in srgb, var(--success) 21%, transparent);
+        border-radius: 12px;
+        color: var(--success);
+        font-family: var(--lab-mono);
+        font-size: 8px;
+        letter-spacing: 0.05em;
+        background:
+          linear-gradient(145deg, color-mix(in srgb, var(--raised) 72%, transparent), color-mix(in srgb, var(--success) 9%, transparent)),
+          color-mix(in srgb, var(--success) 8%, transparent);
+        box-shadow: 0 1px 0 var(--glass-highlight) inset;
+      }
+
+      .status-chip i {
+        width: 5px;
+        height: 5px;
+        border-radius: 50%;
+        background: currentColor;
+        box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 12%, transparent);
+      }
+
+      .timeline {
+        min-height: 0;
+        flex: 1;
+        padding: 24px max(28px, calc((100% - 760px) / 2)) 20px;
+        overflow: hidden;
+        background:
+          radial-gradient(circle at 51% 4%, color-mix(in srgb, var(--ambient-1) 72%, transparent), transparent 28%),
+          linear-gradient(180deg, color-mix(in srgb, var(--accent) 2.4%, transparent), transparent 160px),
+          var(--surface);
+      }
+
+      .run-status {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        margin-bottom: 18px;
+        color: var(--muted);
+        font-size: 11px;
+      }
+
+      .run-status .activity {
+        position: relative;
+        display: grid;
+        width: 22px;
+        height: 22px;
+        place-items: center;
+        border: 1px solid color-mix(in srgb, var(--accent) 22%, transparent);
+        border-radius: 50%;
+        color: var(--accent);
+        background:
+          linear-gradient(145deg, color-mix(in srgb, var(--raised) 62%, var(--accent-soft)), var(--accent-soft));
+        box-shadow:
+          0 1px 0 var(--glass-highlight) inset,
+          0 4px 12px color-mix(in srgb, var(--accent) 13%, transparent);
+      }
+
+      .run-status .activity::after {
+        position: absolute;
+        inset: -4px;
+        border: 1px solid color-mix(in srgb, var(--accent) 20%, transparent);
+        border-radius: 50%;
+        content: "";
+        animation: pulse 2.4s ease-out infinite;
+      }
+
+      .run-status svg {
+        width: 13px;
+        height: 13px;
+      }
+
+      .message {
+        animation: rise 520ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+      }
+
+      .message:nth-of-type(3) {
+        animation-delay: 90ms;
+      }
+
+      .message:nth-of-type(4) {
+        animation-delay: 160ms;
+      }
+
+      .message-heading {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        margin-bottom: 8px;
+        color: var(--success);
+        font-size: 15px;
+        font-weight: 610;
+        letter-spacing: -0.02em;
+      }
+
+      .message-heading .badge-icon {
+        display: grid;
+        width: 24px;
+        height: 24px;
+        place-items: center;
+        border: 1px solid color-mix(in srgb, var(--success) 24%, transparent);
+        border-radius: 7px;
+        color: var(--success);
+        background: color-mix(in srgb, var(--success) 10%, transparent);
+      }
+
+      .message-heading svg {
+        width: 14px;
+        height: 14px;
+      }
+
+      .message-copy {
+        margin: 0 0 16px;
+        color: var(--text);
+        font-size: 13px;
+        line-height: 1.75;
+      }
+
+      .message-copy strong {
+        color: var(--text);
+        font-weight: 620;
+      }
+
+      .message-copy code,
+      .code-inline {
+        padding: 1px 5px;
+        border: 1px solid var(--line);
+        border-radius: 4px;
+        color: var(--accent);
+        font-family: var(--lab-mono);
+        font-size: 10px;
+        background: var(--accent-soft);
+      }
+
+      .tool-call {
+        display: flex;
+        min-height: 39px;
+        align-items: center;
+        gap: 10px;
+        margin: 4px 0 17px;
+        padding: 0 11px;
+        border: 1px solid color-mix(in srgb, var(--line-strong) 68%, transparent);
+        border-radius: 9px;
+        color: var(--muted);
+        font-family: var(--lab-mono);
+        font-size: 10px;
+        background:
+          linear-gradient(112deg, color-mix(in srgb, var(--raised) 96%, var(--info)), var(--raised)),
+          var(--raised);
+        box-shadow:
+          0 1px 0 var(--glass-highlight) inset,
+          0 7px 18px color-mix(in srgb, var(--text) 4%, transparent);
+      }
+
+      .tool-call .tool-icon {
+        display: grid;
+        width: 24px;
+        height: 24px;
+        place-items: center;
+        border-radius: 6px;
+        color: var(--info);
+        background: color-mix(in srgb, var(--info) 10%, transparent);
+      }
+
+      .tool-call svg {
+        width: 14px;
+        height: 14px;
+      }
+
+      .tool-call .command {
+        min-width: 0;
+        flex: 1;
+        overflow: hidden;
+        color: var(--text);
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .tool-call .duration {
+        color: var(--faint);
+        font-size: 8px;
+      }
+
+      .result-panels {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 9px;
+        margin: 13px 0 17px;
+      }
+
+      .result-panel {
+        position: relative;
+        min-width: 0;
+        overflow: hidden;
+        padding: 13px 13px 14px;
+        border: 1px solid color-mix(in srgb, var(--line-strong) 62%, transparent);
+        border-radius: 11px;
+        background:
+          radial-gradient(circle at 92% -18%, color-mix(in srgb, var(--panel-tone) 11%, transparent), transparent 48%),
+          linear-gradient(145deg, var(--raised), color-mix(in srgb, var(--surface) 90%, var(--panel-tone)));
+        box-shadow:
+          0 1px 0 var(--glass-highlight) inset,
+          0 9px 22px color-mix(in srgb, var(--text) 4%, transparent);
+      }
+
+      .result-panel::before {
+        position: absolute;
+        top: 0;
+        right: 0;
+        left: 0;
+        height: 2px;
+        background: linear-gradient(90deg, transparent, var(--panel-tone, var(--accent)), transparent);
+        box-shadow: 0 3px 12px color-mix(in srgb, var(--panel-tone, var(--accent)) 22%, transparent);
+        content: "";
+      }
+
+      .result-panel[data-tone="warm"] {
+        --panel-tone: var(--warm);
+      }
+
+      .result-panel[data-tone="green"] {
+        --panel-tone: var(--success);
+      }
+
+      .panel-kicker {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        margin-bottom: 8px;
+        color: var(--faint);
+        font-family: var(--lab-mono);
+        font-size: 8px;
+        letter-spacing: 0.075em;
+        text-transform: uppercase;
+      }
+
+      .panel-kicker svg {
+        width: 13px;
+        height: 13px;
+        color: var(--panel-tone);
+      }
+
+      .panel-value {
+        color: var(--text);
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+      }
+
+      .panel-detail {
+        margin-top: 4px;
+        overflow: hidden;
+        color: var(--muted);
+        font-size: 10px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .data-table {
+        overflow: hidden;
+        border: 1px solid color-mix(in srgb, var(--line-strong) 58%, transparent);
+        border-radius: 11px;
+        background:
+          linear-gradient(180deg, var(--raised), color-mix(in srgb, var(--surface) 96%, var(--inset)));
+        box-shadow:
+          0 1px 0 var(--glass-highlight) inset,
+          0 8px 22px color-mix(in srgb, var(--text) 3%, transparent);
+      }
+
+      .data-row {
+        display: grid;
+        grid-template-columns: 120px minmax(0, 1fr);
+        min-height: 36px;
+        align-items: center;
+        border-bottom: 1px solid var(--line);
+        font-size: 10px;
+      }
+
+      .data-row:last-child {
+        border-bottom: 0;
+      }
+
+      .data-row[data-head="true"] {
+        min-height: 31px;
+        color: var(--faint);
+        font-family: var(--lab-mono);
+        font-size: 8px;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        background: var(--inset);
+      }
+
+      .data-row > span {
+        min-width: 0;
+        overflow: hidden;
+        padding: 0 12px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .data-row > span:first-child {
+        color: var(--muted);
+      }
+
+      .data-row[data-head="true"] > span:first-child {
+        color: var(--faint);
+      }
+
+      .data-row .ok {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        color: var(--success);
+      }
+
+      .data-row .ok svg {
+        width: 13px;
+        height: 13px;
+      }
+
+      .composer-wrap {
+        padding: 12px max(24px, calc((100% - 760px) / 2)) 18px;
+        background: linear-gradient(to bottom, transparent, color-mix(in srgb, var(--surface) 96%, var(--accent-soft)) 13px);
+      }
+
+      .composer {
+        overflow: hidden;
+        border: 1px solid color-mix(in srgb, var(--accent) 15%, var(--line-strong));
+        border-radius: 14px;
+        background:
+          radial-gradient(circle at 86% -40%, color-mix(in srgb, var(--accent) 9%, transparent), transparent 34%),
+          linear-gradient(145deg, var(--raised), color-mix(in srgb, var(--surface) 94%, var(--accent-soft)));
+        box-shadow:
+          0 14px 38px color-mix(in srgb, var(--text) 8%, transparent),
+          0 1px 0 var(--glass-highlight) inset,
+          0 -1px 0 color-mix(in srgb, var(--accent) 6%, transparent) inset,
+          0 0 0 4px color-mix(in srgb, var(--accent) 4%, transparent);
+      }
+
+      .composer-input {
+        min-height: 53px;
+        padding: 13px 15px 7px;
+        color: var(--faint);
+        font-size: 12px;
+      }
+
+      .composer-toolbar {
+        display: flex;
+        height: 38px;
+        align-items: center;
+        gap: 8px;
+        padding: 0 9px 6px;
+      }
+
+      .model-pill,
+      .tool-pill {
+        display: inline-flex;
+        height: 26px;
+        align-items: center;
+        gap: 6px;
+        padding: 0 8px;
+        border: 1px solid var(--line);
+        border-radius: 7px;
+        color: var(--muted);
+        font-family: var(--lab-mono);
+        font-size: 9px;
+        background:
+          linear-gradient(150deg, var(--raised), color-mix(in srgb, var(--surface) 94%, var(--inset)));
+      }
+
+      .model-pill svg,
+      .tool-pill svg {
+        width: 13px;
+        height: 13px;
+      }
+
+      .model-pill .model-dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 2px;
+        background: var(--brand-2);
+        box-shadow: 0 0 0 3px var(--brand-2-soft);
+      }
+
+      .composer-spacer {
+        flex: 1;
+      }
+
+      .submit-button {
+        display: grid;
+        width: 28px;
+        height: 28px;
+        place-items: center;
+        border: 0;
+        border-radius: 8px;
+        color: var(--accent-ink);
+        background: linear-gradient(145deg, var(--accent-bright), var(--accent) 52%, var(--accent-deep));
+        box-shadow:
+          0 6px 18px color-mix(in srgb, var(--accent) 30%, transparent),
+          0 1px 0 rgba(255, 255, 255, 0.42) inset;
+      }
+
+      .submit-button svg {
+        width: 14px;
+        height: 14px;
+      }
+
+      /* Icon presentation modes are shared by the app shell and the icon sheet. */
+      .app-preview[data-icons="line"] .rail-item[data-active="true"],
+      .app-preview[data-icons="line"] .result-panel .panel-kicker svg,
+      .icon-sheet[data-icons="line"] .icon-tile {
+        background: transparent;
+      }
+
+      .app-preview[data-icons="line"] .rail-item[data-active="true"] {
+        border-color: var(--line-strong);
+      }
+
+      .app-preview[data-icons="ink"] .rail-item[data-active="true"],
+      .app-preview[data-icons="ink"] .rail-logo,
+      .app-preview[data-icons="ink"] .message-heading .badge-icon,
+      .app-preview[data-icons="ink"] .tool-call .tool-icon,
+      .icon-sheet[data-icons="ink"] .icon-tile {
+        color: var(--surface);
+        background: var(--text);
+      }
+
+      .app-preview[data-icons="duotone"] .rail-item:not([data-active="true"]):hover {
+        color: var(--accent);
+        background: var(--accent-soft);
+      }
+
+      .lower-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.37fr) minmax(360px, 0.83fr);
+        gap: 18px;
+        margin-top: 18px;
+      }
+
+      .sheet-card,
+      .analysis-card {
+        border: 1px solid var(--lab-line);
+        border-radius: var(--radius-lg);
+        background: rgba(250, 251, 252, 0.9);
+        box-shadow: 0 1px 0 rgba(255, 255, 255, 0.8) inset;
+      }
+
+      .sheet-card {
+        padding: 23px;
+      }
+
+      .card-topline {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 20px;
+        margin-bottom: 20px;
+      }
+
+      .card-topline h3 {
+        margin: 0;
+        font-family: var(--lab-display);
+        font-size: 20px;
+        font-weight: 620;
+        letter-spacing: -0.035em;
+      }
+
+      .card-topline p {
+        max-width: 430px;
+        margin: 5px 0 0;
+        color: var(--lab-muted);
+        font-size: 11px;
+        line-height: 1.55;
+      }
+
+      .sheet-tag {
+        flex: 0 0 auto;
+        padding: 4px 7px;
+        border: 1px solid var(--lab-line);
+        border-radius: 6px;
+        color: var(--lab-muted);
+        font-family: var(--lab-mono);
+        font-size: 8px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        background: rgba(255, 255, 255, 0.52);
+      }
+
+      .icon-sheet {
+        display: grid;
+        grid-template-columns: repeat(8, minmax(0, 1fr));
+        gap: 8px;
+      }
+
+      .icon-sample {
+        display: flex;
+        min-width: 0;
+        flex-direction: column;
+        align-items: center;
+        gap: 7px;
+        padding: 12px 4px 10px;
+        border: 1px solid rgba(24, 33, 38, 0.08);
+        border-radius: 10px;
+        color: #526067;
+        background: rgba(255, 255, 255, 0.45);
+        transition:
+          border-color 180ms ease,
+          transform 180ms ease,
+          color 180ms ease;
+      }
+
+      .icon-sample:hover {
+        z-index: 1;
+        border-color: var(--lab-accent);
+        color: var(--lab-ink);
+        transform: translateY(-3px);
+      }
+
+      .icon-tile {
+        --tone: var(--lab-accent);
+        display: grid;
+        width: 34px;
+        height: 34px;
+        place-items: center;
+        border: 1px solid color-mix(in srgb, var(--tone) 20%, transparent);
+        border-radius: 10px;
+        color: var(--tone);
+        background: color-mix(in srgb, var(--tone) 10%, transparent);
+      }
+
+      .icon-tile[data-tone="warm"] {
+        --tone: #e56549;
+      }
+
+      .icon-tile[data-tone="green"] {
+        --tone: #258554;
+      }
+
+      .icon-tile[data-tone="olive"] {
+        --tone: #7b8f42;
+      }
+
+      .icon-tile[data-tone="blue"] {
+        --tone: #5275b4;
+      }
+
+      .icon-tile svg {
+        width: 18px;
+        height: 18px;
+      }
+
+      .icon-name {
+        max-width: 100%;
+        overflow: hidden;
+        color: var(--lab-faint);
+        font-family: var(--lab-mono);
+        font-size: 8px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .analysis-card {
+        padding: 23px;
+      }
+
+      .finding-list {
+        display: grid;
+        gap: 0;
+        margin-top: 8px;
+      }
+
+      .finding {
+        display: grid;
+        grid-template-columns: 27px minmax(0, 1fr);
+        gap: 11px;
+        padding: 15px 0;
+        border-top: 1px solid var(--lab-line);
+      }
+
+      .finding:first-child {
+        border-top: 0;
+      }
+
+      .finding-number {
+        display: grid;
+        width: 24px;
+        height: 24px;
+        place-items: center;
+        border: 1px solid var(--lab-line);
+        border-radius: 7px;
+        color: var(--lab-muted);
+        font-family: var(--lab-mono);
+        font-size: 8px;
+        background: rgba(255, 255, 255, 0.5);
+      }
+
+      .finding strong {
+        display: block;
+        margin-bottom: 3px;
+        color: var(--lab-ink);
+        font-size: 12px;
+        font-weight: 620;
+      }
+
+      .finding p {
+        margin: 0;
+        color: var(--lab-muted);
+        font-size: 10px;
+        line-height: 1.55;
+      }
+
+      .finding code {
+        padding: 1px 4px;
+        border-radius: 4px;
+        color: var(--lab-accent);
+        font-family: var(--lab-mono);
+        font-size: 9px;
+        background: rgba(136, 57, 239, 0.08);
+      }
+
+      .token-map {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        padding: 15px 0 1px;
+      }
+
+      .token-map span {
+        padding: 5px 7px;
+        border: 1px solid var(--lab-line);
+        border-radius: 6px;
+        color: var(--lab-muted);
+        font-family: var(--lab-mono);
+        font-size: 8px;
+        background: rgba(255, 255, 255, 0.48);
+      }
+
+      .token-map span i {
+        display: inline-block;
+        width: 5px;
+        height: 5px;
+        margin-right: 5px;
+        border-radius: 50%;
+        vertical-align: 1px;
+        background: var(--token-tone, var(--lab-accent));
+      }
+
+      .token-map [data-token-tone="accent"] {
+        --token-tone: #8839ef;
+      }
+
+      .token-map [data-token-tone="brand"] {
+        --token-tone: #a8c65e;
+      }
+
+      .token-map [data-token-tone="warm"] {
+        --token-tone: #ff7255;
+      }
+
+      .token-map [data-token-tone="success"] {
+        --token-tone: #0d8050;
+      }
+
+      .token-map [data-token-tone="info"] {
+        --token-tone: #5773af;
+      }
+
+      .footer-note {
+        display: flex;
+        justify-content: space-between;
+        gap: 20px;
+        margin-top: 24px;
+        padding-top: 20px;
+        border-top: 1px solid var(--lab-line);
+        color: var(--lab-faint);
+        font-family: var(--lab-mono);
+        font-size: 9px;
+        letter-spacing: 0.04em;
+      }
+
+      .toast {
+        position: fixed;
+        right: 22px;
+        bottom: 22px;
+        z-index: 100;
+        display: flex;
+        max-width: min(360px, calc(100vw - 32px));
+        align-items: center;
+        gap: 10px;
+        padding: 11px 14px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 10px;
+        color: #f9fbf8;
+        font-size: 11px;
+        background: #182126;
+        box-shadow: 0 18px 48px rgba(16, 24, 28, 0.26);
+        opacity: 0;
+        pointer-events: none;
+        transform: translateY(8px);
+        transition:
+          opacity 180ms ease,
+          transform 180ms ease;
+      }
+
+      .toast[data-show="true"] {
+        opacity: 1;
+        transform: translateY(0);
+      }
+
+      .toast svg {
+        width: 15px;
+        height: 15px;
+        color: #a8d474;
+      }
+
+      @keyframes pulse {
+        0% {
+          opacity: 0.8;
+          transform: scale(0.75);
+        }
+        75%,
+        100% {
+          opacity: 0;
+          transform: scale(1.25);
+        }
+      }
+
+      @keyframes rise {
+        from {
+          opacity: 0;
+          transform: translateY(7px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      @media (max-width: 1240px) {
+        .lab {
+          width: min(100% - 32px, 1100px);
+        }
+
+        .hero {
+          grid-template-columns: 1fr;
+          gap: 30px;
+          padding-top: 50px;
+        }
+
+        .hero-copy {
+          max-width: 660px;
+        }
+
+        .theme-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .theme-card,
+        .theme-card:nth-child(4),
+        .theme-card:nth-child(5) {
+          grid-column: auto;
+        }
+
+        .app-preview {
+          min-height: 700px;
+        }
+
+        .workspace {
+          grid-template-columns: 52px 198px minmax(0, 1fr);
+        }
+
+        .lower-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .icon-sheet {
+          grid-template-columns: repeat(8, minmax(56px, 1fr));
+        }
+      }
+
+      @media (max-width: 900px) {
+        .lab {
+          width: min(100% - 22px, 760px);
+          padding-top: 18px;
+        }
+
+        .top-meta {
+          display: none;
+        }
+
+        .hero {
+          padding: 42px 0 30px;
+        }
+
+        h1 {
+          font-size: clamp(46px, 13vw, 74px);
+        }
+
+        .lab-controls {
+          align-items: flex-start;
+          flex-direction: column;
+        }
+
+        .control-groups {
+          width: 100%;
+          flex-wrap: wrap;
+        }
+
+        .copy-button {
+          margin-left: auto;
+        }
+
+        .preview-section {
+          padding: 22px 10px 12px;
+          border-radius: 20px;
+        }
+
+        .preview-caption {
+          align-items: flex-start;
+          flex-direction: column;
+          padding: 0 8px;
+        }
+
+        .app-preview {
+          min-height: 680px;
+          border-radius: 11px;
+        }
+
+        .workspace {
+          grid-template-columns: 48px minmax(0, 1fr);
+        }
+
+        .sidebar {
+          display: none;
+        }
+
+        .window-bar {
+          grid-template-columns: 78px minmax(0, 1fr) auto;
+        }
+
+        .app-tab:not([data-active="true"]) {
+          display: none;
+        }
+
+        .main-panel {
+          min-width: 0;
+        }
+
+        .timeline {
+          padding-right: 22px;
+          padding-left: 22px;
+        }
+
+        .composer-wrap {
+          padding-right: 18px;
+          padding-left: 18px;
+        }
+
+        .result-panels {
+          grid-template-columns: 1fr;
+        }
+
+        .data-row {
+          grid-template-columns: 96px minmax(0, 1fr);
+        }
+
+        .icon-sheet {
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+        }
+      }
+
+      @media (max-width: 600px) {
+        h1 {
+          font-size: clamp(38px, 10.5vw, 50px);
+          line-height: 1;
+        }
+
+        h1 .title-first {
+          white-space: nowrap;
+        }
+
+        .theme-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .theme-card {
+          min-height: 168px;
+        }
+
+        .preview-section {
+          margin-right: -11px;
+          margin-left: -11px;
+          border-right: 0;
+          border-left: 0;
+          border-radius: 0;
+        }
+
+        .keyboard {
+          display: none !important;
+        }
+
+        .workspace {
+          grid-template-columns: 42px minmax(0, 1fr);
+        }
+
+        .rail {
+          gap: 4px;
+        }
+
+        .rail-item {
+          width: 30px;
+          height: 30px;
+        }
+
+        .session-header {
+          padding: 0 13px;
+        }
+
+        .session-location .mini-avatar {
+          display: none;
+        }
+
+        .header-actions .status-chip {
+          display: none;
+        }
+
+        .timeline {
+          padding: 18px 14px 14px;
+        }
+
+        .message-copy {
+          font-size: 12px;
+        }
+
+        .data-row {
+          grid-template-columns: 82px minmax(0, 1fr);
+        }
+
+        .composer-wrap {
+          padding: 8px 10px 12px;
+        }
+
+        .model-pill .model-label {
+          display: none;
+        }
+
+        .sheet-card,
+        .analysis-card {
+          padding: 17px;
+        }
+
+        .footer-note {
+          flex-direction: column;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          scroll-behavior: auto !important;
+          animation-duration: 0.01ms !important;
+          animation-iteration-count: 1 !important;
+          transition-duration: 0.01ms !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <svg class="sprite-defs" width="0" height="0" aria-hidden="true">
+      <symbol id="i-code" viewBox="0 0 24 24">
+        <path d="m8.2 6.8-4.4 5.1 4.4 5.1M15.8 6.8l4.4 5.1-4.4 5.1M13.6 3.7 10.4 20.3" />
+      </symbol>
+      <symbol id="i-sliders" viewBox="0 0 24 24">
+        <path d="M4 7h9M17 7h3M4 17h3M11 17h9" />
+        <circle cx="15" cy="7" r="2.1" />
+        <circle cx="9" cy="17" r="2.1" />
+      </symbol>
+      <symbol id="i-sun" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="3.4" />
+        <path d="M12 2.5v2M12 19.5v2M4.7 4.7 6 6M18 18l1.3 1.3M2.5 12h2M19.5 12h2M4.7 19.3 6 18M18 6l1.3-1.3" />
+      </symbol>
+      <symbol id="i-moon" viewBox="0 0 24 24">
+        <path d="M20 15.2A8.2 8.2 0 0 1 8.8 4a8.2 8.2 0 1 0 11.2 11.2Z" />
+      </symbol>
+      <symbol id="i-copy" viewBox="0 0 24 24">
+        <rect x="8" y="8" width="11" height="11" rx="2.1" />
+        <path d="M16 8V6.2A2.2 2.2 0 0 0 13.8 4H6.2A2.2 2.2 0 0 0 4 6.2v7.6A2.2 2.2 0 0 0 6.2 16H8" />
+      </symbol>
+      <symbol id="i-layout" viewBox="0 0 24 24">
+        <rect x="3" y="4" width="18" height="16" rx="2.2" />
+        <path d="M3 9h18M9 9v11" />
+      </symbol>
+      <symbol id="i-panel" viewBox="0 0 24 24">
+        <rect x="3" y="4" width="18" height="16" rx="2.2" />
+        <path d="M14 4v16" />
+      </symbol>
+      <symbol id="i-command" viewBox="0 0 24 24">
+        <path d="M9 8H6.8A2.8 2.8 0 1 1 9.6 5.2V8Zm0 0h6m-6 0v8m6-8h2.2a2.8 2.8 0 1 0-2.8-2.8V8Zm0 0v8m0 0H9m6 0h2.2a2.8 2.8 0 1 1-2.8 2.8V16Zm-6 0H6.8A2.8 2.8 0 1 0 9.6 18.8V16Z" />
+      </symbol>
+      <symbol id="i-search" viewBox="0 0 24 24">
+        <circle cx="10.5" cy="10.5" r="6.2" />
+        <path d="m15.2 15.2 4.3 4.3" />
+      </symbol>
+      <symbol id="i-plus" viewBox="0 0 24 24">
+        <path d="M12 4.5v15M4.5 12h15" />
+      </symbol>
+      <symbol id="i-folder" viewBox="0 0 24 24">
+        <path d="M3.2 6.8A2.1 2.1 0 0 1 5.3 4.7h4l2 2.3h7.4a2.1 2.1 0 0 1 2.1 2.1v8.1a2.1 2.1 0 0 1-2.1 2.1H5.3a2.1 2.1 0 0 1-2.1-2.1V6.8Z" />
+      </symbol>
+      <symbol id="i-folder-plus" viewBox="0 0 24 24">
+        <path d="M3.2 6.8A2.1 2.1 0 0 1 5.3 4.7h4l2 2.3h7.4a2.1 2.1 0 0 1 2.1 2.1v8.1a2.1 2.1 0 0 1-2.1 2.1H5.3a2.1 2.1 0 0 1-2.1-2.1V6.8Z" />
+        <path d="M14.7 12.2v4.5M12.5 14.5h4.5" />
+      </symbol>
+      <symbol id="i-terminal" viewBox="0 0 24 24">
+        <rect x="3" y="4.2" width="18" height="15.6" rx="2.3" />
+        <path d="m7 9 3 3-3 3M12.5 15H17" />
+      </symbol>
+      <symbol id="i-branch" viewBox="0 0 24 24">
+        <circle cx="6.5" cy="5.3" r="2.1" />
+        <circle cx="17.5" cy="7.2" r="2.1" />
+        <circle cx="6.5" cy="18.7" r="2.1" />
+        <path d="M6.5 7.4v9.2M8.6 9.2c2.2 0 3.7-1.8 5.7-1.8h1.1" />
+      </symbol>
+      <symbol id="i-check" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="8.6" />
+        <path d="m8.2 12.2 2.5 2.6 5.2-6" />
+      </symbol>
+      <symbol id="i-spark" viewBox="0 0 24 24">
+        <path d="M12 3.1c.5 4.1 2.2 5.8 6.3 6.3v1.2c-4.1.5-5.8 2.2-6.3 6.3h-1.2c-.5-4.1-2.2-5.8-6.3-6.3v-1.2C8.6 8.9 10.3 7.2 10.8 3.1H12Z" />
+        <path d="M18.4 16.2c.2 1.6.9 2.3 2.5 2.5v.5c-1.6.2-2.3.9-2.5 2.5h-.5c-.2-1.6-.9-2.3-2.5-2.5v-.5c1.6-.2 2.3-.9 2.5-2.5h.5Z" />
+      </symbol>
+      <symbol id="i-file" viewBox="0 0 24 24">
+        <path d="M6 3.8h7l5 5v11.4H6V3.8Z" />
+        <path d="M13 3.8v5.3h5M9 13h6M9 16.4h4.2" />
+      </symbol>
+      <symbol id="i-diff" viewBox="0 0 24 24">
+        <path d="M5 5h14M5 19h14M9 12h6M12 9v6" />
+      </symbol>
+      <symbol id="i-server" viewBox="0 0 24 24">
+        <rect x="3.5" y="3.7" width="17" height="6.2" rx="2" />
+        <rect x="3.5" y="14.1" width="17" height="6.2" rx="2" />
+        <path d="M7 6.8h.1M7 17.2h.1M11 6.8h6M11 17.2h6" />
+      </symbol>
+      <symbol id="i-globe" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="8.6" />
+        <path d="M3.7 12h16.6M12 3.4c2.2 2.2 3.2 5.2 3.2 8.6S14.2 18.4 12 20.6M12 3.4C9.8 5.6 8.8 8.6 8.8 12s1 6.4 3.2 8.6" />
+      </symbol>
+      <symbol id="i-shield" viewBox="0 0 24 24">
+        <path d="M12 3.2 19 6v5.7c0 4.2-2.6 7.7-7 9.1-4.4-1.4-7-4.9-7-9.1V6l7-2.8Z" />
+        <path d="m8.8 12 2.1 2.1 4.3-4.4" />
+      </symbol>
+      <symbol id="i-book" viewBox="0 0 24 24">
+        <path d="M4.5 5.2A2.2 2.2 0 0 1 6.7 3h12.8v16.3H6.7a2.2 2.2 0 0 0-2.2 2.2V5.2Z" />
+        <path d="M4.5 18.1V5.2M8 7.2h7.5M8 11h6" />
+      </symbol>
+      <symbol id="i-clock" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="8.7" />
+        <path d="M12 7v5.2l3.4 2" />
+      </symbol>
+      <symbol id="i-settings" viewBox="0 0 24 24">
+        <path d="m9.5 3.5.7-1h3.6l.7 1 .4 1.8 1.5.9 1.8-.5 1.8 3.1-.9 1.7.3 1.7 1.3 1.4-1.8 3.1-1.9-.2-1.3 1.2-.2 1.9h-3.6l-1-1.6-1.7-.7-1.8.5-1.8-3.1 1.1-1.6-.1-1.8-1.4-1.1 1.8-3.1 1.8.2 1.3-1.1.1-1.6Z" />
+        <circle cx="12" cy="12" r="2.8" />
+      </symbol>
+      <symbol id="i-archive" viewBox="0 0 24 24">
+        <path d="M4 7h16v13H4V7ZM3 4h18v3H3V4ZM9 11h6" />
+      </symbol>
+      <symbol id="i-arrow-up" viewBox="0 0 24 24">
+        <path d="M12 19V5M6.5 10.5 12 5l5.5 5.5" />
+      </symbol>
+      <symbol id="i-chevron-down" viewBox="0 0 24 24">
+        <path d="m7 9.5 5 5 5-5" />
+      </symbol>
+      <symbol id="i-dots" viewBox="0 0 24 24">
+        <circle cx="5.5" cy="12" r="1.2" fill="currentColor" stroke="none" />
+        <circle cx="12" cy="12" r="1.2" fill="currentColor" stroke="none" />
+        <circle cx="18.5" cy="12" r="1.2" fill="currentColor" stroke="none" />
+      </symbol>
+      <symbol id="i-close" viewBox="0 0 24 24">
+        <path d="m7 7 10 10M17 7 7 17" />
+      </symbol>
+      <symbol id="i-paperclip" viewBox="0 0 24 24">
+        <path d="m8.2 12.3 5.5-5.5a3.3 3.3 0 1 1 4.7 4.7l-7.1 7.1a4.7 4.7 0 1 1-6.7-6.7l7-7" />
+      </symbol>
+      <symbol id="i-brain" viewBox="0 0 24 24">
+        <path d="M9.2 4.4A3.1 3.1 0 0 0 6 7.5v.2A3.1 3.1 0 0 0 5.8 14a3.2 3.2 0 0 0 3 4.1c.4 1.6 1.5 2.4 3.2 2.4V4.1c-.9-.5-1.9-.4-2.8.3ZM14.8 4.4A3.1 3.1 0 0 1 18 7.5v.2a3.1 3.1 0 0 1 .2 6.3 3.2 3.2 0 0 1-3 4.1c-.4 1.6-1.5 2.4-3.2 2.4" />
+      </symbol>
+    </svg>
+
+    <main class="lab">
+      <header class="topbar">
+        <div class="brand">
+          <div class="brand-mark">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <use href="#i-code" />
+            </svg>
+          </div>
+          <div>
+            <span class="brand-name">OpenCode Theme Lab</span>
+            <span class="brand-subtitle">Interface study / 2026.11</span>
+          </div>
+        </div>
+        <div class="top-meta">
+          <span class="dot"></span>
+          <span><strong>05</strong> palettes</span>
+          <span><strong>03</strong> icon modes</span>
+          <span>Token-ready</span>
+        </div>
+      </header>
+
+      <section class="hero">
+        <div>
+          <div class="eyebrow">Visual direction, not a repaint</div>
+          <h1>
+            <span class="title-first">让工具界面有<span class="accent">层次</span>，</span>
+            <span class="title-second">但不吵闹。</span>
+          </h1>
+        </div>
+        <div class="hero-copy">
+          <p>
+            现有界面的结构没有问题，问题集中在两处：大部分图标和文字都落在同一个灰色层级；
+            新图标仍受 <code>newIcons: false</code> 控制，部分图标也没有迁移完成。
+          </p>
+          <p>
+            下面五套方向都以“哑光内容面 + 少量光泽交互面”为原则。主题和图标是两个独立配置轴，可以分别选择后自由组合。
+          </p>
+        </div>
+      </section>
+
+      <section class="lab-controls" aria-label="预览控制">
+        <div class="control-label">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <use href="#i-sliders" />
+          </svg>
+          Preview controls
+        </div>
+        <div class="control-groups">
+          <div class="segmented" role="group" aria-label="明暗模式">
+            <button type="button" data-mode="light" aria-pressed="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-sun" /></svg>
+              Light
+            </button>
+            <button type="button" data-mode="dark" aria-pressed="false">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-moon" /></svg>
+              Dark
+            </button>
+          </div>
+          <div class="segmented" role="group" aria-label="图标模式">
+            <button type="button" data-icons="line" aria-pressed="false">Linear</button>
+            <button type="button" data-icons="duotone" aria-pressed="true">Duotone</button>
+            <button type="button" data-icons="ink" aria-pressed="false">Ink</button>
+          </div>
+          <button type="button" class="copy-button" id="copy-tokens">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-copy" /></svg>
+            Copy tokens
+          </button>
+        </div>
+      </section>
+
+      <section class="theme-grid" aria-label="主题方案">
+        <button type="button" class="theme-card" data-theme-id="porcelain" aria-pressed="true">
+          <span class="theme-index">01 / PORCELAIN LIGHT</span>
+          <span class="theme-name">瓷釉蓝</span>
+          <span class="theme-en">Porcelain Blue</span>
+          <span class="theme-rule"></span>
+          <span class="swatches">
+            <span class="wide" data-swatch="accent"></span>
+            <span data-swatch="brand2"></span>
+            <span data-swatch="warm"></span>
+            <span data-swatch="surface"></span>
+            <span class="theme-purpose">冷静的编辑感</span>
+          </span>
+        </button>
+        <button type="button" class="theme-card" data-theme-id="sea-glass" aria-pressed="false">
+          <span class="theme-index">02 / SEA GLASS</span>
+          <span class="theme-name">海玻璃</span>
+          <span class="theme-en">Sea Glass</span>
+          <span class="theme-rule"></span>
+          <span class="swatches">
+            <span class="wide" data-swatch="accent"></span>
+            <span data-swatch="brand2"></span>
+            <span data-swatch="warm"></span>
+            <span data-swatch="surface"></span>
+            <span class="theme-purpose">通透、低刺激</span>
+          </span>
+        </button>
+        <button type="button" class="theme-card" data-theme-id="glacier" aria-pressed="false">
+          <span class="theme-index">03 / GLACIER BLUE</span>
+          <span class="theme-name">冰川蓝</span>
+          <span class="theme-en">Glacier Mist</span>
+          <span class="theme-rule"></span>
+          <span class="swatches">
+            <span class="wide" data-swatch="accent"></span>
+            <span data-swatch="brand2"></span>
+            <span data-swatch="warm"></span>
+            <span data-swatch="surface"></span>
+            <span class="theme-purpose">冷静、精密</span>
+          </span>
+        </button>
+        <button type="button" class="theme-card" data-theme-id="matcha" aria-pressed="false">
+          <span class="theme-index">04 / MATCHA AIR</span>
+          <span class="theme-name">抹茶雾</span>
+          <span class="theme-en">Matcha Air</span>
+          <span class="theme-rule"></span>
+          <span class="swatches">
+            <span class="wide" data-swatch="accent"></span>
+            <span data-swatch="brand2"></span>
+            <span data-swatch="warm"></span>
+            <span data-swatch="surface"></span>
+            <span class="theme-purpose">轻盈、自然</span>
+          </span>
+        </button>
+        <button type="button" class="theme-card" data-theme-id="iris" aria-pressed="false">
+          <span class="theme-index">05 / CATPPUCCIN LATTE</span>
+          <span class="theme-name">拿铁紫</span>
+          <span class="theme-en">Codex · Current Theme</span>
+          <span class="theme-rule"></span>
+          <span class="swatches">
+            <span class="wide" data-swatch="accent"></span>
+            <span data-swatch="brand2"></span>
+            <span data-swatch="warm"></span>
+            <span data-swatch="surface"></span>
+          <span class="theme-purpose">源码实值、低对比</span>
+          </span>
+        </button>
+      </section>
+
+      <section class="preview-section" aria-labelledby="preview-title">
+        <div class="preview-caption">
+          <div>
+            <h2 id="preview-title"><span id="active-theme-name">瓷釉蓝</span> · 真实密度预览</h2>
+            <p>光泽只出现在窗口、选中态与输入区；正文和数据表保持平整，避免视觉噪声。</p>
+          </div>
+          <div class="keyboard">
+            <span>切换图标</span>
+            <kbd>⌘</kbd><kbd>I</kbd>
+            <span>切换明暗</span>
+            <kbd>⌘</kbd><kbd>D</kbd>
+          </div>
+        </div>
+
+        <div class="app-preview" id="app-preview" data-theme-id="porcelain" data-mode="light" data-icons="duotone">
+          <div class="window-bar">
+            <div class="traffic" aria-hidden="true"><span></span><span></span><span></span></div>
+            <div class="tabs">
+              <div class="app-tab" data-active="true">
+                <span class="mini-avatar tone-accent">OC</span>
+                <span class="label">主题与图标系统提案</span>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><use href="#i-close" /></svg>
+              </div>
+              <div class="app-tab">
+                <span class="mini-avatar tone-warm">Y</span>
+                <span class="label">云效工作台设计文档</span>
+              </div>
+              <div class="app-tab">
+                <span class="mini-avatar tone-success">K</span>
+                <span class="label">知识库增量生成与同步</span>
+              </div>
+            </div>
+            <div class="window-tools">
+              <button type="button" class="icon-button" aria-label="添加标签页">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><use href="#i-plus" /></svg>
+              </button>
+              <button type="button" class="icon-button" aria-label="更多操作">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><use href="#i-dots" /></svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="workspace">
+            <nav class="rail" aria-label="主导航">
+              <div class="rail-logo">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-code" /></svg>
+              </div>
+              <div class="rail-item" data-active="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-layout" /></svg>
+              </div>
+              <div class="rail-item">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-command" /></svg>
+              </div>
+              <div class="rail-item">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-search" /></svg>
+              </div>
+              <div class="rail-item">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-terminal" /></svg>
+              </div>
+              <div class="rail-spacer"></div>
+              <div class="rail-item">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-settings" /></svg>
+              </div>
+            </nav>
+
+            <aside class="sidebar" aria-label="项目与会话">
+              <div class="sidebar-heading">
+                <span>Projects</span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-folder-plus" /></svg>
+              </div>
+              <div class="project-row" data-active="true">
+                <span class="project-avatar tone-accent">OC</span>
+                <span class="project-name">opencode</span>
+                <span class="count">3</span>
+              </div>
+              <div class="project-row">
+                <span class="project-avatar tone-warm">PI</span>
+                <span class="project-name">pier-tools</span>
+                <span class="count">8</span>
+              </div>
+              <div class="project-row">
+                <span class="project-avatar tone-success">KB</span>
+                <span class="project-name">knowledge-base</span>
+              </div>
+              <div class="project-row">
+                <span class="project-avatar tone-info">J</span>
+                <span class="project-name">jarvis</span>
+              </div>
+
+              <div class="sidebar-section">Recent</div>
+              <div class="session-row" data-unread="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-spark" /></svg>
+                <span class="session-text">主题与图标系统提案</span>
+                <span class="session-time">NOW</span>
+              </div>
+              <div class="session-row">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-branch" /></svg>
+                <span class="session-text">工作台 Git 合并策略</span>
+                <span class="session-time">12m</span>
+              </div>
+              <div class="session-row">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-terminal" /></svg>
+                <span class="session-text">修复本地服务启动脚本</span>
+                <span class="session-time">2h</span>
+              </div>
+              <div class="session-row">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-book" /></svg>
+                <span class="session-text">知识库 Skill 效果复盘</span>
+                <span class="session-time">1d</span>
+              </div>
+            </aside>
+
+            <section class="main-panel" aria-label="会话">
+              <header class="session-header">
+                <div class="session-location">
+                  <span class="mini-avatar tone-accent">OC</span>
+                  <div class="session-title">
+                    <strong>主题与图标系统提案</strong>
+                    <span>opencode / theme-lab</span>
+                  </div>
+                </div>
+                <div class="header-actions">
+                  <span class="status-chip"><i></i>SYNCED</span>
+                  <button type="button" class="icon-button" aria-label="搜索会话">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-search" /></svg>
+                  </button>
+                  <button type="button" class="icon-button" aria-label="打开侧栏">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-panel" /></svg>
+                  </button>
+                  <button type="button" class="icon-button" aria-label="更多操作">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><use href="#i-dots" /></svg>
+                  </button>
+                </div>
+              </header>
+
+              <div class="timeline">
+                <div class="run-status">
+                  <span class="activity">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-spark" /></svg>
+                  </span>
+                  <span>Assistant completed 3 tools · 1m 42s</span>
+                </div>
+
+                <div class="message">
+                  <div class="message-heading">
+                    <span class="badge-icon">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-check" /></svg>
+                    </span>
+                    结论：结构保留，视觉重新分层
+                  </div>
+                  <p class="message-copy">
+                    现有布局已经很适合开发工作流。建议把 <strong>蓝色留给可控动作</strong>，把柔和的绿色、橙色和青色分别用于
+                    成功、提醒和文件/工具对象，同时让标题和关键数字回到高对比文本色。
+                  </p>
+                  <div class="tool-call">
+                    <span class="tool-icon">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-terminal" /></svg>
+                    </span>
+                    <span class="command">$ git status --short --branch</span>
+                    <span class="duration">0.8s</span>
+                  </div>
+                  <div class="result-panels">
+                    <div class="result-panel">
+                      <div class="panel-kicker">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-file" /></svg>
+                        Changed files
+                      </div>
+                      <div class="panel-value">11 sessions · 83 files</div>
+                      <div class="panel-detail">app / core / desktop / session-ui</div>
+                    </div>
+                    <div class="result-panel" data-tone="warm">
+                      <div class="panel-kicker">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-diff" /></svg>
+                        Review focus
+                      </div>
+                      <div class="panel-value">Token semantics</div>
+                      <div class="panel-detail">text · icon · border · action</div>
+                    </div>
+                  </div>
+                  <div class="data-table">
+                    <div class="data-row" data-head="true"><span>Layer</span><span>Recommendation</span></div>
+                    <div class="data-row">
+                      <span>Primary action</span>
+                      <span><code class="code-inline">accent</code> · 只用于按钮、焦点和选中态</span>
+                    </div>
+                    <div class="data-row">
+                      <span>Object icon</span>
+                      <span><code class="code-inline">brand-2 / warm / info</code> · 区分对象，不制造噪声</span>
+                    </div>
+                    <div class="data-row">
+                      <span>Status</span>
+                      <span class="ok">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-check" /></svg>
+                        只使用 success / warning / danger
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="composer-wrap">
+                <div class="composer">
+                  <div class="composer-input">随时问点什么，/ 可查看命令，@ 可添加上下文...</div>
+                  <div class="composer-toolbar">
+                    <span class="tool-pill">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-plus" /></svg>
+                    </span>
+                    <span class="model-pill">
+                      <span class="model-dot"></span>
+                      <span class="model-label">PI AI DeepSeek / DeepSeek Flash</span>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-chevron-down" /></svg>
+                    </span>
+                    <span class="composer-spacer"></span>
+                    <span class="tool-pill">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-paperclip" /></svg>
+                    </span>
+                    <span class="submit-button">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-arrow-up" /></svg>
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </section>
+          </div>
+        </div>
+      </section>
+
+      <section class="lower-grid">
+        <article class="sheet-card">
+          <div class="card-topline">
+            <div>
+              <h3>统一图标家族</h3>
+              <p>24px 外框、1.7px 主线条、圆角端点。双色调底板只承载分类，不改变图标含义。</p>
+            </div>
+            <span class="sheet-tag">24px / stroke 1.7</span>
+          </div>
+          <div class="icon-sheet" id="icon-sheet" data-icons="duotone">
+            <div class="icon-sample"><span class="icon-tile"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><use href="#i-layout" /></svg></span><span class="icon-name">layout</span></div>
+            <div class="icon-sample"><span class="icon-tile" data-tone="blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><use href="#i-command" /></svg></span><span class="icon-name">command</span></div>
+            <div class="icon-sample"><span class="icon-tile"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><use href="#i-search" /></svg></span><span class="icon-name">search</span></div>
+            <div class="icon-sample"><span class="icon-tile" data-tone="olive"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><use href="#i-folder" /></svg></span><span class="icon-name">folder</span></div>
+            <div class="icon-sample"><span class="icon-tile" data-tone="blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><use href="#i-terminal" /></svg></span><span class="icon-name">terminal</span></div>
+            <div class="icon-sample"><span class="icon-tile" data-tone="green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><use href="#i-branch" /></svg></span><span class="icon-name">branch</span></div>
+            <div class="icon-sample"><span class="icon-tile" data-tone="green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><use href="#i-check" /></svg></span><span class="icon-name">check</span></div>
+            <div class="icon-sample"><span class="icon-tile" data-tone="warm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><use href="#i-spark" /></svg></span><span class="icon-name">agent</span></div>
+            <div class="icon-sample"><span class="icon-tile"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><use href="#i-file" /></svg></span><span class="icon-name">file</span></div>
+            <div class="icon-sample"><span class="icon-tile" data-tone="warm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><use href="#i-diff" /></svg></span><span class="icon-name">diff</span></div>
+            <div class="icon-sample"><span class="icon-tile" data-tone="blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><use href="#i-server" /></svg></span><span class="icon-name">server</span></div>
+            <div class="icon-sample"><span class="icon-tile" data-tone="blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><use href="#i-globe" /></svg></span><span class="icon-name">globe</span></div>
+            <div class="icon-sample"><span class="icon-tile" data-tone="green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><use href="#i-shield" /></svg></span><span class="icon-name">permission</span></div>
+            <div class="icon-sample"><span class="icon-tile"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><use href="#i-book" /></svg></span><span class="icon-name">knowledge</span></div>
+            <div class="icon-sample"><span class="icon-tile" data-tone="olive"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><use href="#i-clock" /></svg></span><span class="icon-name">history</span></div>
+            <div class="icon-sample"><span class="icon-tile"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><use href="#i-settings" /></svg></span><span class="icon-name">settings</span></div>
+            <div class="icon-sample"><span class="icon-tile" data-tone="olive"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><use href="#i-archive" /></svg></span><span class="icon-name">archive</span></div>
+            <div class="icon-sample"><span class="icon-tile"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><use href="#i-panel" /></svg></span><span class="icon-name">panel</span></div>
+            <div class="icon-sample"><span class="icon-tile" data-tone="blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><use href="#i-copy" /></svg></span><span class="icon-name">copy</span></div>
+            <div class="icon-sample"><span class="icon-tile" data-tone="warm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><use href="#i-paperclip" /></svg></span><span class="icon-name">attach</span></div>
+            <div class="icon-sample"><span class="icon-tile" data-tone="warm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><use href="#i-brain" /></svg></span><span class="icon-name">reasoning</span></div>
+            <div class="icon-sample"><span class="icon-tile"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><use href="#i-arrow-up" /></svg></span><span class="icon-name">submit</span></div>
+            <div class="icon-sample"><span class="icon-tile" data-tone="blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><use href="#i-folder-plus" /></svg></span><span class="icon-name">add project</span></div>
+            <div class="icon-sample"><span class="icon-tile"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><use href="#i-dots" /></svg></span><span class="icon-name">more</span></div>
+          </div>
+        </article>
+
+        <aside class="analysis-card" aria-label="现状分析">
+          <div class="card-topline">
+            <div>
+              <h3>为什么现在显得素</h3>
+              <p>问题不是“缺少颜色”，而是颜色没有承担稳定的语义职责。</p>
+            </div>
+          </div>
+          <div class="finding-list">
+            <div class="finding">
+              <span class="finding-number">01</span>
+              <div>
+                <strong>文字和图标挤在同一灰阶</strong>
+                <p>正文、次要标签和多数图标都接近中灰。建议正文对比度提高到 80% 以上，图标只承担对象或动作提示。</p>
+              </div>
+            </div>
+            <div class="finding">
+              <span class="finding-number">02</span>
+              <div>
+                <strong>新图标默认没有启用</strong>
+                <p><code>defaultSettings.general.newIcons = false</code>，并且 terminal、branch、MCP 等仍未迁移。视觉上会像“又退回去了”。</p>
+              </div>
+            </div>
+            <div class="finding">
+              <span class="finding-number">03</span>
+              <div>
+                <strong>语义色没有进入日常动作</strong>
+                <p>现有 token 已有 agent、状态和 diff 色，但侧栏、标签页和常用图标仍主要使用 muted 灰。应让分类色稳定出现，而非大面积铺色。</p>
+              </div>
+            </div>
+          </div>
+          <div class="token-map">
+            <span data-token-tone="accent"><i></i>action / accent</span>
+            <span data-token-tone="brand"><i></i>agent / brand-2</span>
+            <span data-token-tone="warm"><i></i>warning / warm</span>
+            <span data-token-tone="success"><i></i>success</span>
+            <span data-token-tone="info"><i></i>info / object</span>
+          </div>
+        </aside>
+      </section>
+
+      <footer class="footer-note">
+        <span>建议选一套作为发布主推，其余作为可选主题；不改掉现有默认主题。</span>
+        <span>目标：内容面克制，交互面有材料感，而不是给所有组件加光泽。</span>
+      </footer>
+    </main>
+
+    <div class="toast" id="toast" role="status" aria-live="polite">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-check" /></svg>
+      <span id="toast-text">已复制</span>
+    </div>
+
+    <script>
+      const themes = {
+        porcelain: {
+          name: "瓷釉蓝",
+          defaultMode: "light",
+          light: {
+            bg: "#f1f4f8",
+            bgDeep: "#edf1f5",
+            surface: "#f5f8fb",
+            raised: "#fcfdfe",
+            inset: "#e9eef4",
+            text: "#4c5263",
+            muted: "#7f8797",
+            faint: "#a1a7b3",
+            line: "rgba(76, 82, 99, 0.078)",
+            lineStrong: "rgba(76, 82, 99, 0.12)",
+            accent: "#1e66f5",
+            accentBright: "#79a4fa",
+            accentDeep: "#1548ad",
+            accentHover: "#185ad9",
+            accentInk: "#ffffff",
+            accentSoft: "#e2ebfc",
+            brand2: "#40a02b",
+            brand2Soft: "#e7f2e2",
+            warm: "#fe640b",
+            warmSoft: "#fce9dd",
+            success: "#40a02b",
+            warning: "#df8e1d",
+            danger: "#d20f39",
+            info: "#1e66f5",
+            metal: "#ccd0da",
+            ambient1: "rgba(30, 102, 245, 0.028)",
+            ambient2: "rgba(64, 160, 43, 0.018)",
+            shadow: "0 26px 72px rgba(76, 79, 105, 0.11), 0 2px 8px rgba(76, 79, 105, 0.05)",
+          },
+          dark: {
+            bg: "#0d1116",
+            bgDeep: "#080b0f",
+            surface: "#12171d",
+            raised: "#182029",
+            inset: "#0b1015",
+            text: "#edf1f5",
+            muted: "#a4afb8",
+            faint: "#6e7a84",
+            line: "rgba(237, 241, 245, 0.12)",
+            lineStrong: "rgba(237, 241, 245, 0.22)",
+            accent: "#87a2ff",
+            accentBright: "#b6c5ff",
+            accentDeep: "#4b6eea",
+            accentHover: "#a5b8ff",
+            accentInk: "#0b1226",
+            accentSoft: "#1d2b51",
+            brand2: "#cee888",
+            brand2Soft: "#2c3620",
+            warm: "#ff9676",
+            warmSoft: "#40251d",
+            success: "#72d8ad",
+            warning: "#ebc365",
+            danger: "#ff7e75",
+            info: "#93b7ef",
+            metal: "#6f7680",
+            ambient1: "rgba(91, 123, 255, 0.2)",
+            ambient2: "rgba(206, 232, 136, 0.07)",
+            shadow: "0 34px 100px rgba(0, 0, 0, 0.62), 0 2px 8px rgba(0, 0, 0, 0.38)",
+          },
+        },
+        "sea-glass": {
+          name: "海玻璃",
+          defaultMode: "light",
+          light: {
+            bg: "#f1f5f3",
+            bgDeep: "#edf2f0",
+            surface: "#f4f8f6",
+            raised: "#fcfdfc",
+            inset: "#e8efec",
+            text: "#4d5e58",
+            muted: "#7c8d87",
+            faint: "#9da9a4",
+            line: "rgba(77, 94, 88, 0.078)",
+            lineStrong: "rgba(77, 94, 88, 0.12)",
+            accent: "#3f8b72",
+            accentBright: "#75b59e",
+            accentDeep: "#28644f",
+            accentHover: "#347960",
+            accentInk: "#ffffff",
+            accentSoft: "#e3efeb",
+            brand2: "#70a85f",
+            brand2Soft: "#eaf2e5",
+            warm: "#c88955",
+            warmSoft: "#f7eee6",
+            success: "#40a02b",
+            warning: "#df8e1d",
+            danger: "#d20f39",
+            info: "#527798",
+            metal: "#ccd8d3",
+            ambient1: "rgba(63, 139, 114, 0.026)",
+            ambient2: "rgba(112, 168, 95, 0.018)",
+            shadow: "0 26px 72px rgba(62, 82, 75, 0.1), 0 2px 8px rgba(62, 82, 75, 0.045)",
+          },
+          dark: {
+            bg: "#091411",
+            bgDeep: "#06100d",
+            surface: "#0e1c18",
+            raised: "#14251f",
+            inset: "#08120f",
+            text: "#edf7f1",
+            muted: "#9bb0a7",
+            faint: "#6f837b",
+            line: "rgba(237, 247, 241, 0.12)",
+            lineStrong: "rgba(237, 247, 241, 0.22)",
+            accent: "#6bd9c6",
+            accentBright: "#9af1df",
+            accentDeep: "#2b8e80",
+            accentHover: "#88e6d6",
+            accentInk: "#071d18",
+            accentSoft: "#163b34",
+            brand2: "#c2d898",
+            brand2Soft: "#2c3522",
+            warm: "#efbb69",
+            warmSoft: "#3b2e18",
+            success: "#6bdcab",
+            warning: "#e8c56e",
+            danger: "#ff8579",
+            info: "#8ec4e7",
+            metal: "#55706a",
+            ambient1: "rgba(77, 202, 184, 0.18)",
+            ambient2: "rgba(194, 216, 152, 0.07)",
+            shadow: "0 34px 100px rgba(0, 0, 0, 0.6), 0 2px 8px rgba(0, 0, 0, 0.36)",
+          },
+        },
+        glacier: {
+          name: "冰川蓝",
+          defaultMode: "light",
+          light: {
+            bg: "#f2f5f8",
+            bgDeep: "#edf2f6",
+            surface: "#f5f8fa",
+            raised: "#fcfdfe",
+            inset: "#e9eff4",
+            text: "#465265",
+            muted: "#7a8797",
+            faint: "#9ba6b2",
+            line: "rgba(70, 82, 101, 0.078)",
+            lineStrong: "rgba(70, 82, 101, 0.12)",
+            accent: "#1e66f5",
+            accentBright: "#79a4fa",
+            accentDeep: "#1548ad",
+            accentHover: "#185ad9",
+            accentInk: "#ffffff",
+            accentSoft: "#e2ebfc",
+            brand2: "#77a9b0",
+            brand2Soft: "#e8f2f3",
+            warm: "#d28b6d",
+            warmSoft: "#f8ece6",
+            success: "#40a02b",
+            warning: "#df8e1d",
+            danger: "#d20f39",
+            info: "#4c76b2",
+            metal: "#d2dce4",
+            ambient1: "rgba(30, 102, 245, 0.024)",
+            ambient2: "rgba(119, 169, 176, 0.018)",
+            shadow: "0 26px 72px rgba(57, 74, 92, 0.1), 0 2px 8px rgba(57, 74, 92, 0.045)",
+          },
+          dark: {
+            bg: "#0b1118",
+            bgDeep: "#070c12",
+            surface: "#101923",
+            raised: "#162231",
+            inset: "#091018",
+            text: "#edf4fb",
+            muted: "#9eafc0",
+            faint: "#6d7f91",
+            line: "rgba(237, 244, 251, 0.12)",
+            lineStrong: "rgba(237, 244, 251, 0.22)",
+            accent: "#78a3ff",
+            accentBright: "#b2c9ff",
+            accentDeep: "#3f6ee0",
+            accentHover: "#93b6ff",
+            accentInk: "#08152b",
+            accentSoft: "#192b4d",
+            brand2: "#8ed8d8",
+            brand2Soft: "#173535",
+            warm: "#ff997d",
+            warmSoft: "#3f241d",
+            success: "#73d6ad",
+            warning: "#ecc367",
+            danger: "#ff7b74",
+            info: "#91c2f5",
+            metal: "#5b6d7e",
+            ambient1: "rgba(84, 137, 255, 0.2)",
+            ambient2: "rgba(142, 216, 216, 0.08)",
+            shadow: "0 34px 100px rgba(0, 0, 0, 0.68), 0 2px 8px rgba(0, 0, 0, 0.4)",
+          },
+        },
+        matcha: {
+          name: "抹茶雾",
+          defaultMode: "light",
+          light: {
+            bg: "#f3f5ef",
+            bgDeep: "#eff2eb",
+            surface: "#f5f7f2",
+            raised: "#fcfcf9",
+            inset: "#ebefe4",
+            text: "#4d554a",
+            muted: "#7d8679",
+            faint: "#9ea59b",
+            line: "rgba(77, 85, 74, 0.075)",
+            lineStrong: "rgba(77, 85, 74, 0.115)",
+            accent: "#6b8f32",
+            accentBright: "#9fbe67",
+            accentDeep: "#486321",
+            accentHover: "#5b7b2b",
+            accentInk: "#ffffff",
+            accentSoft: "#e9efdf",
+            brand2: "#68a690",
+            brand2Soft: "#e7f0ec",
+            warm: "#c69155",
+            warmSoft: "#f7efe4",
+            success: "#40a02b",
+            warning: "#df8e1d",
+            danger: "#d20f39",
+            info: "#5a7d92",
+            metal: "#d6ddca",
+            ambient1: "rgba(107, 143, 50, 0.026)",
+            ambient2: "rgba(104, 166, 144, 0.016)",
+            shadow: "0 26px 72px rgba(66, 77, 52, 0.1), 0 2px 8px rgba(66, 77, 52, 0.045)",
+          },
+          dark: {
+            bg: "#0c110d",
+            bgDeep: "#080b09",
+            surface: "#111a13",
+            raised: "#18241b",
+            inset: "#0b120d",
+            text: "#f0f6eb",
+            muted: "#a4b1a5",
+            faint: "#738274",
+            line: "rgba(240, 246, 235, 0.12)",
+            lineStrong: "rgba(240, 246, 235, 0.22)",
+            accent: "#b4d975",
+            accentBright: "#d6f2a4",
+            accentDeep: "#698e3d",
+            accentHover: "#c5e88c",
+            accentInk: "#101b08",
+            accentSoft: "#23301c",
+            brand2: "#80d1c5",
+            brand2Soft: "#183633",
+            warm: "#e5b66b",
+            warmSoft: "#3c2c18",
+            success: "#7ed9a0",
+            warning: "#e7c668",
+            danger: "#f78376",
+            info: "#93c8e6",
+            metal: "#5d6e60",
+            ambient1: "rgba(146, 195, 81, 0.15)",
+            ambient2: "rgba(96, 190, 180, 0.08)",
+            shadow: "0 34px 100px rgba(0, 0, 0, 0.68), 0 2px 8px rgba(0, 0, 0, 0.4)",
+          },
+        },
+        // 对齐本机 Codex 当前配置：catppuccin、contrast 45、opaqueWindows true。
+        iris: {
+          name: "拿铁紫",
+          defaultMode: "light",
+          light: {
+            bg: "#eff1f5",
+            bgDeep: "#eceef2",
+            surface: "#eff1f5",
+            raised: "#f1f3f7",
+            inset: "#e5e7eb",
+            text: "#4c4f69",
+            muted: "#8b8da1",
+            faint: "#a5a7b7",
+            line: "rgba(76, 79, 105, 0.078)",
+            lineStrong: "rgba(76, 79, 105, 0.117)",
+            accent: "#8839ef",
+            accentBright: "#a67df2",
+            accentDeep: "#4e2f88",
+            accentHover: "#7849d1",
+            accentInk: "#ffffff",
+            accentSoft: "#e2d9f4",
+            brand2: "#40a02b",
+            brand2Soft: "#e7f2e2",
+            warm: "#fe640b",
+            warmSoft: "#fce9dd",
+            success: "#40a02b",
+            warning: "#df8e1d",
+            danger: "#d20f39",
+            info: "#1e66f5",
+            metal: "#ccd0da",
+            ambient1: "rgba(136, 57, 239, 0.018)",
+            ambient2: "rgba(30, 102, 245, 0.012)",
+            shadow: "0 24px 64px rgba(76, 79, 105, 0.1), 0 2px 8px rgba(76, 79, 105, 0.045)",
+          },
+          dark: {
+            bg: "#1e1e2e",
+            bgDeep: "#181825",
+            surface: "#1e1e2e",
+            raised: "#232334",
+            inset: "#181825",
+            text: "#cdd6f4",
+            muted: "#a6adc8",
+            faint: "#7f849c",
+            line: "rgba(205, 214, 244, 0.1)",
+            lineStrong: "rgba(205, 214, 244, 0.18)",
+            accent: "#cba6f7",
+            accentBright: "#e0c7fb",
+            accentDeep: "#8b67b8",
+            accentHover: "#d6b6fa",
+            accentInk: "#1e1e2e",
+            accentSoft: "#332a49",
+            brand2: "#a6e3a1",
+            brand2Soft: "#273a31",
+            warm: "#fab387",
+            warmSoft: "#3b2d27",
+            success: "#a6e3a1",
+            warning: "#f9e2af",
+            danger: "#f38ba8",
+            info: "#89b4fa",
+            metal: "#585b70",
+            ambient1: "rgba(203, 166, 247, 0.045)",
+            ambient2: "rgba(137, 180, 250, 0.025)",
+            shadow: "0 34px 100px rgba(0, 0, 0, 0.68), 0 2px 8px rgba(0, 0, 0, 0.4)",
+          },
+        },
+      };
+
+      const app = document.querySelector("#app-preview");
+      const iconSheet = document.querySelector("#icon-sheet");
+      const themeCards = [...document.querySelectorAll(".theme-card")];
+      const modeButtons = [...document.querySelectorAll("[data-mode]")];
+      const iconButtons = [...document.querySelectorAll("button[data-icons]")];
+      const activeThemeName = document.querySelector("#active-theme-name");
+      const toast = document.querySelector("#toast");
+      const toastText = document.querySelector("#toast-text");
+      let activeTheme = "porcelain";
+      let activeMode = "light";
+      let activeIcons = "duotone";
+      let toastTimer;
+
+      function applyTheme(themeId, mode = "light") {
+        activeTheme = themeId;
+        activeMode = mode;
+        const theme = themes[themeId];
+        const palette = theme[mode];
+
+        app.dataset.themeId = themeId;
+        app.dataset.mode = mode;
+        app.style.setProperty("--bg", palette.bg);
+        app.style.setProperty("--bg-deep", palette.bgDeep);
+        app.style.setProperty("--surface", palette.surface);
+        app.style.setProperty("--raised", palette.raised);
+        app.style.setProperty("--inset", palette.inset);
+        app.style.setProperty("--text", palette.text);
+        app.style.setProperty("--muted", palette.muted);
+        app.style.setProperty("--faint", palette.faint);
+        app.style.setProperty("--line", palette.line);
+        app.style.setProperty("--line-strong", palette.lineStrong);
+        app.style.setProperty("--accent", palette.accent);
+        app.style.setProperty("--accent-bright", palette.accentBright);
+        app.style.setProperty("--accent-deep", palette.accentDeep);
+        app.style.setProperty("--accent-hover", palette.accentHover);
+        app.style.setProperty("--accent-ink", palette.accentInk);
+        app.style.setProperty("--accent-soft", palette.accentSoft);
+        app.style.setProperty("--brand-2", palette.brand2);
+        app.style.setProperty("--brand-2-soft", palette.brand2Soft);
+        app.style.setProperty("--warm", palette.warm);
+        app.style.setProperty("--warm-soft", palette.warmSoft);
+        app.style.setProperty("--success", palette.success);
+        app.style.setProperty("--warning", palette.warning);
+        app.style.setProperty("--danger", palette.danger);
+        app.style.setProperty("--info", palette.info);
+        app.style.setProperty("--metal", palette.metal);
+        app.style.setProperty("--ambient-1", palette.ambient1);
+        app.style.setProperty("--ambient-2", palette.ambient2);
+        app.style.setProperty(
+          "--glass-highlight",
+          mode === "light" ? "rgba(255, 255, 255, 0.72)" : "rgba(255, 255, 255, 0.11)",
+        );
+        app.style.setProperty("--shadow", palette.shadow);
+
+        activeThemeName.textContent = theme.name;
+        themeCards.forEach((card) => card.setAttribute("aria-pressed", String(card.dataset.themeId === themeId)));
+        modeButtons.forEach((button) => button.setAttribute("aria-pressed", String(button.dataset.mode === mode)));
+      }
+
+      function applyIcons(style) {
+        activeIcons = style;
+        app.dataset.icons = style;
+        iconSheet.dataset.icons = style;
+        iconButtons.forEach((button) => button.setAttribute("aria-pressed", String(button.dataset.icons === style)));
+      }
+
+      function paintCards() {
+        themeCards.forEach((card) => {
+          const theme = themes[card.dataset.themeId];
+          const palette = theme[theme.defaultMode];
+          card.dataset.cardMode = theme.defaultMode;
+          card.style.setProperty("--card-bg", palette.bg);
+          card.style.setProperty("--card-bg-deep", palette.bgDeep);
+          card.style.setProperty("--card-ink", palette.text);
+          card.style.setProperty("--card-muted", palette.muted);
+          card.style.setProperty("--card-surface", palette.surface);
+          card.style.setProperty("--card-line", palette.line);
+          card.style.setProperty("--card-accent", palette.accent);
+          card.style.setProperty("--card-bright", palette.accentBright);
+          card.style.setProperty("--card-deep", palette.accentDeep);
+          card.style.setProperty("--card-accent-soft", palette.accentSoft);
+          card.style.setProperty("--card-accent-ink", palette.accentInk);
+          card.style.setProperty("--card-metal", palette.metal);
+          card.style.setProperty("--card-ambient-1", palette.ambient1);
+          card.style.setProperty("--card-ambient-2", palette.ambient2);
+          card.querySelector('[data-swatch="accent"]').style.background =
+            `linear-gradient(90deg, ${palette.accentBright}, ${palette.accent} 56%, ${palette.accentDeep})`;
+          card.querySelector('[data-swatch="brand2"]').style.background =
+            `linear-gradient(90deg, ${palette.brand2}, color-mix(in srgb, ${palette.brand2} 64%, ${palette.surface}))`;
+          card.querySelector('[data-swatch="warm"]').style.background =
+            `linear-gradient(90deg, ${palette.warm}, color-mix(in srgb, ${palette.warm} 52%, ${palette.surface}))`;
+          card.querySelector('[data-swatch="surface"]').style.background = palette.surface;
+
+          if (!card.querySelector(".theme-specimen")) {
+            const specimen = document.createElement("span");
+            specimen.className = "theme-specimen";
+            specimen.setAttribute("aria-hidden", "true");
+            specimen.innerHTML =
+              '<span class="specimen-rail"></span><span class="specimen-main"><span class="specimen-head"></span><span class="specimen-lines"></span></span>';
+            card.insertBefore(specimen, card.firstChild);
+          }
+        });
+      }
+
+      function showToast(message) {
+        clearTimeout(toastTimer);
+        toastText.textContent = message;
+        toast.dataset.show = "true";
+        toastTimer = window.setTimeout(() => {
+          toast.dataset.show = "false";
+        }, 1800);
+      }
+
+      function copyTokens() {
+        const palette = themes[activeTheme][activeMode];
+        const css = [
+          `/* OpenCode Theme Lab · ${themes[activeTheme].name} · ${activeMode} */`,
+          `--v2-background-bg-base: ${palette.bg};`,
+          `--v2-background-bg-deep: ${palette.bgDeep};`,
+          `--v2-background-bg-layer-01: ${palette.bgDeep};`,
+          `--v2-background-bg-layer-02: ${palette.inset};`,
+          `--v2-background-bg-accent: ${palette.accent};`,
+          `--v2-text-text-base: ${palette.text};`,
+          `--v2-text-text-muted: ${palette.muted};`,
+          `--v2-text-text-faint: ${palette.faint};`,
+          `--v2-text-text-accent: ${palette.accent};`,
+          `--v2-icon-icon-base: ${palette.text};`,
+          `--v2-icon-icon-muted: ${palette.muted};`,
+          `--v2-icon-icon-faint: ${palette.faint};`,
+          `--v2-icon-icon-accent: ${palette.accent};`,
+          `--v2-border-border-base: ${palette.line};`,
+          `--v2-border-border-strong: ${palette.lineStrong};`,
+          `--v2-border-border-focus: ${palette.accent};`,
+          `--v2-state-fg-success: ${palette.success};`,
+          `--v2-state-fg-warning: ${palette.warning};`,
+          `--v2-state-fg-danger: ${palette.danger};`,
+          `--v2-state-fg-info: ${palette.info};`,
+          `--theme-chrome-accent-bright: ${palette.accentBright};`,
+          `--theme-chrome-accent-deep: ${palette.accentDeep};`,
+          `--theme-chrome-metal: ${palette.metal};`,
+        ].join("\n");
+
+        navigator.clipboard.writeText(css).then(
+          () => showToast("Token 已复制到剪贴板"),
+          () => showToast("浏览器未允许访问剪贴板"),
+        );
+      }
+
+      themeCards.forEach((card) => {
+        card.addEventListener("click", () => {
+          const theme = themes[card.dataset.themeId];
+          applyTheme(card.dataset.themeId, theme.defaultMode);
+        });
+      });
+
+      modeButtons.forEach((button) => {
+        button.addEventListener("click", () => applyTheme(activeTheme, button.dataset.mode));
+      });
+
+      iconButtons.forEach((button) => {
+        button.addEventListener("click", () => applyIcons(button.dataset.icons));
+      });
+
+      document.querySelector("#copy-tokens").addEventListener("click", copyTokens);
+
+      document.addEventListener("keydown", (event) => {
+        if (!(event.metaKey || event.ctrlKey) || event.altKey) return;
+        if (event.key.toLowerCase() === "d") {
+          event.preventDefault();
+          applyTheme(activeTheme, activeMode === "light" ? "dark" : "light");
+        }
+        if (event.key.toLowerCase() === "i") {
+          event.preventDefault();
+          const sequence = ["line", "duotone", "ink"];
+          applyIcons(sequence[(sequence.indexOf(activeIcons) + 1) % sequence.length]);
+        }
+      });
+
+      const params = new URLSearchParams(window.location.search);
+      const initialTheme = themes[params.get("theme")] ? params.get("theme") : "porcelain";
+      const requestedMode = params.get("mode");
+      const initialMode =
+        requestedMode === "light" || requestedMode === "dark"
+          ? requestedMode
+          : themes[initialTheme].defaultMode;
+      const requestedIcons = params.get("icons");
+      const initialIcons = ["line", "duotone", "ink"].includes(requestedIcons) ? requestedIcons : "duotone";
+
+      paintCards();
+      applyTheme(initialTheme, initialMode);
+      applyIcons(initialIcons);
+    </script>
+  </body>
+</html>

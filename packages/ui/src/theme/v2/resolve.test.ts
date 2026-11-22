@@ -1,9 +1,31 @@
 import { describe, expect, test } from "bun:test"
 import { contrastRatio } from "../color"
 import type { DesktopTheme, HexColor, ResolvedV2Theme } from "../types"
+import { resolveThemeVariant } from "../resolve"
 import { resolveThemeV2, resolveThemeVariantV2, themeV2ToCss } from "./resolve"
 
 const theme: DesktopTheme = await Bun.file(new URL("../themes/oc-2.json", import.meta.url)).json()
+
+test("the new light and dark themes keep base text readable", async () => {
+  const ids = ["porcelain-blue", "sea-glass", "glacier-mist", "matcha-air", "latte-violet"]
+
+  for (const id of ids) {
+    // SAFETY: these repository-owned theme files follow desktop-theme.schema.json.
+    const next = (await Bun.file(new URL(`../themes/${id}.json`, import.meta.url)).json()) as DesktopTheme
+
+    for (const mode of ["light", "dark"] as const) {
+      const tokens = resolveThemeVariantV2(next[mode], mode === "dark")
+      const background = resolveToken(tokens, "v2-background-bg-base")
+      const text = resolveToken(tokens, "v2-text-text-base")
+      const legacy = resolveThemeVariant(next[mode], mode === "dark")
+
+      expect(contrastRatio(text, background)).toBeGreaterThanOrEqual(4.5)
+      expect(
+        contrastRatio(resolveToken(legacy, legacy["text-base"]), resolveToken(legacy, legacy["background-base"])),
+      ).toBeGreaterThanOrEqual(4.5)
+    }
+  }
+})
 
 describe("icon emphasis", () => {
   test.each(["light", "dark"] as const)("OC-2 %s icons increase in contrast from faint to base", (mode) => {
@@ -89,11 +111,21 @@ describe("input elevation", () => {
 
 function expectIconEmphasis(tokens: ResolvedV2Theme) {
   // SAFETY: these resolved background/icon color tokens are hex colors or references to other hex color tokens.
-  const resolve = (value: string): HexColor =>
-    value.startsWith("var(--") ? resolve(tokens[value.slice(6, -1)]) : (value as HexColor)
+  const resolve = (value: string): HexColor => resolveToken(tokens, value)
 
   const background = resolve(tokens["v2-background-bg-base"])
   const contrast = (role: string) => contrastRatio(resolve(tokens[`v2-icon-icon-${role}`]), background)
   expect(contrast("faint")).toBeLessThan(contrast("muted"))
   expect(contrast("muted")).toBeLessThan(contrast("base"))
+}
+
+function resolveToken(tokens: Record<string, string | undefined>, value: string): HexColor {
+  const token = tokens[value] ?? (value.startsWith("var(--") ? tokens[value.slice(6, -1)] : value)
+
+  if (!token) throw new Error(`Unresolved theme token: ${value}`)
+
+  if (token.startsWith("var(--")) return resolveToken(tokens, token)
+
+  // SAFETY: callers resolve base color tokens, which are hex values after following variable references.
+  return token as HexColor
 }

@@ -9,6 +9,7 @@ import {
   sansDefault,
   sansFontFamily,
   sansInput,
+  type IconStyle,
   type ReduceMotion,
   terminalDefault,
   terminalFontFamily,
@@ -162,6 +163,10 @@ export function createAppearanceSettingsController() {
       options: themes,
       current: createMemo(() => themes().find((option) => option.id === theme.themeId())),
       select: (option: { id: string } | null) => option && theme.setTheme(option.id),
+    },
+    iconStyle: {
+      current: settings.appearance.iconStyle,
+      select: (value: IconStyle) => settings.appearance.setIconStyle(value),
     },
     zoom: {
       available: () => platform.zoomLevel !== undefined,
