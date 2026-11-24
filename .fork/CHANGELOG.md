@@ -6,6 +6,48 @@
 
 ---
 
+## 2026-11-24
+
+### ✨ 云效工作台：任务层、阶段动作与人验收
+
+- 新增桌面 SQLite 表 `workbench_task` / `workbench_run` / `workbench_event`（迁移 `20261124034207_workbench-tasks`）：
+  一条云效单 + 一个本地目录 = 一个任务，可对应多次会话；审批与阶段流转留事件。
+- 新增 RPC：`WorkbenchPreflight`、`WorkbenchTaskList`、`WorkbenchTaskStart`、`WorkbenchTaskSetStage`、
+  `WorkbenchTaskBindRun`、`WorkbenchTaskApprove`、`WorkbenchTaskDocs`。
+- 点「开始分析」先做 preflight：只有工作区真有改动才弹二次确认；确认后在
+  `<项目>/.opencode/workbench/<serial>/` 生成 brief / plan / tasks / test-plan / acceptance 与 checkpoint
+  （HEAD、diff、status），目录自带 `.gitignore`，不污染业务 diff。
+- 规划会话只读（仅允许写规划目录），计划确认后放开写权限再执行；底栏按阶段给动作
+  （规划：同意并执行 / 重新规划；执行：执行完成；待验收：验收通过），阶段只由人推进，不按会话空闲自动前进。
+- 批准执行时补记一条 `execute` 运行记录；每次阶段变更由主进程往 `log.md` 追一行「阶段记录」，
+  模型漏写日志也还有流水。卡片显示「规划中 / 待确认计划 / 执行中 / 执行待确认 / 待验收 / 已完成」。
+- 修复：权限规则匹配的是「相对会话目录」的路径，而规划目录允许项用了绝对路径，导致 `write` / `edit` 全被拦、
+  只能退化成 Shell heredoc；现在按相对路径下发 glob，首次规划和重新规划共用同一条创建路径。
+- 新增 `packages/util/src/rich-text.ts`（云效富文本转块级结构）与 `dompurify` 依赖，详情正文按块渲染而不是整段 HTML。
+
+### 🎨 图标套装收口：line / plate
+
+- 三档 `linear / duotone / ink` 合并为两套 `line / plate`，默认 `line`；旧设置自动迁移（`duotone → plate`，其余 `→ line`）。
+- 删除 `packages/ui/src/icons/new-icons.ts` 覆盖层，图标统一走 catalog，尺寸只由 `size`（20 / 16 / 14）决定。
+- `plate` 给对象图标加同色浅底（`color-mix` 12%），负外边距抵消内边距，不改变 16px 占位。
+- 会话标签头像改为统一 `bubble-5` + accent 浅底 + 未读点，不再按项目生成随机图案。
+- 品牌资源（`packages/identity`、console brand、`services/www` favicon）一起更新；设计稿与盘点收进 `docs/图标主题方案/`。
+
+## 2026-11-22
+
+### ✨ 云效工作台 V1（只读控制台）
+
+- Home 右栏新增「工作台 / 最近会话」切换，默认工作台；工作台包含今日聚焦、健康环、两条泳道和卡片墙。
+- 主进程新增 workbench RPC 组与云效客户端：令牌用 `safeStorage` 加密落盘，读取走 `frontend-server /agent-api/yunxiao/*`。
+- 工作项按项目 × 类别聚合，支持状态筛选配置、搜索、5 分钟轮询、手动刷新、手动添加工作项。
+- 详情抽屉：当前工作项、正文（图片经代理转 data URL）、变更记录、评论、关联项；可复制云效号。
+
+### 🎨 主题色与语义图标体系
+
+- 新增 `glacier-mist` / `latte-violet` / `matcha-air` 三套主题，主题 token 覆盖图标与状态色。
+- 图标 tone 从硬编码色改为语义 token（accent / info / success / warning / neutral），对象图标上色、动作图标保持中性。
+- 外观设置新增「图标样式」，去掉实验开关 `newIcons`，旧设置自动迁移。
+
 ## 2026-11-20
 
 ### 🐛 会话目录不再回退到文件系统根
