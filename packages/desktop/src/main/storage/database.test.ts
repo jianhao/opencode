@@ -11,7 +11,16 @@ const tables = (db: ReturnType<typeof drizzle>) =>
     .all<{ name: string }>(sql`SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name`)
     .map((row) => row.name)
 
-const expected = ["blob", "document", "migration", "plugin", "state"]
+const expected = [
+  "blob",
+  "document",
+  "migration",
+  "plugin",
+  "state",
+  "workbench_event",
+  "workbench_run",
+  "workbench_task",
+]
 
 describe("database", () => {
   test("bootstraps every table on a fresh database and is idempotent", () => {

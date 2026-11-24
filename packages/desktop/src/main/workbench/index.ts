@@ -1,8 +1,10 @@
 export * as Workbench from "./index"
 
 import { Context, Effect, Layer } from "effect"
+import { parseRichText } from "@opencode/util/rich-text"
 import { DesktopStorage } from "../storage"
 import * as Settings from "./settings"
+import * as Tasks from "./tasks"
 import * as Yunxiao from "./yunxiao"
 
 /**
@@ -16,25 +18,43 @@ export type Snapshot = {
   serverUrl: string
   fetchedAt: number
   token: { configured: boolean; source: "env" | "stored" | "none"; userName?: string }
+  // 云效工作流状态清单（frontend-server 聚合），决定顶部 Tab 与“全部”里出现哪些任务。
+  statuses: string[]
   items: Yunxiao.Item[]
   counts: { total: number; ready: number; clarify: number; blocked: number }
   warnings: string[]
   error?: string
 }
 
-export type Detail = {
+export type DetailContext = {
   item: Yunxiao.Item
+  // 正文保留纯文本用于兜底与搜索，HTML 用于还原云效富文本排版。
   description: string
-  comments: Array<{ author: string; created?: string; content: string }>
+  descriptionHtml: string
+  comments: Array<{ author: string; created?: string; content: string; contentHtml: string }>
+}
+
+export type Detail = DetailContext & {
   attachments: Array<{ name: string; url?: string }>
   relations: Array<{ serial: string; title: string; statusName?: string; relation: string }>
+  parent?: DetailContext
+  children: DetailContext[]
+  linked: DetailContext[]
+  activities: Array<{ author: string; action: string; created?: string }>
 }
 
 export type Interface = {
   state(input?: { force?: boolean }): Promise<Snapshot>
-  item(id: string): Promise<Detail>
+  item(id: string, config?: Yunxiao.ContextConfig): Promise<Detail>
   setToken(token: string): Promise<Snapshot>
   setSettings(input: { frontendServerUrl: string; organizationId?: string }): Promise<Snapshot>
+  preflight(directory: string): Promise<Tasks.Preflight>
+  tasks(): { tasks: Tasks.Task[]; runs: Tasks.TaskRun[] }
+  taskStart(input: Tasks.TaskInput & { directory: string }): Promise<Tasks.Task>
+  taskSetStage(input: { id: string; stage: Tasks.TaskStage; summary?: string }): Promise<Tasks.Task>
+  taskBindRun(input: { taskId: string; sessionId: string; kind: string; stage?: Tasks.TaskStage }): Promise<Tasks.TaskRun>
+  taskApprove(id: string): Promise<Tasks.Task>
+  taskDocs(id: string): Promise<Tasks.TaskDocs>
 }
 
 export class Service extends Context.Service<Service, Interface>()("opencode/desktop/Workbench") {}
@@ -44,6 +64,7 @@ function empty(warnings: string[] = [], error?: string): Snapshot {
     serverUrl: Settings.DEFAULT_SERVER_URL,
     fetchedAt: Date.now(),
     token: { configured: false, source: "none" },
+    statuses: [],
     items: [],
     counts: { total: 0, ready: 0, clarify: 0, blocked: 0 },
     warnings,
@@ -51,7 +72,57 @@ function empty(warnings: string[] = [], error?: string): Snapshot {
   }
 }
 
+function detailContext(client: Yunxiao.Client, context: Yunxiao.RawContext): Promise<DetailContext> {
+  const description = parseRichText(context.description)
+  const workItemId = context.workItem.id
+
+  return Yunxiao.inlineImages(client, workItemId, description.html).then(async (descriptionHtml) => ({
+    item: Yunxiao.toItem(context.workItem),
+    description: description.text,
+    descriptionHtml,
+    comments: await Promise.all(
+      (context.comments ?? []).map(async (comment) => {
+        const parsed = parseRichText(comment.content)
+
+        return {
+          author: comment.creatorName ?? "未知",
+          created: comment.gmtCreate,
+          content: parsed.text,
+          contentHtml: await Yunxiao.inlineImages(client, workItemId, parsed.html),
+        }
+      }),
+    ),
+  }))
+}
+
+// 云效的 actionType 是英文枚举，落到界面上换成中文动词。
+const ACTIVITY_ACTIONS: Record<string, string> = {
+  create: "创建",
+  update: "更新",
+  delete: "删除",
+  relate: "关联",
+  unrelate: "取消关联",
+  comment: "评论",
+  move: "流转",
+  attach: "添加附件",
+}
+
+// 变更记录压成一句话：动作 + 字段 + 新值，够看谁在什么时候改了什么。
+function activityAction(activity: NonNullable<Yunxiao.RawContext["activities"]>[number]) {
+  const next = (activity.newValue ?? [])
+    .map((value) => value.displayValue)
+    .filter((value): value is string => Boolean(value))
+    .join("、")
+  const action = ACTIVITY_ACTIONS[activity.actionType ?? ""] ?? activity.actionType
+  const label = [action, activity.propertyName].filter(Boolean).join(" ")
+
+  if (!next) return label || "更新"
+
+  return `${label || "更新"}：${next}`
+}
+
 function make(storage: DesktopStorage.Interface) {
+  const tasks = Tasks.createTaskStore(storage.db)
   let cache: { at: number; snapshot: Snapshot } | undefined
   let inflight: Promise<Snapshot> | undefined
 
@@ -77,11 +148,22 @@ function make(storage: DesktopStorage.Interface) {
 
     try {
       const me = await Yunxiao.user(client)
-      const items = Yunxiao.sort(await Yunxiao.collect(client, me.user.id, (message) => warnings.push(message)))
+      // 状态清单失败不应让工作项一起消失：记一条警告，Tab 退回工作项里实际存在的状态。
+      const [items, statuses] = await Promise.all([
+        Yunxiao.collect(client, me.user.id, (message) => warnings.push(message)).then(Yunxiao.sort),
+        Yunxiao.statuses(client).catch((cause) => {
+          warnings.push(
+            `云效状态清单拉取失败：${cause instanceof Error ? cause.message : String(cause)}；筛选只显示工作项已有状态`,
+          )
+
+          return []
+        }),
+      ])
       const snapshot: Snapshot = {
         serverUrl: client.baseUrl,
         fetchedAt: Date.now(),
         token: { configured: true, source: token.source, userName: me.user.name },
+        statuses,
         items,
         counts: {
           total: items.length,
@@ -124,7 +206,7 @@ function make(storage: DesktopStorage.Interface) {
       return inflight
     },
 
-    async item(id) {
+    async item(id, config) {
       const settings = Settings.readSettings(state)
       const token = Settings.resolveToken()
 
@@ -135,19 +217,14 @@ function make(storage: DesktopStorage.Interface) {
         token: token.value,
         organizationId: Settings.resolveOrganizationId(settings),
       }
-      const result = await Yunxiao.context(client, id)
+      const result = await Yunxiao.context(client, id, config ?? Yunxiao.DEFAULT_CONTEXT_CONFIG)
       const context = result.context
+      const describe = (target: Yunxiao.RawContext): Promise<DetailContext> => detailContext(client, target)
 
       return {
-        item: Yunxiao.toItem(context.workItem),
-        description: (context.description ?? "").trim(),
-        comments: (context.comments ?? []).map((comment) => ({
-          author: comment.creatorName ?? "未知",
-          created: comment.gmtCreate,
-          content: comment.content,
-        })),
+        ...(await describe(context)),
         attachments: (context.attachments ?? [])
-          .map((file) => ({ name: file.fileName ?? file.name ?? "", url: file.url }))
+          .map((file) => ({ name: file.fileName ?? file.name ?? "", url: file.url ?? file.downloadUrl }))
           .filter((file) => file.name),
         relations: (context.relations ?? [])
           .filter((relation) => relation.relatedWorkItem?.serialNumber)
@@ -157,6 +234,14 @@ function make(storage: DesktopStorage.Interface) {
             statusName: relation.relatedWorkItem?.statusName,
             relation: relation.relationType ?? "",
           })),
+        parent: context.parentContext ? await describe(context.parentContext) : undefined,
+        children: await Promise.all((context.childContexts ?? []).map(describe)),
+        linked: await Promise.all((context.linkedContexts ?? []).map(describe)),
+        activities: (context.activities ?? []).map((activity) => ({
+          author: activity.operatorName ?? "未知",
+          action: activityAction(activity),
+          created: activity.eventTime,
+        })),
       }
     },
 
@@ -174,6 +259,14 @@ function make(storage: DesktopStorage.Interface) {
       cache = undefined
       return api.state({ force: true })
     },
+
+    preflight: tasks.preflight,
+    tasks: tasks.list,
+    taskStart: tasks.start,
+    taskSetStage: (input) => tasks.setStage(input.id, input.stage, input.summary),
+    taskBindRun: tasks.bindRun,
+    taskApprove: tasks.approve,
+    taskDocs: tasks.docs,
   }
 
   return api

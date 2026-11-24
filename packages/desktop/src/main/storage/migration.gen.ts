@@ -36,4 +36,15 @@ export const migrations = [
       "CREATE VIEW `extension` AS SELECT `id`, `enabled`, `manifest`, `revision` FROM `plugin`;",
     ],
   },
+  {
+    id: "20261124034207_workbench-tasks",
+    statements: [
+      "CREATE TABLE `workbench_event` (\n\t`id` text PRIMARY KEY,\n\t`task_id` text NOT NULL,\n\t`type` text NOT NULL,\n\t`payload` text,\n\t`created_at` integer NOT NULL\n);",
+      "CREATE TABLE `workbench_run` (\n\t`id` text PRIMARY KEY,\n\t`task_id` text NOT NULL,\n\t`session_id` text NOT NULL,\n\t`kind` text NOT NULL,\n\t`stage` text NOT NULL,\n\t`summary` text,\n\t`created_at` integer NOT NULL,\n\t`ended_at` integer\n);",
+      "CREATE TABLE `workbench_task` (\n\t`id` text PRIMARY KEY,\n\t`item_id` text NOT NULL,\n\t`serial` text NOT NULL,\n\t`title` text NOT NULL,\n\t`space_id` text NOT NULL,\n\t`space_name` text NOT NULL,\n\t`url` text,\n\t`directory` text NOT NULL,\n\t`branch` text,\n\t`stage` text NOT NULL,\n\t`plan_dir` text NOT NULL,\n\t`plan_version` integer DEFAULT 0 NOT NULL,\n\t`active_run_id` text,\n\t`created_at` integer NOT NULL,\n\t`updated_at` integer NOT NULL\n);",
+      "CREATE INDEX `workbench_event_task_idx` ON `workbench_event` (`task_id`,`created_at`);",
+      "CREATE INDEX `workbench_run_task_idx` ON `workbench_run` (`task_id`,`created_at`);",
+      "CREATE UNIQUE INDEX `workbench_task_item_directory_idx` ON `workbench_task` (`item_id`,`directory`);",
+    ],
+  },
 ]

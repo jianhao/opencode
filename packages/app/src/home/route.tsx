@@ -3,6 +3,7 @@ import { Show } from "solid-js"
 import { usePlatform } from "@/runtime/platform/platform"
 import { useSettings } from "@/settings/model"
 import { createWorkbenchController } from "@/workbench/model"
+import { createWorkbenchRuns } from "@/workbench/runs"
 import { WorkbenchView } from "@/workbench/view"
 import { createHomeController } from "./model"
 import { HomeNavigation } from "./navigation"
@@ -17,6 +18,7 @@ export function Home() {
   const platform = usePlatform()
   const settings = useSettings()
   const workbench = createWorkbenchController(() => platform.workbench)
+  const runs = createWorkbenchRuns(home, () => platform.workbench)
   const usesShellSidebar = () => !mobile() && settings.appearance.tabLayout() !== "horizontal"
 
   return (
@@ -29,7 +31,11 @@ export function Home() {
           <HomeNavigation projects={projects} sessions={sessions} mobile={mobile()} onWorkbench={() => undefined} />
         </Show>
         <section class="home-workbench-content" aria-label="工作台">
-          <WorkbenchView controller={workbench} desktop={platform.platform === "desktop"} />
+          <WorkbenchView
+            controller={workbench}
+            runs={runs}
+            desktop={platform.platform === "desktop"}
+          />
         </section>
       </div>
     </div>

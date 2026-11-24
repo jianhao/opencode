@@ -1,4 +1,4 @@
-import { blob, integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core"
+import { blob, index, integer, primaryKey, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core"
 
 // Prompt drafts and history. `key` is `${storage}:${key}` as the renderer draft store writes it.
 export const document = sqliteTable("document", {
@@ -38,3 +38,57 @@ export const plugin = sqliteTable("plugin", {
   manifest: text(),
   revision: text(),
 })
+
+// Workbench task: one Yunxiao item handled in one local directory. Identity lives here; the
+// human-readable plan, tasks and evidence live under `.opencode/workbench/<serial>/` in the repo.
+export const workbenchTask = sqliteTable(
+  "workbench_task",
+  {
+    id: text().primaryKey(),
+    item_id: text().notNull(),
+    serial: text().notNull(),
+    title: text().notNull(),
+    space_id: text().notNull(),
+    space_name: text().notNull(),
+    url: text(),
+    directory: text().notNull(),
+    branch: text(),
+    stage: text().notNull(),
+    plan_dir: text().notNull(),
+    plan_version: integer().notNull().default(0),
+    active_run_id: text(),
+    created_at: integer().notNull(),
+    updated_at: integer().notNull(),
+  },
+  (table) => [uniqueIndex("workbench_task_item_directory_idx").on(table.item_id, table.directory)],
+)
+
+// One attempt at a task. A task can have several runs (plan, execution retries, review); the task
+// keeps the stable identity and `active_run_id` points at the one the UI should open.
+export const workbenchRun = sqliteTable(
+  "workbench_run",
+  {
+    id: text().primaryKey(),
+    task_id: text().notNull(),
+    session_id: text().notNull(),
+    kind: text().notNull(),
+    stage: text().notNull(),
+    summary: text(),
+    created_at: integer().notNull(),
+    ended_at: integer(),
+  },
+  (table) => [index("workbench_run_task_idx").on(table.task_id, table.created_at)],
+)
+
+// Approval, verification and sync events. Append-only, used for audit and for rebuilding the UI.
+export const workbenchEvent = sqliteTable(
+  "workbench_event",
+  {
+    id: text().primaryKey(),
+    task_id: text().notNull(),
+    type: text().notNull(),
+    payload: text(),
+    created_at: integer().notNull(),
+  },
+  (table) => [index("workbench_event_task_idx").on(table.task_id, table.created_at)],
+)

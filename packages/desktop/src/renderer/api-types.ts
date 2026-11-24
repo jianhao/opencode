@@ -11,7 +11,16 @@ import type {
   ServerReadyData,
   TitlebarTheme,
 } from "../shared/ipc-contract"
-import type { Detail as WorkbenchDetail, Snapshot as WorkbenchSnapshot } from "../shared/ipc-rpc/workbench"
+import type {
+  DetailConfig as WorkbenchDetailConfig,
+  Detail as WorkbenchDetail,
+  Preflight as WorkbenchPreflight,
+  Snapshot as WorkbenchSnapshot,
+  Task as WorkbenchTask,
+  TaskDocs as WorkbenchTaskDocs,
+  TaskRun as WorkbenchTaskRun,
+  TaskStage as WorkbenchTaskStage,
+} from "../shared/ipc-rpc/workbench"
 
 export type ElectronAPI = {
   awaitInitialization(): Promise<ServerReadyData>
@@ -79,7 +88,31 @@ export type ElectronAPI = {
   recordFatalRendererError(error: FatalRendererError): Promise<void>
   setNativeTranslations(bundle: DesktopNativeBundle): Promise<void>
   workbenchGetState(force?: boolean): Promise<WorkbenchSnapshot>
-  workbenchGetItem(id: string): Promise<WorkbenchDetail>
+  workbenchGetItem(id: string, config?: WorkbenchDetailConfig): Promise<WorkbenchDetail>
   workbenchSetToken(token: string): Promise<WorkbenchSnapshot>
   workbenchSetSettings(input: { frontendServerUrl: string; organizationId?: string }): Promise<WorkbenchSnapshot>
+  workbenchPreflight(directory: string): Promise<WorkbenchPreflight>
+  workbenchTaskList(): Promise<{ tasks: WorkbenchTask[]; runs: WorkbenchTaskRun[] }>
+  workbenchTaskStart(input: {
+    itemId: string
+    serial: string
+    title: string
+    spaceId: string
+    spaceName: string
+    url?: string
+    directory: string
+  }): Promise<WorkbenchTask>
+  workbenchTaskSetStage(input: {
+    id: string
+    stage: WorkbenchTaskStage
+    summary?: string
+  }): Promise<WorkbenchTask>
+  workbenchTaskBindRun(input: {
+    taskId: string
+    sessionId: string
+    kind: string
+    stage?: WorkbenchTaskStage
+  }): Promise<WorkbenchTaskRun>
+  workbenchTaskApprove(id: string): Promise<WorkbenchTask>
+  workbenchTaskDocs(id: string): Promise<WorkbenchTaskDocs>
 }

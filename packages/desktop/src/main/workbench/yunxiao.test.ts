@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { isClosed, readiness, sort, toItem, type Item, type RawWorkItem } from "./yunxiao"
+import { asset, inlineImages, readiness, sort, toItem, type Item, type RawWorkItem } from "./yunxiao"
 
 const base: RawWorkItem = {
   id: "1",
@@ -16,21 +16,6 @@ const base: RawWorkItem = {
   gmtCreate: new Date().toISOString(),
   gmtModified: new Date().toISOString(),
 }
-
-describe("isClosed", () => {
-  test("keeps an active stage", () => {
-    expect(isClosed(base)).toBe(false)
-  })
-
-  test("drops the done stage whatever its status name", () => {
-    expect(isClosed({ ...base, statusStageIdentifier: "4", status: "开发中" })).toBe(true)
-  })
-
-  test("drops closed names when a space uses another stage id", () => {
-    expect(isClosed({ ...base, statusStageIdentifier: "12", status: "已取消" })).toBe(true)
-    expect(isClosed({ ...base, statusName: "无法复现" })).toBe(true)
-  })
-})
 
 describe("readiness", () => {
   test("ready when cloud fields are complete", () => {
@@ -106,5 +91,59 @@ describe("sort", () => {
     const input = [item({ id: "a" }), item({ id: "b", readiness: "blocked" })]
     sort(input)
     expect(input.map((entry) => entry.id)).toEqual(["a", "b"])
+  })
+})
+
+const PNG = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10])
+
+function proxy(handler: () => Response) {
+  return Bun.serve({ port: 0, fetch: handler })
+}
+
+describe("Yunxiao images", () => {
+  test("turns a proxied file url into a data url and leaves public images alone", async () => {
+    const server = proxy(() => new Response(PNG, { headers: { "content-type": "image/png" } }))
+    const client = { baseUrl: `http://127.0.0.1:${server.port}`, token: "token" }
+
+    try {
+      const html =
+        '<p><img alt="截图" src="https://devops.aliyun.com/projex/api/workitem/file/url?fileIdentifier=abc&amp;x=1"></p>' +
+        '<img src="https://example.com/public.png">'
+      const output = await inlineImages(client, "work-item", html)
+
+      expect(output).toContain('src="data:image/png;base64,')
+      expect(output).toContain('alt="截图"')
+      expect(output).toContain("https://example.com/public.png")
+      expect(output).not.toContain("projex/api/workitem/file/url")
+    } finally {
+      server.stop(true)
+    }
+  })
+
+  test("keeps the original src when the proxy cannot download the file", async () => {
+    const server = proxy(() => new Response("missing", { status: 404 }))
+    const client = { baseUrl: `http://127.0.0.1:${server.port}`, token: "token" }
+
+    try {
+      const html = '<img src="https://devops.aliyun.com/projex/api/workitem/file/url?fileIdentifier=gone">'
+
+      expect(await inlineImages(client, "work-item", html)).toBe(html)
+    } finally {
+      server.stop(true)
+    }
+  })
+
+  test("rejects a payload that is not an image", async () => {
+    const server = proxy(() => new Response("{}", { headers: { "content-type": "application/json" } }))
+
+    try {
+      const client = { baseUrl: `http://127.0.0.1:${server.port}`, token: "token" }
+
+      await expect(asset(client, { workItemId: "work", url: "https://example.com/a" })).rejects.toThrow(
+        "application/json",
+      )
+    } finally {
+      server.stop(true)
+    }
   })
 })
