@@ -143,7 +143,7 @@ export const clientSettings: Entry<SettingsRootTab>[] = [
     label: "settings.appearance.row.iconStyle.title",
     target: "settings-icon-style",
     description: "settings.appearance.row.iconStyle.description",
-    keywords: "icons iconography glyphs linear duotone ink",
+    keywords: "icons iconography glyphs line plate",
   },
   {
     tab: "appearance",

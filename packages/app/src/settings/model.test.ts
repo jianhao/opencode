@@ -40,9 +40,16 @@ describe("settings icon style migration", () => {
   test("moves the retired new-icons experiment into the appearance style", () => {
     const settings = decode({ general: { newIcons: true }, appearance: { fontSize: 14 } })
 
-    expect(settings.appearance.iconStyle).toBe("linear")
+    expect(settings.appearance.iconStyle).toBe("line")
     expect(settings.general).not.toHaveProperty("newIcons")
     expect(decode(encode(settings))).toEqual(settings)
+  })
+
+  test("maps the retired three styles onto the two icon sets", () => {
+    expect(decode({ appearance: { iconStyle: "duotone" } }).appearance.iconStyle).toBe("plate")
+    expect(decode({ appearance: { iconStyle: "linear" } }).appearance.iconStyle).toBe("line")
+    expect(decode({ appearance: { iconStyle: "ink" } }).appearance.iconStyle).toBe("line")
+    expect(decode({ appearance: { iconStyle: "plate" } }).appearance.iconStyle).toBe("plate")
   })
 })
 
@@ -114,7 +121,7 @@ describe("settings schema", () => {
       },
       appearance: {
         fontSize: 14,
-        iconStyle: "duotone",
+        iconStyle: "line",
         mono: "",
         sans: "",
         terminal: "",
@@ -172,7 +179,7 @@ describe("settings schema", () => {
     })
     expect(settings.appearance).toEqual({
       fontSize: 14,
-      iconStyle: "duotone",
+      iconStyle: "line",
       mono: "Custom Mono",
       sans: "",
       terminal: "",

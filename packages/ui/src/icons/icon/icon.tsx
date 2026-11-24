@@ -1,6 +1,5 @@
 import { createSignal, onMount, type ComponentProps, splitProps } from "solid-js"
 import { iconNames, isIconName, getIcon, type IconName } from "../catalog"
-import { getNewIcon, newIconViewBox } from "../new-icons"
 import { iconTone } from "./tones"
 import "./icon.css"
 
@@ -8,14 +7,12 @@ const spriteID = "opencode-v2-icon-sprite"
 
 const symbol = (name: IconName) => `opencode-v2-icon-${name}`
 
-const newSymbol = (name: IconName) => `opencode-v2-icon-new-${name}`
-
 let spriteInserted = false
 
-export type IconStyle = "linear" | "duotone" | "ink"
+export type IconStyle = "line" | "plate"
 
-// The app applies this from Settings > Appearance. The attribute lets CSS tune icon frames and stroke weight.
-const [currentIconStyle, setCurrentIconStyle] = createSignal<IconStyle>("duotone")
+// 外观设置整档切换图标套装：line 纯线性，plate 线条 + 同色浅底。
+const [currentIconStyle, setCurrentIconStyle] = createSignal<IconStyle>("line")
 
 export function setIconStyle(style: IconStyle) {
   setCurrentIconStyle(style)
@@ -29,12 +26,7 @@ if (typeof document !== "undefined") document.documentElement.dataset.iconStyle 
 
 function spriteContent() {
   return iconNames()
-    .map((name) => {
-      const current = `<symbol id="${symbol(name)}" viewBox="${getIcon(name).viewBox}">${getIcon(name).body}</symbol>`
-      const next = getNewIcon(name)
-
-      return next ? `${current}<symbol id="${newSymbol(name)}" viewBox="${newIconViewBox}">${next}</symbol>` : current
-    })
+    .map((name) => `<symbol id="${symbol(name)}" viewBox="${getIcon(name).viewBox}">${getIcon(name).body}</symbol>`)
     .join("")
 }
 
@@ -77,10 +69,7 @@ export function Icon(props: IconProps) {
   }
 
   const icon = () => getIcon(iconName())
-  // Names without redesigned artwork keep their current path until their replacement lands.
-  const next = () => getNewIcon(iconName()) !== undefined
-  // New artwork is drawn on a 16px grid, so it stays at 16px where today's small icons shrink to 14px.
-  const pixelSize = () => (split.size === "large" ? 20 : split.size === "small" && !next() ? 14 : 16)
+  const pixelSize = () => (split.size === "large" ? 20 : split.size === "small" ? 14 : 16)
   onMount(ensureSprite)
 
   return (
@@ -102,12 +91,12 @@ export function Icon(props: IconProps) {
       }
       width={pixelSize()}
       height={pixelSize()}
-      viewBox={next() ? newIconViewBox : icon().viewBox}
+      viewBox={icon().viewBox}
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       aria-hidden={rest["aria-hidden"] ?? "true"}
     >
-      <use href={`#${next() ? newSymbol(iconName()) : symbol(iconName())}`} />
+      <use href={`#${symbol(iconName())}`} />
     </svg>
   )
 }

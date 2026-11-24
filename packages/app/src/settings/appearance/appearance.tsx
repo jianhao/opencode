@@ -6,11 +6,12 @@ import { ExternalLink } from "@/runtime/platform/external-link"
 import { SettingsList } from "@/settings/list"
 import { SettingsRow } from "@/settings/row"
 import { createAppearanceSettingsController, type AppearanceSettingsController } from "@/settings/general/controllers"
+import type { IconStyle } from "@/settings/model"
 import "@/settings/settings.css"
 
 const schemeOptions: ("system" | "light" | "dark")[] = ["system", "light", "dark"]
 
-const iconStyleOptions: ("linear" | "duotone" | "ink")[] = ["linear", "duotone", "ink"]
+const iconStyleOptions: IconStyle[] = ["line", "plate"]
 
 const reduceMotionOptions = [
   { value: "system" as const, label: "settings.appearance.row.reduceMotion.system" as const },

@@ -1,0 +1,35 @@
+.session-tab-avatar {
+  position: relative;
+  display: grid;
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 4px;
+  color: var(--v2-icon-icon-accent);
+  background: color-mix(in srgb, var(--v2-icon-icon-accent) 12%, transparent);
+  box-shadow: inset 0 0 0 0.5px color-mix(in srgb, var(--v2-icon-icon-accent) 26%, transparent);
+}
+
+.session-tab-avatar [data-slot="icon-svg"] {
+  width: 12px;
+  height: 12px;
+}
+
+.session-tab-avatar[data-unread] {
+  overflow: visible;
+  -webkit-mask-image: radial-gradient(circle 4.5px at 100% 0, transparent 4px, black 5px);
+  mask-image: radial-gradient(circle 4.5px at 100% 0, transparent 4px, black 5px);
+}
+
+.session-tab-avatar i {
+  position: absolute;
+  z-index: 3;
+  top: -3px;
+  right: -3px;
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  background: var(--v2-background-bg-accent);
+  pointer-events: none;
+}

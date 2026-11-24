@@ -1,17 +1,16 @@
-import { sessionProjectAvatarSeed, sessionProjectName } from "@/shell/layout/helpers"
 import type { LocalProject } from "@/shell/state/layout"
-import { getProjectAvatarSource, getProjectAvatarVariant, ProjectAvatar } from "@opencode/ui/project-avatar"
+import { Icon } from "@opencode/ui/icon"
+import { Show } from "solid-js"
+import "./session-tab-avatar.css"
 
-// The project avatar never changes while a session works: callers show `ActivityRing` at the row's trailing edge, as
-// session tabs do.
+// 会话标签统一使用同一个会话图标，不再按项目/目录生成随机图案。
 export function SessionTabAvatarView(props: { project?: LocalProject; directory: string; unread: boolean }) {
   return (
-    <ProjectAvatar
-      fallback={sessionProjectName(props.project, props.directory)}
-      src={getProjectAvatarSource(props.project?.id, props.project?.icon)}
-      variant={getProjectAvatarVariant(props.project?.icon?.color)}
-      generated={sessionProjectAvatarSeed(props.project, props.directory)}
-      unread={props.unread}
-    />
+    <span class="session-tab-avatar" data-unread={props.unread ? "" : undefined} aria-hidden="true">
+      <Icon name="bubble-5" size="small" />
+      <Show when={props.unread}>
+        <i />
+      </Show>
+    </span>
   )
 }

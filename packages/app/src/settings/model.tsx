@@ -145,7 +145,7 @@ const generalSchema = Persistence.struct({
 
 const appearanceSchema = Persistence.struct({
   fontSize: Schema.Number,
-  iconStyle: Schema.Literals(["linear", "duotone", "ink"]),
+  iconStyle: Schema.Literals(["line", "plate"]),
   mono: Schema.String,
   sans: Schema.String,
   terminal: Schema.String,
@@ -280,17 +280,29 @@ export const settingsPersistence = Persistence.migrate(
   }).pipe(
     Schema.decode({
       decode: SchemaGetter.transform((value) => {
+        const appearance = Predicate.isObject(value.appearance) ? value.appearance : {}
         const general = value.general
 
-        if (!general) return value
+        // 旧的三档（linear/duotone/ink）迁移到两套：line 纯线性，plate 线性 + 同色浅底。
+        const rawIconStyle = appearance.iconStyle
+
+        const mappedIconStyle =
+          rawIconStyle === "line" || rawIconStyle === "plate"
+            ? rawIconStyle
+            : rawIconStyle === "duotone"
+              ? "plate"
+              : rawIconStyle === "linear" || rawIconStyle === "ink"
+                ? "line"
+                : undefined
+
+        if (!general) {
+          if (mappedIconStyle === undefined) return value
+
+          return { ...value, appearance: { ...appearance, iconStyle: mappedIconStyle } }
+        }
 
         const { newIcons, ...currentGeneral } = general
-        const appearance = Predicate.isObject(value.appearance) ? value.appearance : {}
-
-        const existingIconStyle =
-          appearance.iconStyle === "linear" || appearance.iconStyle === "duotone" || appearance.iconStyle === "ink"
-            ? appearance.iconStyle
-            : undefined
+        const iconStyle = mappedIconStyle ?? (newIcons === undefined ? undefined : newIcons ? "line" : "plate")
 
         const migratedTimeline =
           general.timelineDetail === undefined
@@ -311,13 +323,13 @@ export const settingsPersistence = Persistence.migrate(
           },
         }
 
-        if (newIcons === undefined) return next
+        if (iconStyle === undefined) return next
 
         return {
           ...next,
           appearance: {
             ...appearance,
-            iconStyle: existingIconStyle ?? (newIcons ? "linear" : "duotone"),
+            iconStyle,
           },
         }
       }),
@@ -342,7 +354,7 @@ export const defaultSettings: Settings = {
   },
   appearance: {
     fontSize: 14,
-    iconStyle: "duotone",
+    iconStyle: "line",
     mono: "",
     sans: "",
     terminal: "",
