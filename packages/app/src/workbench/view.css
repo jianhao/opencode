@@ -1845,35 +1845,6 @@
   border-radius: 8px;
 }
 
-/* 图片预览：原图按容器宽度铺开，长截图可以直接滚动看。 */
-.workbench-lightbox {
-  position: fixed;
-  z-index: 60;
-  inset: 0;
-  overflow: auto;
-  padding: 44px 32px 32px;
-  background: color-mix(in srgb, #000 64%, transparent);
-  cursor: zoom-out;
-}
-
-.workbench-lightbox img {
-  display: block;
-  max-width: min(100%, 1180px);
-  height: auto;
-  margin: 0 auto;
-  border-radius: 10px;
-  background: var(--v2-background-bg-base);
-  box-shadow: var(--v2-elevation-overlay);
-  cursor: default;
-}
-
-.workbench-lightbox-close {
-  position: fixed;
-  z-index: 1;
-  top: 16px;
-  right: 16px;
-}
-
 .workbench-prose table {
   display: block;
   max-width: 100%;

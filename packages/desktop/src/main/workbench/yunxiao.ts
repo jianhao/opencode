@@ -9,6 +9,13 @@ const CONCURRENCY = 4
 const TIMEOUT_MS = 15000
 const ASSET_TIMEOUT_MS = 20000
 const ASSET_MAX_BYTES = 8 * 1024 * 1024
+
+// 图标之类的小图重下成本低，不值得占缓存；正文截图通常几十到几百 KB。
+const ASSET_CACHE_MIN_BYTES = 32 * 1024
+
+// 缓存的是原始字节，base64 后字符串大约再涨三分之一。
+const ASSET_CACHE_MAX_BYTES = 64 * 1024 * 1024
+
 const BLOCKED_STATUS = /挂起|阻塞|暂停|等待/
 const STALE_MS = 30 * 24 * 60 * 60 * 1000
 
@@ -135,11 +142,36 @@ export async function search(client: Client, input: { spaceId: string; category:
   return { totalCount, workitems }
 }
 
+// 图片按 URL 缓存下载结果：同一张截图反复打开详情时不必再走一遍云效。
+const assets = new Map<string, { data: string; bytes: number }>()
+let assetBytes = 0
+
+/** 换账号或换服务地址后旧的图片不能再复用。 */
+export function clearAssets() {
+  assets.clear()
+  assetBytes = 0
+}
+
 /**
  * 云效正文图片走 assets/download 代理：直接 &lt;img src&gt; 需要登录态，渲染进程拿不到令牌。
  * 返回 data URL，详情可以离线展示；失败由调用方保留原地址。
+ * `refresh` 用于手动刷新详情：跳过缓存重下，并把新结果写回去。
  */
-export async function asset(client: Client, input: { workItemId: string; url: string }) {
+export async function asset(
+  client: Client,
+  input: { workItemId: string; url: string },
+  options?: { refresh?: boolean },
+) {
+  const cached = options?.refresh ? undefined : assets.get(input.url)
+
+  if (cached) {
+    // 命中后移到队尾，淘汰时先丢最久没用的。
+    assets.delete(input.url)
+    assets.set(input.url, cached)
+
+    return cached.data
+  }
+
   const response = await fetch(`${client.baseUrl}/api/v1/agent-api/yunxiao/assets/download`, {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -166,7 +198,23 @@ export async function asset(client: Client, input: { workItemId: string; url: st
 
   if (buffer.byteLength > ASSET_MAX_BYTES) throw new Error("图片超过 8MB")
 
-  return `data:${type};base64,${buffer.toString("base64")}`
+  const data = `data:${type};base64,${buffer.toString("base64")}`
+
+  if (buffer.byteLength < ASSET_CACHE_MIN_BYTES) return data
+
+  const previous = assets.get(input.url)
+  assets.delete(input.url)
+  assetBytes -= previous?.bytes ?? 0
+  assets.set(input.url, { data, bytes: buffer.byteLength })
+  assetBytes += buffer.byteLength
+
+  for (const [url, entry] of assets) {
+    if (assetBytes <= ASSET_CACHE_MAX_BYTES) break
+    assets.delete(url)
+    assetBytes -= entry.bytes
+  }
+
+  return data
 }
 
 // 云效正文图片的地址形态，只有这种需要凭令牌下载；其余公开地址交给浏览器直连。
@@ -180,6 +228,7 @@ export async function inlineImages(
   client: { baseUrl: string; token: string; organizationId?: string },
   workItemId: string,
   html: string,
+  options?: { refresh?: boolean },
 ) {
   if (!html || !PROXIED_IMAGE.test(html)) return html
 
@@ -197,7 +246,7 @@ export async function inlineImages(
       if (!PROXIED_IMAGE.test(url) || replaced.has(tag)) return
 
       try {
-        replaced.set(tag, await asset(client, { workItemId, url }))
+        replaced.set(tag, await asset(client, { workItemId, url }, options))
       } catch {
         // 保留原地址，正文其他内容仍可阅读。
       }

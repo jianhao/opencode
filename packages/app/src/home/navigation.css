@@ -1,4 +1,5 @@
 .home-navigation {
+  position: relative;
   display: flex;
   min-width: 0;
   min-height: 0;
@@ -171,6 +172,11 @@
   height: 30px;
   padding: 0 9px;
   font-size: 12px;
+}
+
+/* 拖拽手柄要骑在右边框上，不能被 aside 裁掉；滚动仍由内部的 main 负责。 */
+.home-navigation:not([data-mobile]) {
+  overflow: visible;
 }
 
 .home-navigation[data-mobile] {

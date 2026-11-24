@@ -28,6 +28,14 @@ describe("layout persistence", () => {
     expect(() => Schema.decodeUnknownSync(layoutSchema)({})).toThrow()
   })
 
+  test("keeps the widths the user dragged", () => {
+    const restore = Schema.decodeUnknownSync(Persistence.withInitial(layoutPersistence, initialLayout()))
+    const value = restore({ sidebar: { tabsWidth: 300, homeWidth: 260 } })
+
+    expect(value.sidebar.tabsWidth).toBe(300)
+    expect(value.sidebar.homeWidth).toBe(260)
+  })
+
   test("restores shipped defaults for missing and invalid fields", () => {
     const defaults = decode({})
     expect(defaults).toEqual({

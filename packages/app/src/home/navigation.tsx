@@ -8,6 +8,7 @@ import {
 } from "@opencode/ui/project-avatar"
 import { Icon } from "@opencode/ui/icon"
 import { IconButton } from "@opencode/ui/icon-button"
+import { ResizeHandle } from "@opencode/ui/resize-handle"
 import { pathKey } from "@/workspaces/path-key"
 import { sessionLabel } from "@/session/title"
 import type { HomeProjectsController } from "./projects/controller"
@@ -21,6 +22,11 @@ export function HomeNavigation(props: {
   sessions: HomeSessionsController
   mobile: boolean
   onWorkbench: () => void
+  width: number
+  min: number
+  max: number
+  onResize: (width: number) => void
+  onResizeEnd: () => void
 }) {
   const [expanded, setExpanded] = createSignal(new Set<string>())
   const [showAll, setShowAll] = createSignal(new Set<string>())
@@ -49,6 +55,20 @@ export function HomeNavigation(props: {
 
   return (
     <aside class="home-navigation" data-mobile={props.mobile ? "" : undefined} aria-label="工作台导航">
+      {/* 窄屏导航折到顶部，不能再调宽。 */}
+      <Show when={!props.mobile}>
+        <ResizeHandle
+          direction="horizontal"
+          size={props.width}
+          min={props.min}
+          max={props.max}
+          onResize={props.onResize}
+          onDraggingChange={(dragging) => {
+            // 松手才写存储，拖拽过程里的每一帧不同步落盘。
+            if (!dragging) props.onResizeEnd()
+          }}
+        />
+      </Show>
       <div class="home-navigation-main">
         <button
           type="button"

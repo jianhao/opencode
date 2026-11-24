@@ -88,7 +88,7 @@ export type ElectronAPI = {
   recordFatalRendererError(error: FatalRendererError): Promise<void>
   setNativeTranslations(bundle: DesktopNativeBundle): Promise<void>
   workbenchGetState(force?: boolean): Promise<WorkbenchSnapshot>
-  workbenchGetItem(id: string, config?: WorkbenchDetailConfig): Promise<WorkbenchDetail>
+  workbenchGetItem(id: string, config?: WorkbenchDetailConfig, force?: boolean): Promise<WorkbenchDetail>
   workbenchSetToken(token: string): Promise<WorkbenchSnapshot>
   workbenchSetSettings(input: { frontendServerUrl: string; organizationId?: string }): Promise<WorkbenchSnapshot>
   workbenchPreflight(directory: string): Promise<WorkbenchPreflight>
@@ -102,11 +102,7 @@ export type ElectronAPI = {
     url?: string
     directory: string
   }): Promise<WorkbenchTask>
-  workbenchTaskSetStage(input: {
-    id: string
-    stage: WorkbenchTaskStage
-    summary?: string
-  }): Promise<WorkbenchTask>
+  workbenchTaskSetStage(input: { id: string; stage: WorkbenchTaskStage; summary?: string }): Promise<WorkbenchTask>
   workbenchTaskBindRun(input: {
     taskId: string
     sessionId: string

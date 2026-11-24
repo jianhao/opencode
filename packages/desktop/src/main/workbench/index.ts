@@ -45,14 +45,19 @@ export type Detail = DetailContext & {
 
 export type Interface = {
   state(input?: { force?: boolean }): Promise<Snapshot>
-  item(id: string, config?: Yunxiao.ContextConfig): Promise<Detail>
+  item(id: string, config?: Yunxiao.ContextConfig, force?: boolean): Promise<Detail>
   setToken(token: string): Promise<Snapshot>
   setSettings(input: { frontendServerUrl: string; organizationId?: string }): Promise<Snapshot>
   preflight(directory: string): Promise<Tasks.Preflight>
   tasks(): { tasks: Tasks.Task[]; runs: Tasks.TaskRun[] }
   taskStart(input: Tasks.TaskInput & { directory: string }): Promise<Tasks.Task>
   taskSetStage(input: { id: string; stage: Tasks.TaskStage; summary?: string }): Promise<Tasks.Task>
-  taskBindRun(input: { taskId: string; sessionId: string; kind: string; stage?: Tasks.TaskStage }): Promise<Tasks.TaskRun>
+  taskBindRun(input: {
+    taskId: string
+    sessionId: string
+    kind: string
+    stage?: Tasks.TaskStage
+  }): Promise<Tasks.TaskRun>
   taskApprove(id: string): Promise<Tasks.Task>
   taskDocs(id: string): Promise<Tasks.TaskDocs>
 }
@@ -72,27 +77,29 @@ function empty(warnings: string[] = [], error?: string): Snapshot {
   }
 }
 
-function detailContext(client: Yunxiao.Client, context: Yunxiao.RawContext): Promise<DetailContext> {
+function detailContext(client: Yunxiao.Client, context: Yunxiao.RawContext, force?: boolean): Promise<DetailContext> {
   const description = parseRichText(context.description)
   const workItemId = context.workItem.id
 
-  return Yunxiao.inlineImages(client, workItemId, description.html).then(async (descriptionHtml) => ({
-    item: Yunxiao.toItem(context.workItem),
-    description: description.text,
-    descriptionHtml,
-    comments: await Promise.all(
-      (context.comments ?? []).map(async (comment) => {
-        const parsed = parseRichText(comment.content)
+  return Yunxiao.inlineImages(client, workItemId, description.html, { refresh: force }).then(
+    async (descriptionHtml) => ({
+      item: Yunxiao.toItem(context.workItem),
+      description: description.text,
+      descriptionHtml,
+      comments: await Promise.all(
+        (context.comments ?? []).map(async (comment) => {
+          const parsed = parseRichText(comment.content)
 
-        return {
-          author: comment.creatorName ?? "未知",
-          created: comment.gmtCreate,
-          content: parsed.text,
-          contentHtml: await Yunxiao.inlineImages(client, workItemId, parsed.html),
-        }
-      }),
-    ),
-  }))
+          return {
+            author: comment.creatorName ?? "未知",
+            created: comment.gmtCreate,
+            content: parsed.text,
+            contentHtml: await Yunxiao.inlineImages(client, workItemId, parsed.html),
+          }
+        }),
+      ),
+    }),
+  )
 }
 
 // 云效的 actionType 是英文枚举，落到界面上换成中文动词。
@@ -206,7 +213,7 @@ function make(storage: DesktopStorage.Interface) {
       return inflight
     },
 
-    async item(id, config) {
+    async item(id, config, force) {
       const settings = Settings.readSettings(state)
       const token = Settings.resolveToken()
 
@@ -219,7 +226,7 @@ function make(storage: DesktopStorage.Interface) {
       }
       const result = await Yunxiao.context(client, id, config ?? Yunxiao.DEFAULT_CONTEXT_CONFIG)
       const context = result.context
-      const describe = (target: Yunxiao.RawContext): Promise<DetailContext> => detailContext(client, target)
+      const describe = (target: Yunxiao.RawContext): Promise<DetailContext> => detailContext(client, target, force)
 
       return {
         ...(await describe(context)),
@@ -248,6 +255,7 @@ function make(storage: DesktopStorage.Interface) {
     async setToken(token) {
       Settings.writeStored(token.trim())
       cache = undefined
+      Yunxiao.clearAssets()
       return api.state({ force: true })
     },
 
@@ -257,6 +265,7 @@ function make(storage: DesktopStorage.Interface) {
         organizationId: input.organizationId?.trim() || undefined,
       })
       cache = undefined
+      Yunxiao.clearAssets()
       return api.state({ force: true })
     },
 

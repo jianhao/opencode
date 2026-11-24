@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { asset, inlineImages, readiness, sort, toItem, type Item, type RawWorkItem } from "./yunxiao"
+import { asset, clearAssets, inlineImages, readiness, sort, toItem, type Item, type RawWorkItem } from "./yunxiao"
 
 const base: RawWorkItem = {
   id: "1",
@@ -129,6 +129,57 @@ describe("Yunxiao images", () => {
 
       expect(await inlineImages(client, "work-item", html)).toBe(html)
     } finally {
+      server.stop(true)
+    }
+  })
+
+  test("caches a large download until a refresh asks for it again", async () => {
+    clearAssets()
+    let requests = 0
+    const big = new Uint8Array(600 * 1024)
+    big.set(PNG)
+
+    const server = proxy(() => {
+      requests++
+
+      return new Response(big, { headers: { "content-type": "image/png" } })
+    })
+
+    const client = { baseUrl: `http://127.0.0.1:${server.port}`, token: "token" }
+    const url = "https://devops.aliyun.com/projex/api/workitem/file/url?fileIdentifier=big"
+
+    try {
+      await asset(client, { workItemId: "work", url })
+      await asset(client, { workItemId: "work", url })
+      expect(requests).toBe(1)
+
+      await asset(client, { workItemId: "work", url }, { refresh: true })
+      expect(requests).toBe(2)
+    } finally {
+      clearAssets()
+      server.stop(true)
+    }
+  })
+
+  test("re-downloads a small image instead of keeping it", async () => {
+    clearAssets()
+    let requests = 0
+
+    const server = proxy(() => {
+      requests++
+
+      return new Response(PNG, { headers: { "content-type": "image/png" } })
+    })
+
+    const client = { baseUrl: `http://127.0.0.1:${server.port}`, token: "token" }
+    const url = "https://devops.aliyun.com/projex/api/workitem/file/url?fileIdentifier=small"
+
+    try {
+      await asset(client, { workItemId: "work", url })
+      await asset(client, { workItemId: "work", url })
+      expect(requests).toBe(2)
+    } finally {
+      clearAssets()
       server.stop(true)
     }
   })

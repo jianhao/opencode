@@ -1,4 +1,4 @@
-import { Show, startTransition, Suspense, type ParentProps } from "solid-js"
+import { createEffect, Show, startTransition, Suspense, type ParentProps } from "solid-js"
 import { createStore } from "solid-js/store"
 import { createMediaQuery } from "@solid-primitives/media"
 import { ResizeHandle } from "@opencode/ui/resize-handle"
@@ -25,9 +25,14 @@ import {
 } from "@/shell/sidebar-toggle"
 import { createPanelMotion, guardClosingFocus, panelOpacity, setPanelResizing } from "@/shell/panel-motion"
 import { createSidebarPeek } from "@/shell/sidebar-peek"
+import { useLayout } from "@/shell/state/layout"
 import { windowDragEnabled } from "@/session/header/drag-area"
 
 type SidebarPose = { closed: number; peek: number | undefined }
+
+const TABS_SIDEBAR_MIN = 136
+
+const TABS_SIDEBAR_MAX = 640
 
 export const sidebarToggleCommand = { id: "sidebar.toggle", keybind: "mod+shift+b" }
 
@@ -41,6 +46,8 @@ export default function Layout(props: ParentProps) {
   const global = useGlobal()
   const servers = useServers()
   const tabs = useTabs()
+  const layout = useLayout()
+  const clampTabsWidth = (width: number) => Math.min(Math.max(width, TABS_SIDEBAR_MIN), TABS_SIDEBAR_MAX)
   const mobile = createMediaQuery("(max-width: 767px)")
 
   const [state, setState] = createStore<{
@@ -49,10 +56,18 @@ export default function Layout(props: ParentProps) {
     tabsAside: HTMLElement | undefined
     tabsPanel: HTMLElement | undefined
   }>({
-    tabsWidth: 240,
+    // 恢复上次拖动后的宽度；旧数据没有这个字段时用默认值。
+    tabsWidth: clampTabsWidth(layout.sidebar.tabsWidth()),
     tabsMount: undefined,
     tabsAside: undefined,
     tabsPanel: undefined,
+  })
+
+  // 布局是异步恢复的，水合完成后把上次拖的宽度带回来。
+  createEffect(() => {
+    if (!layout.ready()) return
+
+    setState("tabsWidth", clampTabsWidth(layout.sidebar.tabsWidth()))
   })
 
   const verticalTabs = () => preferences.appearance.tabLayout() !== "horizontal" && !mobile()
@@ -288,10 +303,17 @@ export default function Layout(props: ParentProps) {
               <ResizeHandle
                 direction="horizontal"
                 size={state.tabsWidth}
-                min={136}
-                max={640}
+                min={TABS_SIDEBAR_MIN}
+                max={TABS_SIDEBAR_MAX}
+                // 项目分组侧边栏的面板是 z-20，拖拽手柄要压过它才收得到指针。
+                style={{ "z-index": 30 }}
                 onResize={(width) => setState("tabsWidth", width)}
-                onDraggingChange={setPanelResizing}
+                onDraggingChange={(dragging) => {
+                  setPanelResizing(dragging)
+
+                  // 拖动过程中每帧都写存储太重，松手时落一次最终宽度。
+                  if (!dragging) layout.sidebar.resizeTabs(state.tabsWidth)
+                }}
               />
             </Show>
           </aside>

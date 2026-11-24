@@ -8,7 +8,7 @@ export const workbenchHandlers = WorkbenchRpcs.toLayer(
 
     return WorkbenchRpcs.of({
       WorkbenchGetState: ({ force }) => Effect.promise(() => workbench.state({ force })),
-      WorkbenchGetItem: ({ id, config }) => Effect.promise(() => workbench.item(id, config)),
+      WorkbenchGetItem: ({ id, config, force }) => Effect.promise(() => workbench.item(id, config, force)),
       WorkbenchSetToken: ({ token }) => Effect.promise(() => workbench.setToken(token)),
       WorkbenchSetSettings: ({ frontendServerUrl, organizationId }) =>
         Effect.promise(() => workbench.setSettings({ frontendServerUrl, organizationId })),

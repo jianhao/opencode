@@ -157,7 +157,7 @@ export type WorkbenchTaskDocs = {
 
 export type WorkbenchBridge = {
   state(force?: boolean): Promise<WorkbenchSnapshot>
-  item(id: string, config?: WorkbenchDetailConfig): Promise<WorkbenchDetail>
+  item(id: string, config?: WorkbenchDetailConfig, force?: boolean): Promise<WorkbenchDetail>
   setToken(token: string): Promise<WorkbenchSnapshot>
   setSettings(input: { frontendServerUrl: string; organizationId?: string }): Promise<WorkbenchSnapshot>
   preflight(directory: string): Promise<WorkbenchPreflight>
@@ -172,12 +172,7 @@ export type WorkbenchBridge = {
     directory: string
   }): Promise<WorkbenchTask>
   taskSetStage(input: { id: string; stage: TaskStage; summary?: string }): Promise<WorkbenchTask>
-  taskBindRun(input: {
-    taskId: string
-    sessionId: string
-    kind: string
-    stage?: TaskStage
-  }): Promise<WorkbenchTaskRun>
+  taskBindRun(input: { taskId: string; sessionId: string; kind: string; stage?: TaskStage }): Promise<WorkbenchTaskRun>
   taskApprove(id: string): Promise<WorkbenchTask>
   taskDocs(id: string): Promise<WorkbenchTaskDocs>
 }

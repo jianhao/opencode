@@ -8,7 +8,7 @@ import type { DetailConfig as WorkbenchDetailConfig } from "../../shared/ipc-rpc
 export function createDesktopWorkbench(api: ElectronAPI) {
   return {
     state: (force?: boolean) => api.workbenchGetState(force),
-    item: (id: string, config?: WorkbenchDetailConfig) => api.workbenchGetItem(id, config),
+    item: (id: string, config?: WorkbenchDetailConfig, force?: boolean) => api.workbenchGetItem(id, config, force),
     setToken: (token: string) => api.workbenchSetToken(token),
     setSettings: (input: { frontendServerUrl: string; organizationId?: string }) => api.workbenchSetSettings(input),
     preflight: (directory: string) => api.workbenchPreflight(directory),

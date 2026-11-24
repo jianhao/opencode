@@ -377,23 +377,34 @@ export function createWorkbenchController(bridge: () => WorkbenchBridge | undefi
     })
   })
 
-  const open = (item: WorkbenchItem) => {
-    setSelected(item.id)
-    setDetail(undefined)
-
+  // 详情每次都重新取（元数据要新）；大图由主进程按 URL 缓存，重开不会重新下载图片。
+  const loadDetail = (id: string, force: boolean) => {
     const api = bridge()
 
     if (!api) return
 
     setDetailLoading(true)
     void api
-      .item(item.id, detailConfig())
+      .item(id, detailConfig(), force)
       .then((next) => {
         // A fast second click must not be overwritten by the slower first response.
-        if (selected() === item.id) setDetail(next)
+        if (selected() === id) setDetail(next)
       })
       .catch(() => undefined)
       .finally(() => setDetailLoading(false))
+  }
+
+  const open = (item: WorkbenchItem) => {
+    setSelected(item.id)
+    setDetail(undefined)
+    loadDetail(item.id, false)
+  }
+
+  // 抽屉右上角的刷新：跳过图片缓存，连图片也重新下载。
+  const refreshDetail = () => {
+    const id = selected()
+
+    if (id) loadDetail(id, true)
   }
 
   const close = () => {
@@ -449,6 +460,7 @@ export function createWorkbenchController(bridge: () => WorkbenchBridge | undefi
     close,
     detail,
     detailLoading,
+    refreshDetail,
     detailConfig,
     setDetailConfig,
     refresh: () => load(true),

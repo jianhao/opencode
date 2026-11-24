@@ -195,7 +195,12 @@ export const WorkbenchGetState = Rpc.make("WorkbenchGetState", {
 })
 
 export const WorkbenchGetItem = Rpc.make("WorkbenchGetItem", {
-  payload: { id: Schema.String, config: Schema.optional(WorkbenchDetailConfig) },
+  // force 让手动刷新绕过详情与图片缓存。
+  payload: {
+    id: Schema.String,
+    config: Schema.optional(WorkbenchDetailConfig),
+    force: Schema.optional(Schema.Boolean),
+  },
   success: WorkbenchDetail,
 })
 

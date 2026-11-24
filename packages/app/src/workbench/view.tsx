@@ -6,6 +6,7 @@ import { IconButton } from "@opencode/ui/icon-button"
 import { Button } from "@opencode/ui/button"
 import { Dialog, DialogBody, DialogFooter, DialogHeader, DialogTitleGroup } from "@opencode/ui/dialog"
 import { useDialog } from "@opencode/ui/context/dialog"
+import { ImagePreview } from "@opencode/ui/image-preview"
 import { Loader } from "@opencode/ui/loader"
 import { MenuScroll } from "@opencode/ui/menu-scroll"
 import { Markdown } from "@opencode/session-ui/markdown"
@@ -197,6 +198,9 @@ export function WorkbenchView(props: { controller: Controller; runs: WorkbenchRu
 
   const onPointerDown = (event: PointerEvent) => {
     if (!props.controller.selected()) return
+
+    // 弹窗（图片预览、状态配置）里的点击由弹窗自己处理，别把后面的抽屉也关掉。
+    if (dialog.active) return
 
     if (!(event.target instanceof Element)) return
 
@@ -463,10 +467,18 @@ export function WorkbenchView(props: { controller: Controller; runs: WorkbenchRu
               <Portal>
                 <aside class="workbench-detail" role="dialog" aria-label="工作项详情" data-scrollable>
                   <Show
-                    when={!props.controller.detailLoading() && props.controller.detail()}
+                    when={props.controller.detail()}
                     fallback={<DetailPlaceholder item={item()} onClose={props.controller.close} />}
                   >
-                    {(detail) => <Detail detail={detail()} runs={props.runs} onClose={props.controller.close} />}
+                    {(detail) => (
+                      <Detail
+                        detail={detail()}
+                        runs={props.runs}
+                        onClose={props.controller.close}
+                        onRefresh={props.controller.refreshDetail}
+                        refreshing={props.controller.detailLoading()}
+                      />
+                    )}
                   </Show>
                 </aside>
               </Portal>
@@ -1152,19 +1164,23 @@ function hasContent(html: string) {
 }
 
 // 正文复用：主工作项、父项、子项、关联项都走同一套排版与图片放大。
-function RichText(props: { html: string; onImage: (src: string) => void }) {
+function RichText(props: { html: string; onImage: (src: string, origin: HTMLImageElement) => void }) {
   return (
     <div
       class="workbench-prose"
       onClick={(event) => {
-        if (event.target instanceof HTMLImageElement) props.onImage(event.target.currentSrc || event.target.src)
+        if (event.target instanceof HTMLImageElement)
+          props.onImage(event.target.currentSrc || event.target.src, event.target)
       }}
       innerHTML={safeRichText(props.html)}
     />
   )
 }
 
-function CommentList(props: { comments: readonly WorkbenchComment[] }) {
+function CommentList(props: {
+  comments: readonly WorkbenchComment[]
+  onImage: (src: string, origin: HTMLImageElement) => void
+}) {
   return (
     <div class="workbench-comments">
       <For each={props.comments}>
@@ -1178,7 +1194,7 @@ function CommentList(props: { comments: readonly WorkbenchComment[] }) {
                 <strong>{comment.author}</strong>
                 <span>{absolute(comment.created)}</span>
               </header>
-              <RichText html={comment.contentHtml || parseRichText(comment.content).html} onImage={() => undefined} />
+              <RichText html={comment.contentHtml || parseRichText(comment.content).html} onImage={props.onImage} />
             </div>
           </article>
         )}
@@ -1188,7 +1204,11 @@ function CommentList(props: { comments: readonly WorkbenchComment[] }) {
 }
 
 // 父项/子项/关联项：一张卡片带自己的类型、状态、基础信息、正文和评论。
-function ContextBlock(props: { title: string; context: WorkbenchSubItem; onImage: (src: string) => void }) {
+function ContextBlock(props: {
+  title: string
+  context: WorkbenchSubItem
+  onImage: (src: string, origin: HTMLImageElement) => void
+}) {
   const item = () => props.context.item
 
   return (
@@ -1215,7 +1235,7 @@ function ContextBlock(props: { title: string; context: WorkbenchSubItem; onImage
       </Show>
       <Show when={props.context.comments.length}>
         <h4 class="workbench-context-sub">评论 · {props.context.comments.length}</h4>
-        <CommentList comments={props.context.comments} />
+        <CommentList comments={props.context.comments} onImage={props.onImage} />
       </Show>
     </section>
   )
@@ -1232,10 +1252,15 @@ const DOC_TABS = [
 
 type DocTab = (typeof DOC_TABS)[number][0]
 
-function Detail(props: { detail: WorkbenchDetail; runs: WorkbenchRuns; onClose: () => void }) {
+function Detail(props: {
+  detail: WorkbenchDetail
+  runs: WorkbenchRuns
+  onClose: () => void
+  onRefresh: () => void
+  refreshing: boolean
+}) {
   const item = () => props.detail.item
-  // 正文图片先按缩略图并排展示，点开再看原图（云效正文里的图往往是一大串截图）。
-  const [preview, setPreview] = createSignal<string>()
+  const dialog = useDialog()
   const [picked, setPicked] = createSignal<string>()
   const [confirm, setConfirm] = createSignal<WorkbenchPreflight>()
   const [docs, setDocs] = createSignal<WorkbenchTaskDocs>()
@@ -1255,6 +1280,11 @@ function Detail(props: { detail: WorkbenchDetail; runs: WorkbenchRuns; onClose: 
     const active = run()
 
     return !!active && props.runs.status(active.sessionId) === "running"
+  }
+
+  // 图片预览走全局 ImagePreview：整个窗口居中、Ctrl/⌘ + 滚轮缩放，收起时飞回缩略图。
+  const previewImage = (src: string, origin: HTMLImageElement) => {
+    dialog.show(() => <ImagePreview src={src} alt={item().title} origin={origin} />)
   }
 
   const stage = () => task()?.stage
@@ -1342,6 +1372,15 @@ function Detail(props: { detail: WorkbenchDetail; runs: WorkbenchRuns; onClose: 
         <div class="workbench-detail-top">
           <span class="workbench-card-grow" />
           <IconButton
+            icon={<Icon name="refresh" />}
+            variant="ghost-muted"
+            size="small"
+            aria-label="刷新详情"
+            title="刷新详情"
+            disabled={props.refreshing}
+            onClick={props.onRefresh}
+          />
+          <IconButton
             icon={<Icon name="xmark-small" />}
             variant="ghost-muted"
             size="small"
@@ -1409,20 +1448,20 @@ function Detail(props: { detail: WorkbenchDetail; runs: WorkbenchRuns; onClose: 
         <Show when={hasContent(descriptionHtml(props.detail))}>
           <section class="workbench-block">
             <h3>描述</h3>
-            <RichText html={descriptionHtml(props.detail)} onImage={setPreview} />
+            <RichText html={descriptionHtml(props.detail)} onImage={previewImage} />
           </section>
         </Show>
 
         <Show when={props.detail.parent}>
-          {(parent) => <ContextBlock title="父工作项" context={parent()} onImage={setPreview} />}
+          {(parent) => <ContextBlock title="父工作项" context={parent()} onImage={previewImage} />}
         </Show>
 
         <For each={props.detail.children}>
-          {(child) => <ContextBlock title="子工作项" context={child} onImage={setPreview} />}
+          {(child) => <ContextBlock title="子工作项" context={child} onImage={previewImage} />}
         </For>
 
         <For each={props.detail.linked}>
-          {(linked) => <ContextBlock title="关联项" context={linked} onImage={setPreview} />}
+          {(linked) => <ContextBlock title="关联项" context={linked} onImage={previewImage} />}
         </For>
 
         <Show when={!props.detail.linked.length && props.detail.relations.length}>
@@ -1491,26 +1530,10 @@ function Detail(props: { detail: WorkbenchDetail; runs: WorkbenchRuns; onClose: 
         <Show when={props.detail.comments.length}>
           <section class="workbench-block">
             <h3>评论 · {props.detail.comments.length}</h3>
-            <CommentList comments={props.detail.comments} />
+            <CommentList comments={props.detail.comments} onImage={previewImage} />
           </section>
         </Show>
       </div>
-
-      <Show when={preview()}>
-        {(src) => (
-          <div class="workbench-lightbox" onClick={() => setPreview(undefined)}>
-            <img src={src()} alt="" />
-            <IconButton
-              class="workbench-lightbox-close"
-              icon={<Icon name="xmark-small" />}
-              variant="ghost-muted"
-              size="small"
-              aria-label="关闭图片"
-              onClick={() => setPreview(undefined)}
-            />
-          </div>
-        )}
-      </Show>
 
       <footer class="workbench-detail-foot">
         <button

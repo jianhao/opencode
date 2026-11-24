@@ -46,6 +46,12 @@ import {
 
 const DEFAULT_SIDEBAR_WIDTH = 344
 
+// 竖排标签侧边栏的默认宽度；用户拖过之后以持久化的值为准。
+const DEFAULT_TABS_SIDEBAR_WIDTH = 240
+
+// 工作台左侧导航的默认宽度。
+const DEFAULT_HOME_NAV_WIDTH = 238
+
 const DEFAULT_FILE_TREE_WIDTH = 200
 
 const DEFAULT_SESSION_WIDTH = 600
@@ -151,6 +157,10 @@ export const layoutSchema = Persistence.struct({
   sidebar: Persistence.struct({
     opened: Schema.Boolean,
     width: Schema.Finite,
+    // 用户拖动后的竖排标签侧边栏宽度；没拖过时缺省，用默认值。
+    tabsWidth: Persistence.optional(Schema.Finite),
+    // 用户拖动后的工作台左侧导航宽度。
+    homeWidth: Persistence.optional(Schema.Finite),
     workspaces: Persistence.record(Schema.Boolean),
     workspacesDefault: Schema.Boolean,
   }),
@@ -540,6 +550,23 @@ export const { use: useLayout, provider: LayoutProvider } = createSimpleContext(
         /** Records a session-scoped store, so pruning a session's layout state drops it too. */
         track(name: string) {
           dispatchScoped({ type: "track", name })
+        },
+      },
+      sidebar: {
+        /** 竖排标签侧边栏宽度：用户拖过就用持久化的值，否则用默认值。 */
+        tabsWidth: createMemo(() => store.sidebar.tabsWidth ?? DEFAULT_TABS_SIDEBAR_WIDTH),
+        resizeTabs(width: number) {
+          // 非有限值会让存储的布局解码失败，直接丢弃。
+          if (!Number.isFinite(width)) return
+
+          setStore("sidebar", "tabsWidth", width)
+        },
+        /** 工作台左侧导航的宽度，同样以用户拖动后的值为准。 */
+        homeWidth: createMemo(() => store.sidebar.homeWidth ?? DEFAULT_HOME_NAV_WIDTH),
+        resizeHome(width: number) {
+          if (!Number.isFinite(width)) return
+
+          setStore("sidebar", "homeWidth", width)
         },
       },
       session: {
